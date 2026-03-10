@@ -1,13 +1,13 @@
 # One Stop Dog Shop (OSDS)
 
-Multi-tenant dog walking & services booking platform. Walkers get their own branded pages, manage services/availability, and accept payments. Clients book and pay without creating an account.
+Multi-tenant dog walking & services booking platform. Walkers get their own subdomain at `<walker>.onestopdog.shop`, manage services/availability, and accept payments. Clients create accounts to book, save preferred sitters, and leave reviews.
 
 ## Stack
 
 | Layer | Tech | Cost |
 |---|---|---|
 | Frontend | React + Vite + Tailwind | Free |
-| Hosting | Netlify (static + serverless functions) | Free |
+| Hosting | Netlify (static + serverless functions, wildcard subdomain) | Free |
 | Database + Auth | Supabase Postgres (cloud free tier) | Free |
 | Payments | Stripe Connect (per-walker accounts) | 2.9%+30¢/txn |
 | Email | Resend | Free (3K/mo) |
@@ -26,59 +26,70 @@ Multi-tenant dog walking & services booking platform. Walkers get their own bran
 
 ## Routing
 
+Wildcard DNS (`*.onestopdog.shop → Netlify`) — single deploy, walker resolved from `Host` header subdomain. Path fallback (`/w/:walker`) for local dev.
+
 ```
-/                        → Default walker (Ellie) landing page
-/book                    → Default walker booking flow
-/s/:slug                 → Walker landing page
-/s/:slug/book            → Walker booking flow
-/s/:slug/confirmation    → Post-payment confirmation
-/my-bookings             → Client booking lookup (magic link via email)
-/admin                   → Walker dashboard (email/password auth)
-/cal/:walker_id/:token.ics  → iCal feed of walker's bookings
+<walker>.onestopdog.shop   /  /book  /confirmation     → walker pages
+onestopdog.shop            /w/:walker[/book|/confirmation] → same (path fallback)
+onestopdog.shop            /                           → platform landing
+                           /my-bookings                → client dashboard
+                           /admin                      → walker dashboard
+                           /cal/:walker_id/:token.ics  → iCal feed
 ```
 
 ## Schema
 
 ```
-walkers           slug, business_name, bio, stripe_account_id, theme_color, is_default, ical_url, calendar_feed_token
+walkers           walker, business_name, bio, stripe_account_id, theme_color, is_default, ical_url, calendar_feed_token
 services          walker_id, name, price_cents, duration_minutes, active
 availability      walker_id, day_of_week, start_time, end_time
 blocked_dates     walker_id, date, reason
-clients           name, email, phone (shared across walkers)
-payments          walker_id, client_id, stripe_session_id, total_cents, status, source, receipt_url, created_at
-bookings          walker_id, client_id, payment_id (nullable), booking_date, start_time, end_time, status
+clients           user_id (Supabase Auth), name, email, phone, favourite_walkers[]
+payments          walker_id, client_id, stripe_session_id, total_cents, tip_cents, status, source, receipt_url, created_at
+bookings          walker_id, client_id, payment_id (nullable), booking_date, start_time, end_time, capacity, blocks_slot, status
 booking_items     booking_id, service_id, pet_name, pet_details
+reviews           walker_id, client_id, booking_id, rating, comment, created_at
 ```
 
 **Statuses:**
 - `payment.status`: `paid` · `refunded` · `partially_refunded`
 - `payment.source`: `stripe` · `cash`
-- `booking.status`: `hold` · `confirmed` · `pending` · `cancelled` · `refunded`
+- `booking.status`: `requested` · `approved` · `hold` · `confirmed` · `pending` · `cancelled` · `declined` · `refunded`
+- `booking.capacity`: number of concurrent clients allowed in this slot (default `1`, admin can increase for class-style bookings)
+- `booking.blocks_slot`: `true` (default) blocks the time slot from further bookings; `false` keeps the slot open for others
 
 ### Payment Model
 
-Clients or walkers create bookings. Both paths produce the same data:
+Clients or walkers create bookings. Client bookings require walker approval before payment.
 
-**Client books online** → selects services/dates → Stripe Checkout → paid upfront.
+**Client books online** → selects services/dates → bookings created as `requested` → walker notified → walker approves or declines → if approved, payment link emailed to client → client pays via Stripe Checkout → bookings `confirmed`.
 
 **Walker books from admin** → picks client + services/dates → chooses:
-- **Mark as paid** (cash, bank transfer) → `source = 'cash'`, bookings `confirmed`
-- **Send payment link** → bookings `pending`, Checkout link emailed to client
+- **Mark as paid** (cash, bank transfer) → `source = 'cash'`, bookings `confirmed` (no approval needed — walker is creating it)
+- **Send payment link** → bookings `pending`, Checkout link emailed to client (no approval needed)
 
 ```
+requested (awaiting walker approval)
+  ├── booking (Walk, Mon Mar 2) — requested
+  └── booking (Bath, Fri Mar 6) — requested
+
+approved → payment link sent
+  ├── booking (Walk, Mon Mar 2) — pending
+  └── booking (Bath, Fri Mar 6) — pending
+
 payment ($145.00, paid, source: stripe)
   ├── booking (Walk, Mon Mar 2) — confirmed
-  ├── booking (Walk, Wed Mar 4) — confirmed
   └── booking (Bath, Fri Mar 6) — confirmed
 
 payment ($35.00, paid, source: cash)
   └── booking (Walk, Thu Mar 5) — confirmed
 
-no payment yet (link sent)
-  └── booking (Walk, Fri Mar 13) — pending
+declined by walker
+  └── booking (Walk, Sat Mar 7) — declined
 ```
 
 **Admin actions on bookings:**
+- Approve or decline requested bookings
 - Reschedule (change date/time, same service — to change service: cancel + rebook)
 - Cancel / refund individual bookings or entire payments
 - Resend payment links for pending bookings
@@ -99,9 +110,12 @@ All serverless functions live in `netlify/functions/`.
 
 | Function | Method | Purpose |
 |---|---|---|
-| `get-availability` | GET | Compute open slots for a walker/date |
-| `create-checkout` | POST | Create Stripe Checkout session with line items |
-| `admin-create-booking` | POST | Walker creates booking on behalf of client |
+| `get-availability` | GET | Compute open slots for a walker/date (respects capacity and blocks_slot) |
+| `create-booking-request` | POST | Client submits booking request (status: requested) |
+| `approve-booking` | POST | Walker approves request → sends payment link to client |
+| `decline-booking` | POST | Walker declines request → notifies client |
+| `create-checkout` | POST | Create Stripe Checkout session for approved bookings |
+| `admin-create-booking` | POST | Walker creates booking on behalf of client (skips approval) |
 | `stripe-webhook` | POST | Handle `checkout.session.completed` |
 | `stripe-connect-onboard` | POST | Start Stripe Connect Express onboarding |
 | `stripe-connect-callback` | GET | Handle Stripe OAuth redirect |
@@ -111,6 +125,7 @@ All serverless functions live in `netlify/functions/`.
 | `verify-magic-link` | POST | Validate magic link token, return bookings |
 | `cancel-booking` | POST | Cancel booking, refund if paid, notify |
 | `reschedule-booking` | POST | Update booking date/time, notify client |
+| `submit-review` | POST | Client submits rating + comment for a completed booking |
 | `calendar-feed` | GET | Generate iCal (.ics) feed for a walker |
 
 ## Walker Onboarding
@@ -123,29 +138,34 @@ All serverless functions live in `netlify/functions/`.
 4. Add services             → name, price, duration (CRUD)
 5. Set availability         → weekly hours, blocked dates, (optional) paste iCal URL
 6. Subscribe to bookings    → copy .ics feed URL → add to Google/Apple Calendar
-7. Page is live             → /s/:slug shows branded landing page
+7. Page is live             → <walker>.onestopdog.shop shows branded landing page
 ```
 
 ## Client Booking Flow
 
 ```
-1. Visit /:slug (or / for default walker)
+1. Visit <walker>.onestopdog.shop (or onestopdog.shop for default walker)
    → See services, bio, reviews
 
-2. "Book Now" → /:slug/book
+2. "Book Now" → <walker>.onestopdog.shop/book (must be logged in)
    a. Select service(s) + pet name/details
    b. Pick date(s) → see available time slots
    c. Pick time slot(s) — can add multiple to cart
-   d. Enter name, email, phone
+   d. Submit request → bookings created as `requested`
 
-3. Checkout → Stripe Checkout (one line item per booking)
+3. Walker reviews request in admin → approves or declines
+   → If approved: payment link emailed to client
+   → If declined: client notified, bookings marked `declined`
+
+4. Client clicks payment link → Stripe Checkout
    → Hold bookings created → client pays → holds promoted to confirmed
    → If session expires, holds released
    → Confirmation emails sent
 
-4. /confirmation → booking details + .ics download
+5. /confirmation → booking details + .ics download
+   → Option to leave a review and tip
 
-5. /my-bookings → enter email → magic link → view/cancel bookings
+6. /my-bookings → logged-in client dashboard → view/cancel bookings, track request status, manage favourites
 ```
 
 ## Auth
@@ -153,14 +173,19 @@ All serverless functions live in `netlify/functions/`.
 | Who | Method | Scope |
 |---|---|---|
 | Walker | Email + password (Supabase Auth) | Own data only (RLS by walker_id) |
-| Client | Magic link to email (no account) | Own bookings by verified email |
+| Client | Email + password (Supabase Auth) | Own bookings, favourites, reviews (RLS by client user_id) |
 
 ## Design Decisions
 
-- **No deferred invoicing** — pay at booking time. `payments` table groups multi-booking checkouts automatically.
-- **No client accounts** — magic link verifies email for /my-bookings. Stripe Link auto-fills payment details for returning clients.
+- **Walker approval before payment** — client bookings start as `requested`. Walker approves or declines from admin. Payment link sent only after approval. Walker-created bookings skip approval.
+- **No deferred invoicing** — pay at approval time. `payments` table groups multi-booking checkouts automatically.
+- **Client accounts required** — Supabase Auth for clients enables favourites, reviews, and booking history.
+- **Class-style slots** — bookings have a `capacity` (default 1) and a `blocks_slot` toggle. Walker can increase capacity for group walks or set `blocks_slot = false` to keep the time open for other bookings.
+- **Tipping** — clients can add a tip post-booking; stored as `tip_cents` on the payment.
+- **Reviews** — clients can leave a rating + comment after a completed booking.
 - **No OAuth for calendars** — iCal import/export covers 90% of needs. OAuth-based sync is a v2 upgrade if needed.
 - **Stripe handles payment UI** — hosted Checkout, no PCI concerns.
+- **Subdomain-per-walker** — wildcard DNS (`*.onestopdog.shop`) + single Netlify deploy. Walker resolved from `Host` header. No per-walker infrastructure.
 - **No booking modifications** — reschedule date/time only. To change service: cancel + rebook.
 
 ## Security
@@ -171,11 +196,13 @@ All serverless functions live in `netlify/functions/`.
 | Magic link forgery | Token validated server-side; signing secret never in frontend |
 | Fake webhooks | Stripe signature verified via `constructEvent()` |
 | Unauthenticated admin actions | All admin functions verify Supabase JWT + walker ownership |
-| Email enumeration | `send-magic-link` always returns same response; rate-limited per email + IP |
+| Auth enumeration | Sign-up/login always returns same response shape; rate-limited per email + IP |
 | Open email relay | `send-confirmation` only sends to emails tied to existing bookings |
+| Subdomain spoofing | Walker looked up server-side from `Host` header; unknown subdomains return 404 |
 | Cross-walker data leak | RLS on `clients` via join: walker sees only clients with their bookings |
 | Price manipulation | Prices looked up server-side from `services` table |
-| Double-booking | Hold bookings created atomically at checkout; released on expiry |
+| Unapproved payment | Checkout session only created for `approved` bookings; status checked server-side |
+| Double-booking | Hold bookings created atomically at checkout; released on expiry. Capacity and blocks_slot checked server-side. Requested bookings do not block slots until approved |
 | iCal SSRF | URL validated: HTTPS only, private IP ranges rejected |
 
 ## Future
