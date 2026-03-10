@@ -47,11 +47,11 @@ Single `users` table — every account can book services. Users who create a wal
 users              id (Supabase Auth), name, email, phone, avatar_url, favourite_walkers[]
 pets               user_id, name, breed, weight, age, notes
 walker_profiles    user_id (1:1), slug, business_name, bio, stripe_account_id, theme_color, is_default, ical_url, calendar_feed_token
-services           walker_id, name, price_cents, duration_minutes, active
+services           walker_id, name, price_cents, duration_minutes, service_type (standard|overnight), active
 availability       walker_id, day_of_week, start_time, end_time
 blocked_dates      walker_id, date, reason
 payments           walker_id, client_id, stripe_session_id, total_cents, tip_cents, status, source, receipt_url, created_at
-bookings           walker_id, client_id, payment_id (nullable), booking_date, start_time, end_time, capacity, blocks_slot, status
+bookings           walker_id, client_id, payment_id (nullable), booking_date, start_time, end_date (nullable), end_time, capacity, status, reopened_slots[]
 booking_items      booking_id, service_id, pet_id, pet_details
 reviews            walker_id, client_id, booking_id, rating, comment, created_at
 push_subscriptions user_id, endpoint, keys, device_type, created_at
@@ -62,7 +62,7 @@ push_subscriptions user_id, endpoint, keys, device_type, created_at
 - `payment.source`: `stripe` · `cash`
 - `booking.status`: `requested` · `approved` · `hold` · `confirmed` · `pending` · `cancelled` · `declined` · `refunded`
 - `booking.capacity`: number of concurrent clients allowed in this slot (default `1`)
-- `booking.blocks_slot`: `true` (default) blocks the time slot; `false` keeps slot open for others
+- `booking.reopened_slots`: for overnight bookings, walker can toggle individual time slots back open for short services (< 3 hours)
 
 ### Payment Model
 
@@ -130,7 +130,7 @@ All serverless functions live in `netlify/functions/`.
 
 | Function | Method | Purpose |
 |---|---|---|
-| `get-availability` | GET | Compute open slots for a walker/date (respects capacity and blocks_slot) |
+| `get-availability` | GET | Compute open slots for a walker/date (respects capacity, overnight blocks, reopened slots) |
 | `create-booking-request` | POST | User submits booking request (status: requested) |
 | `approve-booking` | POST | Walker approves request → sends payment link |
 | `decline-booking` | POST | Walker declines request → notifies client |
@@ -192,7 +192,8 @@ Single auth model — Supabase Auth (email/password). One account, one login. RL
 - **Unified user model** — one account can both book services and offer them. No separate walker/client accounts. Walker features activate when user creates a walker profile.
 - **Walker approval before payment** — client bookings start as `requested`. Payment link sent only after approval. Walker-created bookings skip approval.
 - **No deferred invoicing** — pay at approval time. `payments` table groups multi-booking checkouts automatically.
-- **Class-style slots** — bookings have a `capacity` (default 1) and a `blocks_slot` toggle for group walks.
+- **Overnight bookings** — span multiple days (drop-off → pick-up). All slots blocked by default; walker can reopen individual slots for short services (< 3 hours) via "Manage Availability" on each booking.
+- **Class-style slots** — bookings have a `capacity` (default 1) for group walks.
 - **Tipping** — clients can add a tip post-booking; stored as `tip_cents` on the payment.
 - **Reviews** — clients can leave a rating + comment after a completed booking.
 - **No OAuth for calendars** — iCal import/export covers 90% of needs.
@@ -214,7 +215,7 @@ Single auth model — Supabase Auth (email/password). One account, one login. RL
 | Cross-user data leak | RLS on all tables by user_id / walker ownership |
 | Price manipulation | Prices looked up server-side from `services` table |
 | Unapproved payment | Checkout session only created for `approved` bookings; status checked server-side |
-| Double-booking | Hold bookings created atomically; capacity + blocks_slot checked server-side |
+| Double-booking | Hold bookings created atomically; capacity + overnight blocks checked server-side |
 | iCal SSRF | URL validated: HTTPS only, private IP ranges rejected |
 
 ## Future
