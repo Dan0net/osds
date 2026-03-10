@@ -6,7 +6,7 @@ Multi-tenant dog walking & services booking platform. Walkers get their own subd
 
 | Layer | Tech | Cost |
 |---|---|---|
-| Frontend | React + Vite + Tailwind | Free |
+| Frontend | React + Vite + Tailwind (PWA) | Free |
 | Hosting | Netlify (static + serverless functions, wildcard subdomain) | Free |
 | Database + Auth | Supabase Postgres (cloud free tier) | Free |
 | Payments | Stripe Connect (per-walker accounts) | 2.9%+30¢/txn |
@@ -23,6 +23,7 @@ Multi-tenant dog walking & services booking platform. Walkers get their own subd
 | `date-fns` | Date math for slot computation |
 | `@supabase/supabase-js` | Database queries, auth, RLS |
 | `resend` | Transactional emails |
+| `web-push` | VAPID-based push notifications |
 
 ## Routing
 
@@ -49,6 +50,7 @@ payments          walker_id, client_id, stripe_session_id, total_cents, tip_cent
 bookings          walker_id, client_id, payment_id (nullable), booking_date, start_time, end_time, capacity, blocks_slot, status
 booking_items     booking_id, service_id, pet_name, pet_details
 reviews           walker_id, client_id, booking_id, rating, comment, created_at
+push_subscriptions  user_id, endpoint, keys, device_type, created_at
 ```
 
 **Statuses:**
@@ -126,6 +128,8 @@ All serverless functions live in `netlify/functions/`.
 | `cancel-booking` | POST | Cancel booking, refund if paid, notify |
 | `reschedule-booking` | POST | Update booking date/time, notify client |
 | `submit-review` | POST | Client submits rating + comment for a completed booking |
+| `send-push` | POST | Send push notification to walker or client |
+| `save-push-subscription` | POST | Store browser push subscription for a user |
 | `calendar-feed` | GET | Generate iCal (.ics) feed for a walker |
 
 ## Walker Onboarding
@@ -185,6 +189,7 @@ All serverless functions live in `netlify/functions/`.
 - **Reviews** — clients can leave a rating + comment after a completed booking.
 - **No OAuth for calendars** — iCal import/export covers 90% of needs. OAuth-based sync is a v2 upgrade if needed.
 - **Stripe handles payment UI** — hosted Checkout, no PCI concerns.
+- **PWA with push notifications** — `manifest.json` + service worker enables install-to-home-screen and Web Push (VAPID). Works on Android browsers natively; iOS requires "Add to Home Screen" first. Push sent on: new request (→ walker), approval/decline (→ client), payment received (→ walker), cancellation (→ both), upcoming reminders (→ both).
 - **Subdomain-per-walker** — wildcard DNS (`*.onestopdog.shop`) + single Netlify deploy. Walker resolved from `Host` header. No per-walker infrastructure.
 - **No booking modifications** — reschedule date/time only. To change service: cancel + rebook.
 
