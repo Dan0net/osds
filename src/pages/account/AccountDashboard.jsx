@@ -25,9 +25,9 @@ export default function AccountDashboard() {
             </div>
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <p className="text-sm text-gray-500">Walker page</p>
-              <p className="text-sm font-medium text-indigo-600 mt-1">
+              <a href="https://ellie.onestopdog.shop" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-600 hover:underline mt-1 inline-block">
                 ellie.onestopdog.shop
-              </p>
+              </a>
             </div>
           </>
         )}

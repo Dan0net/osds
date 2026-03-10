@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { MOCK_USER, MOCK_BOOKINGS, MOCK_CLIENT_BOOKINGS, MOCK_WALKERS, getMockSlots } from '../../lib/mockData'
+import { MOCK_USER, MOCK_BOOKINGS, MOCK_CLIENT_BOOKINGS, MOCK_WALKERS, MOCK_EXTERNAL_EVENTS, getMockSlots } from '../../lib/mockData'
+import BookingsCalendar from '../../components/BookingsCalendar'
 
 const STATUS_STYLES = {
   requested: 'bg-yellow-100 text-yellow-700',
@@ -66,6 +67,8 @@ export default function AccountBookings() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Bookings</h1>
+
+      <BookingsCalendar incoming={incoming} mine={mine} external={MOCK_EXTERNAL_EVENTS} />
 
       {/* Tabs */}
       {MOCK_USER.has_walker_profile && (

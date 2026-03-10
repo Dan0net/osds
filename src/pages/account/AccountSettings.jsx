@@ -7,7 +7,7 @@ export default function AccountSettings() {
   // Services
   const [services, setServices] = useState(MOCK_SERVICES)
   const [editingSvc, setEditingSvc] = useState(null)
-  const [svcForm, setSvcForm] = useState({ name: '', price_cents: '', duration_minutes: '' })
+  const [svcForm, setSvcForm] = useState({ name: '', price_cents: '', duration_minutes: '', service_type: 'standard' })
 
   // Availability
   const [availability, setAvailability] = useState(
@@ -32,17 +32,18 @@ export default function AccountSettings() {
   // --- Services ---
   function startAddSvc() {
     setEditingSvc('new')
-    setSvcForm({ name: '', price_cents: '', duration_minutes: '' })
+    setSvcForm({ name: '', price_cents: '', duration_minutes: '', service_type: 'standard' })
   }
   function startEditSvc(svc) {
     setEditingSvc(svc.id)
-    setSvcForm({ name: svc.name, price_cents: String(svc.price_cents / 100), duration_minutes: String(svc.duration_minutes) })
+    setSvcForm({ name: svc.name, price_cents: String(svc.price_cents / 100), duration_minutes: String(svc.duration_minutes), service_type: svc.service_type || 'standard' })
   }
   function saveSvc() {
     const data = {
       name: svcForm.name,
       price_cents: Math.round(parseFloat(svcForm.price_cents) * 100),
       duration_minutes: parseInt(svcForm.duration_minutes),
+      service_type: svcForm.service_type,
     }
     if (editingSvc === 'new') {
       setServices((prev) => [...prev, { id: `svc-${Date.now()}`, walker_id: 'walker-1', active: true, ...data }])
@@ -100,11 +101,19 @@ export default function AccountSettings() {
 
             {editingSvc && (
               <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
-                <div className="grid sm:grid-cols-3 gap-3">
+                <div className="grid sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                     <input type="text" value={svcForm.name} onChange={(e) => setSvcForm({ ...svcForm, name: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select value={svcForm.service_type} onChange={(e) => setSvcForm({ ...svcForm, service_type: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
+                      <option value="standard">Standard</option>
+                      <option value="overnight">Overnight</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Price (£)</label>
@@ -112,7 +121,7 @@ export default function AccountSettings() {
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration (min)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{svcForm.service_type === 'overnight' ? 'Drop-off slot (min)' : 'Duration (min)'}</label>
                     <input type="number" value={svcForm.duration_minutes} onChange={(e) => setSvcForm({ ...svcForm, duration_minutes: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
                   </div>
@@ -129,8 +138,11 @@ export default function AccountSettings() {
                 <div key={svc.id} className={`bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between ${!svc.active ? 'opacity-50' : ''}`}>
                   <div>
                     <span className="font-semibold">{svc.name}</span>
+                    {svc.service_type === 'overnight' && (
+                      <span className="ml-2 text-xs font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">overnight</span>
+                    )}
                     <span className="text-gray-400 mx-2">·</span>
-                    <span className="text-indigo-600 font-medium">£{(svc.price_cents / 100).toFixed(2)}</span>
+                    <span className="text-indigo-600 font-medium">£{(svc.price_cents / 100).toFixed(2)}{svc.service_type === 'overnight' ? '/night' : ''}</span>
                     <span className="text-gray-400 mx-2">·</span>
                     <span className="text-gray-500 text-sm">{svc.duration_minutes} min</span>
                   </div>

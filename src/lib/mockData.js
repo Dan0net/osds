@@ -133,6 +133,14 @@ export const MOCK_BLOCKED_DATES = [
   { date: '2026-04-03', reason: 'Vet appointment' },
 ]
 
+// External calendar events (imported via iCal, blocking availability)
+export const MOCK_EXTERNAL_EVENTS = [
+  { id: 'ext-1', title: 'Dentist', date: '2026-03-11', start_time: '14:00', end_time: '15:00', source: 'Google Calendar' },
+  { id: 'ext-2', title: 'Team Meeting', date: '2026-03-13', start_time: '10:00', end_time: '11:30', source: 'Google Calendar' },
+  { id: 'ext-3', title: 'Car Service', date: '2026-03-19', start_time: '09:00', end_time: '12:00', source: 'Google Calendar' },
+  { id: 'ext-4', title: 'Holiday', date: '2026-03-25', start_time: '00:00', end_time: '23:59', source: 'Google Calendar', allDay: true },
+]
+
 // Client bookings (booked by Ellie as a client from other walkers)
 export const MOCK_CLIENT_BOOKINGS = [
   {
