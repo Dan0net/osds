@@ -48,10 +48,33 @@ export default function BookingFlow() {
                   month: 'short',
                 })}
               </span>
-              <span className="text-gray-400 mx-2">·</span>
-              <span className="text-gray-600">
-                {slot.time}–{slot.endTime}
-              </span>
+              {slot.isOvernight && slot.endDate ? (
+                <>
+                  <span className="text-gray-400 mx-1">→</span>
+                  <span className="font-medium">
+                    {new Date(slot.endDate).toLocaleDateString('en-GB', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </span>
+                  <span className="text-gray-400 mx-2">·</span>
+                  <span className="text-gray-600">
+                    Drop-off {slot.time} · Pick-up {slot.endTime}
+                  </span>
+                  <span className="text-gray-400 mx-2">·</span>
+                  <span className="text-purple-600 text-sm font-medium">
+                    🌙 {slot.nights} night{slot.nights > 1 ? 's' : ''}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-gray-400 mx-2">·</span>
+                  <span className="text-gray-600">
+                    {slot.time}–{slot.endTime}
+                  </span>
+                </>
+              )}
               <span className="text-gray-400 mx-2">·</span>
               <span className="text-gray-600">{slot.serviceName}</span>
             </div>

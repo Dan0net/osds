@@ -52,21 +52,22 @@ const WALKER_PROFILES = {
 // Per-walker services
 const WALKER_SERVICES = {
   'walker-1': [
-    { id: 'svc-1', walker_id: 'walker-1', name: '30-Minute Walk', price_cents: 1500, duration_minutes: 30, active: true },
-    { id: 'svc-2', walker_id: 'walker-1', name: '60-Minute Walk', price_cents: 2500, duration_minutes: 60, active: true },
-    { id: 'svc-3', walker_id: 'walker-1', name: 'Puppy Visit', price_cents: 2000, duration_minutes: 45, active: true },
-    { id: 'svc-4', walker_id: 'walker-1', name: 'Bath & Groom', price_cents: 4500, duration_minutes: 90, active: true },
+    { id: 'svc-1', walker_id: 'walker-1', name: '30-Minute Walk', price_cents: 1500, duration_minutes: 30, service_type: 'standard', active: true },
+    { id: 'svc-2', walker_id: 'walker-1', name: '60-Minute Walk', price_cents: 2500, duration_minutes: 60, service_type: 'standard', active: true },
+    { id: 'svc-3', walker_id: 'walker-1', name: 'Puppy Visit', price_cents: 2000, duration_minutes: 45, service_type: 'standard', active: true },
+    { id: 'svc-4', walker_id: 'walker-1', name: 'Bath & Groom', price_cents: 4500, duration_minutes: 90, service_type: 'standard', active: true },
+    { id: 'svc-12', walker_id: 'walker-1', name: 'Overnight', price_cents: 5000, duration_minutes: 30, service_type: 'overnight', active: true },
   ],
   'walker-2': [
-    { id: 'svc-5', walker_id: 'walker-2', name: 'Group Walk', price_cents: 1200, duration_minutes: 60, active: true },
-    { id: 'svc-6', walker_id: 'walker-2', name: 'Solo Adventure', price_cents: 2000, duration_minutes: 60, active: true },
-    { id: 'svc-7', walker_id: 'walker-2', name: 'Beach Run', price_cents: 3000, duration_minutes: 90, active: true },
-    { id: 'svc-8', walker_id: 'walker-2', name: 'Puppy Playdate', price_cents: 1800, duration_minutes: 45, active: true },
+    { id: 'svc-5', walker_id: 'walker-2', name: 'Group Walk', price_cents: 1200, duration_minutes: 60, service_type: 'standard', active: true },
+    { id: 'svc-6', walker_id: 'walker-2', name: 'Solo Adventure', price_cents: 2000, duration_minutes: 60, service_type: 'standard', active: true },
+    { id: 'svc-7', walker_id: 'walker-2', name: 'Beach Run', price_cents: 3000, duration_minutes: 90, service_type: 'standard', active: true },
+    { id: 'svc-8', walker_id: 'walker-2', name: 'Puppy Playdate', price_cents: 1800, duration_minutes: 45, service_type: 'standard', active: true },
   ],
   'walker-3': [
-    { id: 'svc-9', walker_id: 'walker-3', name: 'Socialisation Walk', price_cents: 2200, duration_minutes: 45, active: true },
-    { id: 'svc-10', walker_id: 'walker-3', name: 'Anxious Dog Walk', price_cents: 2500, duration_minutes: 60, active: true },
-    { id: 'svc-11', walker_id: 'walker-3', name: 'Puppy Training Walk', price_cents: 3500, duration_minutes: 60, active: true },
+    { id: 'svc-9', walker_id: 'walker-3', name: 'Socialisation Walk', price_cents: 2200, duration_minutes: 45, service_type: 'standard', active: true },
+    { id: 'svc-10', walker_id: 'walker-3', name: 'Anxious Dog Walk', price_cents: 2500, duration_minutes: 60, service_type: 'standard', active: true },
+    { id: 'svc-11', walker_id: 'walker-3', name: 'Puppy Training Walk', price_cents: 3500, duration_minutes: 60, service_type: 'standard', active: true },
   ],
 }
 
@@ -192,6 +193,23 @@ export const MOCK_BOOKINGS = [
     status: 'confirmed',
     price_cents: 2000,
   },
+  {
+    id: 'bk-6',
+    walker_id: 'walker-1',
+    client_id: 'client-1',
+    client_name: 'Dan',
+    service_name: 'Overnight',
+    pet_name: 'Max',
+    booking_date: '2026-03-16',
+    start_time: '10:00',
+    end_date: '2026-03-18',
+    end_time: '14:00',
+    status: 'confirmed',
+    price_cents: 10000,
+    is_overnight: true,
+    nights: 2,
+    reopened_slots: [],
+  },
 ]
 
 // Get availability window for a date (null if unavailable)
@@ -205,15 +223,22 @@ export function getAvailabilityWindow(date) {
 }
 
 // Generate all 30-min grid slots for a date, marking which are bookable for a given duration
-export function getMockSlots(date, durationMinutes = 30) {
+// For overnight services, constrain drop-off times to 7am–7pm
+export function getMockSlots(date, durationMinutes = 30, { overnight = false } = {}) {
   const avail = getAvailabilityWindow(date)
   if (!avail) return []
 
   const slots = []
   const [startH, startM] = avail.start_time.split(':').map(Number)
   const [endH, endM] = avail.end_time.split(':').map(Number)
-  const startMinutes = startH * 60 + startM
-  const endMinutes = endH * 60 + endM
+  let startMinutes = startH * 60 + startM
+  let endMinutes = endH * 60 + endM
+
+  if (overnight) {
+    // Constrain to 7am–7pm for overnight drop-off
+    startMinutes = Math.max(startMinutes, 7 * 60)
+    endMinutes = Math.min(endMinutes, 19 * 60)
+  }
 
   for (let m = startMinutes; m + durationMinutes <= endMinutes; m += 30) {
     const h = Math.floor(m / 60)

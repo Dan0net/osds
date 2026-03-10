@@ -59,7 +59,9 @@ export default function WalkerPage() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">
-                  {service.duration_minutes} minutes
+                  {service.service_type === 'overnight'
+                    ? 'per night'
+                    : `${service.duration_minutes} minutes`}
                 </p>
               </div>
             ))}
