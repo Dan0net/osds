@@ -1,0 +1,26 @@
+{
+  "name": "osds",
+  "version": "1.0.0",
+  "description": "Multi-tenant dog walking & services booking platform. Walkers get their own subdomain at `<walker>.onestopdog.shop`, manage services/availability, and accept payments. Clients create accounts to book, save preferred sitters, and leave reviews.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@vitejs/plugin-react": "^5.1.4",
+    "tailwindcss": "^4.2.1",
+    "vite": "^7.3.1"
+  }
+}
