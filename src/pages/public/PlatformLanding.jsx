@@ -16,16 +16,10 @@ export default function PlatformLanding() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              to="/signup?role=client"
+              to="/signup"
               className="bg-white text-indigo-600 font-semibold px-6 py-3 rounded-lg hover:bg-indigo-50 text-center"
             >
-              I need someone to walk my dog!
-            </Link>
-            <Link
-              to="/signup?role=walker"
-              className="border-2 border-white text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700 text-center"
-            >
-              I'm a dog walker
+              Get started
             </Link>
           </div>
         </div>
@@ -103,7 +97,7 @@ export default function PlatformLanding() {
             all in one place. No monthly fees, just a small transaction fee when you get paid.
           </p>
           <Link
-            to="/signup?role=walker"
+            to="/signup"
             className="inline-block bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-indigo-700"
           >
             Get started for free

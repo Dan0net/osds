@@ -7,13 +7,14 @@ import BookingFlow from './pages/public/BookingFlow'
 import Confirmation from './pages/public/Confirmation'
 import Login from './pages/public/Login'
 import Signup from './pages/public/Signup'
-import AdminLayout from './pages/admin/AdminLayout'
-import AdminBookings from './pages/admin/AdminBookings'
-import AdminServices from './pages/admin/AdminServices'
-import AdminAvailability from './pages/admin/AdminAvailability'
-import AdminCalendarSync from './pages/admin/AdminCalendarSync'
-import AdminProfile from './pages/admin/AdminProfile'
-import MyBookings from './pages/client/MyBookings'
+import AccountLayout from './pages/account/AccountLayout'
+import AccountDashboard from './pages/account/AccountDashboard'
+import AccountBookings from './pages/account/AccountBookings'
+import AccountPets from './pages/account/AccountPets'
+import AccountPayments from './pages/account/AccountPayments'
+import AccountInbox from './pages/account/AccountInbox'
+import AccountProfile from './pages/account/AccountProfile'
+import AccountSettings from './pages/account/AccountSettings'
 
 function WalkerRoutes({ walker }) {
   return (
@@ -34,7 +35,6 @@ function PlatformRoutes() {
         <Route index element={<PlatformLanding />} />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
-        <Route path="my-bookings" element={<MyBookings />} />
 
         {/* Path-based walker fallback for local dev */}
         <Route path="w/:walker" element={<WalkerPage />} />
@@ -42,12 +42,14 @@ function PlatformRoutes() {
         <Route path="w/:walker/confirmation" element={<Confirmation />} />
       </Route>
 
-      <Route path="admin" element={<AdminLayout />}>
-        <Route index element={<AdminBookings />} />
-        <Route path="services" element={<AdminServices />} />
-        <Route path="availability" element={<AdminAvailability />} />
-        <Route path="calendar" element={<AdminCalendarSync />} />
-        <Route path="profile" element={<AdminProfile />} />
+      <Route path="account" element={<AccountLayout />}>
+        <Route index element={<AccountDashboard />} />
+        <Route path="bookings" element={<AccountBookings />} />
+        <Route path="pets" element={<AccountPets />} />
+        <Route path="payments" element={<AccountPayments />} />
+        <Route path="inbox" element={<AccountInbox />} />
+        <Route path="profile" element={<AccountProfile />} />
+        <Route path="settings" element={<AccountSettings />} />
       </Route>
     </Routes>
   )

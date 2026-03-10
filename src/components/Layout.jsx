@@ -9,11 +9,8 @@ export default function Layout({ walker }) {
             {walker ? `${walker}'s Dog Walking` : 'One Stop Dog Shop'}
           </Link>
           <nav className="flex items-center gap-3 text-sm">
-            <Link to="/my-bookings" className="text-gray-600 hover:text-indigo-600">
-              My Bookings
-            </Link>
-            <Link to="/admin" className="text-gray-600 hover:text-indigo-600">
-              Admin
+            <Link to="/account" className="text-gray-600 hover:text-indigo-600">
+              Account
             </Link>
             {!walker && (
               <>

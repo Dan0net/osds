@@ -39,7 +39,7 @@ export default function Confirmation() {
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Link
-          to="/my-bookings"
+          to="/account/bookings"
           className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700"
         >
           View my bookings

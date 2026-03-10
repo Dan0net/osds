@@ -8,8 +8,8 @@ export default function Login() {
 
   function handleSubmit(e) {
     e.preventDefault()
-    // Mock: just navigate to appropriate dashboard
-    navigate('/my-bookings')
+    // Mock: navigate to account
+    navigate('/account')
   }
 
   return (

@@ -1,4 +1,20 @@
-// Mock data for Phase 2 — hardcoded walker (Ellie) and client (Dan)
+// Mock data for Phase 2 — unified user model
+
+// Current logged-in user (Ellie — both a walker and a client)
+export const MOCK_USER = {
+  id: 'user-1',
+  name: 'Ellie',
+  email: 'ellie@example.com',
+  phone: '07700 900001',
+  avatar_url: null,
+  favourite_walkers: ['walker-2'],
+  has_walker_profile: true,
+}
+
+export const MOCK_PETS = [
+  { id: 'pet-1', user_id: 'user-1', name: 'Luna', breed: 'Border Collie', weight: '18kg', age: '3 years', notes: 'Very energetic, loves fetch' },
+  { id: 'pet-2', user_id: 'user-1', name: 'Biscuit', breed: 'Cockapoo', weight: '10kg', age: '1 year', notes: 'Still a puppy, needs socialisation' },
+]
 
 export const MOCK_WALKERS = [
   {
@@ -100,7 +116,7 @@ export function getReviewsByWalkerId(walkerId) {
   return WALKER_REVIEWS[walkerId] || []
 }
 
-// Legacy exports for admin pages
+// Legacy exports for account pages
 export const MOCK_WALKER = WALKER_PROFILES.ellie
 export const MOCK_SERVICES = WALKER_SERVICES['walker-1']
 
@@ -117,16 +133,37 @@ export const MOCK_BLOCKED_DATES = [
   { date: '2026-04-03', reason: 'Vet appointment' },
 ]
 
-export const MOCK_CLIENT = {
-  id: 'client-1',
-  name: 'Dan',
-  email: 'dan@example.com',
-  phone: '07700 900000',
-  favourite_walkers: ['walker-1'],
-}
+// Client bookings (booked by Ellie as a client from other walkers)
+export const MOCK_CLIENT_BOOKINGS = [
+  {
+    id: 'cbk-1',
+    walker_id: 'walker-2',
+    walker_name: "James's Paw Patrol",
+    client_id: 'user-1',
+    service_name: 'Group Walk',
+    pet_name: 'Luna',
+    booking_date: '2026-03-13',
+    start_time: '09:00',
+    end_time: '10:00',
+    status: 'confirmed',
+    price_cents: 1200,
+  },
+  {
+    id: 'cbk-2',
+    walker_id: 'walker-3',
+    walker_name: "Sarah's Happy Tails",
+    client_id: 'user-1',
+    service_name: 'Socialisation Walk',
+    pet_name: 'Biscuit',
+    booking_date: '2026-03-17',
+    start_time: '11:00',
+    end_time: '11:45',
+    status: 'requested',
+    price_cents: 2200,
+  },
+]
 
-export const MOCK_REVIEWS = WALKER_REVIEWS['walker-1']
-
+// Incoming bookings (to Ellie as a walker, from clients)
 export const MOCK_BOOKINGS = [
   {
     id: 'bk-1',

@@ -15,13 +15,12 @@ osds/
 ├── src/
 │   ├── components/        # Shared UI
 │   ├── pages/
-│   │   ├── public/        # Landing, WalkerPage, BookingFlow, Confirmation
-│   │   ├── admin/         # Dashboard, Services, Availability, Bookings, CalendarSync
-│   │   └── client/        # MyBookings
+│   │   ├── public/        # Landing, WalkerPage, BookingFlow, Confirmation, Login, Signup
+│   │   └── account/       # AccountLayout, Dashboard, Bookings, Pets, Payments, Inbox, Profile, Settings
 │   ├── lib/
 │   │   ├── supabase.js    # Supabase client init
 │   │   ├── api.js         # Fetch wrappers for Netlify Functions
-│   │   ├── walker.js      # Resolve walker from subdomain or /w/:walker path
+│   │   ├── walker.js      # Resolve walker from subdomain or /w/:slug path
 │   │   └── utils.js       # Date/time helpers
 │   ├── hooks/             # useWalker, useAuth, useBookings, etc.
 │   ├── context/           # AuthContext, WalkerContext
@@ -40,36 +39,36 @@ osds/
 
 ## Phase 2 — UI Shells (mock data, no backend)
 
-All pages built with hardcoded mock data for one walker (Ellie) and one client (Dan). No Supabase, Stripe, or function wiring. Mobile-responsive from the start.
+All pages built with hardcoded mock data. One user (Ellie) who is both a walker and a client. No Supabase, Stripe, or function wiring. Mobile-responsive from the start.
 
-- [ ] Subdomain + `/w/:walker` routing — hardcoded to resolve "ellie"
-- [ ] Platform landing page at `onestopdog.shop` — value prop, how it works, dual sign-up CTAs ("I need someone to walk my dog!" / "I'm a dog walker")
-- [ ] Walker landing page (`ellie.onestopdog.shop`) — Ellie's bio, services, mock reviews, "Book Now" CTA
-- [ ] Client booking flow: select service → pick date → pick time slots → submit request → confirmation page (all navigable, nothing persists)
-- [ ] Auth screens: sign-up / login for walker and client (forms only, no validation)
-- [ ] Admin dashboard (mocked as Ellie):
-  - [ ] Bookings list with mock requests from Dan — approve/decline buttons
-  - [ ] Services CRUD form (pre-filled with Ellie's services)
-  - [ ] Availability editor (day-of-week hours, blocked dates)
-  - [ ] Calendar sync page (paste URL, copy feed URL)
-  - [ ] Profile editor (pre-filled with Ellie's info)
-- [ ] Client dashboard `/my-bookings` (mocked as Dan): mock bookings with various statuses (requested, confirmed, declined), favourites list
+- [ ] Subdomain + `/w/:slug` routing — hardcoded to resolve "ellie"
+- [ ] Platform landing page at `onestopdog.shop` — value prop, how it works, walker showcase, single sign-up CTA
+- [ ] Walker landing page (`ellie.onestopdog.shop`) — bio, services, mock reviews, "Book Now" CTA
+- [ ] Booking flow: select service → pick date → pick time slots → pick pet → submit request → confirmation page
+- [ ] Auth screens: sign-up / login (single account, no role toggle)
+- [ ] Account section `/account` with:
+  - [ ] Dashboard — overview: upcoming bookings, pending requests (if walker), walker page link
+  - [ ] Bookings — tabbed: incoming requests (walker) + my bookings (client), approve/decline, favourites
+  - [ ] Pets — CRUD for user's pets
+  - [ ] Payments — payment history, Stripe dashboard link (if walker)
+  - [ ] Inbox — mock notifications
+  - [ ] Profile — personal info + walker profile fields (if walker), Stripe connect
+  - [ ] Settings — services CRUD, availability editor, calendar sync (all conditional on walker profile)
 - [ ] Mobile-responsive across all pages (Tailwind breakpoints)
 
-**Milestone:** Every user journey clickable end-to-end on desktop and mobile using Ellie (walker) and Dan (client). Platform landing → sign-up. Client browse → book → confirm. Admin approve/decline. My-bookings dashboard. All with mock data.
+**Milestone:** Every user journey clickable end-to-end. Platform landing → sign-up. Walker page → book → confirm. Account: dashboard, bookings (client + walker views), pets, payments, inbox, profile, settings. All with mock data.
 
 ---
 
 ## Phase 3 — Auth + DB Foundation
 
-- [ ] Supabase project: create all tables, RLS policies
-- [ ] Supabase Auth for walker sign-up/login
-- [ ] Supabase Auth for client sign-up/login
-- [ ] Protected route guards (admin = walker auth, booking flow = client auth)
+- [ ] Supabase project: create all tables (`users`, `pets`, `walker_profiles`, `services`, etc.), RLS policies
+- [ ] Supabase Auth for sign-up/login (single account)
+- [ ] Protected route guards (account pages require auth)
 - [ ] Walker landing page resolves from DB (replace mock data)
-- [ ] Walker profile editor wired to DB
+- [ ] Profile editor wired to DB (user + walker profile)
 
-**Milestone:** Real sign-up/login for both roles. Walker pages load from DB. Unauthenticated users redirected appropriately.
+**Milestone:** Real sign-up/login. Walker pages load from DB. Unauthenticated users redirected. Any user can create a walker profile from account settings.
 
 ---
 
@@ -78,11 +77,11 @@ All pages built with hardcoded mock data for one walker (Ellie) and one client (
 - [ ] Services CRUD wired to DB
 - [ ] Availability editor wired to DB (day-of-week hours, blocked dates)
 - [ ] `get-availability` function — slot computation from availability + existing bookings
-- [ ] `create-booking-request` — client submits request → status `requested`
-- [ ] Admin bookings list: real data, `approve-booking` / `decline-booking` wired
+- [ ] `create-booking-request` — user submits request → status `requested`
+- [ ] Account bookings: real data, `approve-booking` / `decline-booking` wired
 - [ ] Capacity + `blocks_slot` logic in availability computation
 
-**Milestone:** Client requests a booking → walker sees it in admin → approves or declines → status updates visible to both. Full request loop working end-to-end.
+**Milestone:** User requests a booking → walker sees it in account → approves or declines → status updates visible to both. Full request loop working end-to-end.
 
 ---
 
