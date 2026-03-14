@@ -29,6 +29,22 @@ export default function AccountSettings() {
   const feedUrl = 'https://onestopdog.shop/cal/walker-1/mock-token-123.ics'
   const [copied, setCopied] = useState(false)
 
+  // Notifications
+  const [notifications, setNotifications] = useState({
+    email_new_request: true,
+    email_approval: true,
+    email_cancellation: true,
+    email_reminders: true,
+    push_new_request: true,
+    push_approval: true,
+    push_cancellation: true,
+    push_reminders: false,
+  })
+
+  function toggleNotification(key) {
+    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
   // --- Services ---
   function startAddSvc() {
     setEditingSvc('new')
@@ -241,6 +257,43 @@ export default function AccountSettings() {
           </div>
         </>
       )}
+
+      {/* Notifications */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-4">Notifications</h2>
+        <div className="bg-white border border-gray-200 rounded-lg divide-y">
+          {[
+            { label: 'New booking request', emailKey: 'email_new_request', pushKey: 'push_new_request' },
+            { label: 'Booking approved / declined', emailKey: 'email_approval', pushKey: 'push_approval' },
+            { label: 'Cancellation', emailKey: 'email_cancellation', pushKey: 'push_cancellation' },
+            { label: 'Reminders', emailKey: 'email_reminders', pushKey: 'push_reminders' },
+          ].map((item) => (
+            <div key={item.emailKey} className="p-4 flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">{item.label}</span>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={notifications[item.emailKey]}
+                    onChange={() => toggleNotification(item.emailKey)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Email
+                </label>
+                <label className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={notifications[item.pushKey]}
+                    onChange={() => toggleNotification(item.pushKey)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Push
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Become a Walker CTA */}
       {!MOCK_USER.has_walker_profile && (

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
+import { MOCK_PETS } from '../../lib/mockData'
 
 export default function BookingFlow() {
   const { walker: walkerParam } = useParams()
@@ -8,14 +9,17 @@ export default function BookingFlow() {
   const location = useLocation()
 
   const slots = location.state?.slots || []
-  const [petName, setPetName] = useState('')
-  const [petDetails, setPetDetails] = useState('')
+  const [selectedPetId, setSelectedPetId] = useState(MOCK_PETS[0]?.id || '')
+  const [petNotes, setPetNotes] = useState('')
 
   const totalCents = slots.reduce((sum, s) => sum + s.priceCents, 0)
+  const selectedPet = MOCK_PETS.find((p) => p.id === selectedPetId)
 
   function handleSubmit(e) {
     e.preventDefault()
-    navigate(`${prefix}/confirmation`)
+    navigate(`${prefix}/confirmation`, {
+      state: { slots, pet: selectedPet, petNotes, totalCents },
+    })
   }
 
   if (slots.length === 0) {
@@ -91,29 +95,33 @@ export default function BookingFlow() {
         </div>
       </div>
 
-      {/* Pet details form */}
+      {/* Pet selection form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pet name
+            Select pet
           </label>
-          <input
-            type="text"
-            value={petName}
-            onChange={(e) => setPetName(e.target.value)}
-            placeholder="Max"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          />
+          <select
+            value={selectedPetId}
+            onChange={(e) => setSelectedPetId(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+          >
+            {MOCK_PETS.map((pet) => (
+              <option key={pet.id} value={pet.id}>
+                {pet.name} — {pet.breed}, {pet.weight}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pet details <span className="text-gray-400">(optional)</span>
+            Notes for the walker <span className="text-gray-400">(optional)</span>
           </label>
           <textarea
             rows={3}
-            value={petDetails}
-            onChange={(e) => setPetDetails(e.target.value)}
-            placeholder="Breed, any special needs, notes for the walker..."
+            value={petNotes}
+            onChange={(e) => setPetNotes(e.target.value)}
+            placeholder="Any special needs, extra instructions..."
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
           />
         </div>

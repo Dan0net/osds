@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
-import { MOCK_USER, MOCK_BOOKINGS, MOCK_CLIENT_BOOKINGS } from '../../lib/mockData'
+import { MOCK_USER, MOCK_BOOKINGS, MOCK_CLIENT_BOOKINGS, MOCK_WALKERS } from '../../lib/mockData'
 
 export default function AccountDashboard() {
   const upcomingAsClient = MOCK_CLIENT_BOOKINGS.filter(
     (b) => b.status === 'confirmed' || b.status === 'requested',
   )
   const pendingRequests = MOCK_BOOKINGS.filter((b) => b.status === 'requested')
+  const confirmedWalkerBookings = MOCK_BOOKINGS.filter((b) => b.status === 'confirmed')
+  const totalRevenueCents = confirmedWalkerBookings.reduce((sum, b) => sum + b.price_cents, 0)
+  const walkerProfile = MOCK_WALKERS.find((w) => w.slug === 'ellie')
 
   return (
     <div>
@@ -31,6 +34,48 @@ export default function AccountDashboard() {
             </div>
           </>
         )}
+      </div>
+
+      {/* Walker stats */}
+      {MOCK_USER.has_walker_profile && (
+        <div className="grid sm:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-500">Total bookings</p>
+            <p className="text-2xl font-bold mt-1">{MOCK_BOOKINGS.length}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-500">Rating</p>
+            <p className="text-2xl font-bold mt-1">
+              <span className="text-yellow-400 mr-1">★</span>
+              {walkerProfile?.rating || '4.7'}
+            </p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-500">Revenue</p>
+            <p className="text-2xl font-bold mt-1">£{(totalRevenueCents / 100).toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Recent activity */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
+        <div className="bg-white border border-gray-200 rounded-lg divide-y">
+          {[
+            { text: 'Dan requested a 30-Minute Walk for Max', time: '2 hours ago', icon: '📩' },
+            { text: 'Dan requested a Bath & Groom for Max', time: '2 hours ago', icon: '📩' },
+            { text: 'You booked a Group Walk with James\'s Paw Patrol', time: '1 day ago', icon: '✅' },
+            { text: 'Dan\'s 60-Minute Walk was confirmed', time: '3 days ago', icon: '💳' },
+          ].map((item, i) => (
+            <div key={i} className="p-3 flex items-start gap-3">
+              <span className="text-lg shrink-0">{item.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-800">{item.text}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Pending walker requests */}

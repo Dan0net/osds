@@ -6,6 +6,7 @@ export default function AccountProfile() {
     name: MOCK_USER.name,
     email: MOCK_USER.email,
     phone: MOCK_USER.phone,
+    avatar_url: MOCK_USER.avatar_url || '',
     business_name: MOCK_WALKER.business_name,
     bio: MOCK_WALKER.bio,
     theme_color: MOCK_WALKER.theme_color,
@@ -31,6 +32,28 @@ export default function AccountProfile() {
         {/* User info */}
         <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
           <h2 className="font-semibold">Personal info</h2>
+
+          {/* Avatar */}
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-bold overflow-hidden shrink-0">
+              {form.avatar_url ? (
+                <img src={form.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                form.name.charAt(0).toUpperCase()
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
+              <input
+                type="url"
+                value={form.avatar_url}
+                onChange={(e) => update('avatar_url', e.target.value)}
+                placeholder="https://example.com/photo.jpg"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              />
+            </div>
+          </div>
+
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
