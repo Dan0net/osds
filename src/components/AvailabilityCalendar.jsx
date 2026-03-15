@@ -245,17 +245,17 @@ export default function AvailabilityCalendar({ services }) {
     <div>
       {/* Overnight selection prompt */}
       {isOvernight && overnightStart && (
-        <div className="mb-4 bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center justify-between">
-          <p className="text-sm text-purple-700">
+        <div className="mb-3 bg-purple-50 border border-purple-200 rounded-lg p-2.5 flex items-center justify-between">
+          <p className="text-xs text-purple-700">
             <span className="font-medium">Drop-off:</span>{' '}
             {new Date(overnightStart.date).toLocaleDateString('en-GB', {
               weekday: 'short', day: 'numeric', month: 'short',
             })}{' '}
-            at {overnightStart.time} — now select a <span className="font-medium">pick-up</span> date &amp; time
+            at {overnightStart.time} — now select <span className="font-medium">pick-up</span>
           </p>
           <button
             onClick={cancelOvernightSelection}
-            className="text-sm text-purple-600 hover:text-purple-800 font-medium ml-3"
+            className="text-xs text-purple-600 hover:text-purple-800 font-medium ml-2"
           >
             Cancel
           </button>
@@ -263,7 +263,7 @@ export default function AvailabilityCalendar({ services }) {
       )}
 
       {/* Service filter */}
-      <div className="mb-4">
+      <div className="mb-3">
         <select
           value={selectedService}
           onChange={(e) => {
@@ -271,7 +271,7 @@ export default function AvailabilityCalendar({ services }) {
             setSelectedSlots([])
             setOvernightStart(null)
           }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+          className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs w-full sm:w-auto focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
         >
           <option value="">All services (30 min slots)</option>
           {walkerServices.filter((s) => s.active).map((s) => (
@@ -283,54 +283,53 @@ export default function AvailabilityCalendar({ services }) {
       </div>
 
       {/* Week navigation */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={() => setWeekOffset((w) => w - 1)}
           disabled={!canGoPrev}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-medium"
         >
           ← Prev
         </button>
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-xs font-medium text-gray-700">
           {new Date(weekDates[0]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
           {' – '}
           {new Date(weekDates[6]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
         <button
           onClick={() => setWeekOffset((w) => w + 1)}
-          className="p-2 rounded-lg hover:bg-gray-100"
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-xs font-medium"
         >
           Next →
         </button>
       </div>
 
       {/* Calendar grid */}
-      <div className="overflow-x-auto -mx-4 px-4">
-        <div className="min-w-[560px]">
-          {/* Day headers */}
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {weekDates.map((date) => {
-              const d = new Date(date)
-              const isToday = date === today.toISOString().split('T')[0]
-              return (
-                <div
-                  key={date}
-                  className={`text-center py-2 rounded-lg text-sm ${
-                    isToday ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-100 font-medium text-gray-700'
-                  }`}
-                >
-                  <div>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</div>
-                  <div className="text-lg">{d.getDate()}</div>
-                </div>
-              )
-            })}
-          </div>
+      <div>
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
+          {weekDates.map((date) => {
+            const d = new Date(date)
+            const isToday = date === today.toISOString().split('T')[0]
+            return (
+              <div
+                key={date}
+                className={`text-center py-1 sm:py-1.5 rounded text-[10px] sm:text-xs ${
+                  isToday ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-100 font-medium text-gray-700'
+                }`}
+              >
+                <div>{d.toLocaleDateString('en-GB', { weekday: 'narrow' })}</div>
+                <div className="text-sm sm:text-base font-bold">{d.getDate()}</div>
+              </div>
+            )
+          })}
+        </div>
 
-          {/* Time slots grid */}
-          {allTimes.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No availability this week</p>
-          ) : (
-            <div className="grid grid-cols-7 gap-1">
+        {/* Time slots grid */}
+        {allTimes.length === 0 ? (
+          <p className="text-gray-400 text-center py-6 text-sm">No availability this week</p>
+        ) : (
+          <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
               {allTimes.map((time) =>
                 weekDates.map((date) => {
                   const available = isAvailable(date, time)
@@ -347,7 +346,7 @@ export default function AvailabilityCalendar({ services }) {
                       key={`${date}-${time}`}
                       onClick={() => toggleSlot(date, time)}
                       disabled={!available || past || (blocked && !validEnd) || blockedByBooking}
-                      className={`py-1.5 text-xs rounded transition ${
+                      className={`py-1 text-[10px] sm:text-xs rounded transition ${
                         isStart
                           ? 'bg-purple-600 text-white font-semibold ring-2 ring-purple-300'
                           : selected
@@ -372,12 +371,11 @@ export default function AvailabilityCalendar({ services }) {
               )}
             </div>
           )}
-        </div>
       </div>
 
       {/* Footer */}
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-sm text-gray-500">
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-xs text-gray-500">
           {isOvernight && !overnightStart && selectedSlots.length === 0
             ? 'Select a drop-off date & time'
             : selectedSlots.length > 0
@@ -387,7 +385,7 @@ export default function AvailabilityCalendar({ services }) {
         <button
           onClick={handleBookNow}
           disabled={selectedSlots.length === 0}
-          className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
         >
           Book Now →
         </button>
@@ -395,9 +393,9 @@ export default function AvailabilityCalendar({ services }) {
 
       {/* Show selected overnight bookings summary */}
       {selectedSlots.filter((s) => s.isOvernight).length > 0 && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-2 space-y-1.5">
           {selectedSlots.filter((s) => s.isOvernight).map((s, i) => (
-            <div key={i} className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center justify-between text-sm">
+            <div key={i} className="bg-purple-50 border border-purple-200 rounded-lg p-2.5 flex items-center justify-between text-xs">
               <span className="text-purple-800">
                 🌙 {new Date(s.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} {s.time}
                 {' → '}

@@ -1,5 +1,12 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { resolveWalker } from './lib/walker'
+
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
 import Layout from './components/Layout'
 import PlatformLanding from './pages/public/PlatformLanding'
 import WalkerPage from './pages/public/WalkerPage'
@@ -60,6 +67,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       {walker ? <WalkerRoutes walker={walker} /> : <PlatformRoutes />}
     </BrowserRouter>
   )
