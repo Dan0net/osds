@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { getWalkerBySlug, getServicesByWalkerId, getReviewsByWalkerId } from '../../lib/mockData'
+import { supabase } from '../../lib/supabase'
 import { resolveWalker } from '../../lib/walker'
 import AvailabilityCalendar from '../../components/AvailabilityCalendar'
 
@@ -15,12 +16,63 @@ function StarRating({ rating }) {
 export default function WalkerPage() {
   const { walker: walkerParam } = useParams()
   const slug = walkerParam || resolveWalker(window.location.hostname)
-  const walker = getWalkerBySlug(slug)
-  const services = getServicesByWalkerId(walker?.id)
-  const reviews = getReviewsByWalkerId(walker?.id)
-  const prefix = walkerParam ? `/w/${walkerParam}` : ''
+  const [walker, setWalker] = useState(null)
+  const [services, setServices] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  if (!walker) {
+  useEffect(() => {
+    if (!slug) {
+      setLoading(false)
+      return
+    }
+
+    async function load() {
+      const { data: wp, error: wpErr } = await supabase
+        .from('walker_profiles')
+        .select('*, users(name, avatar_url)')
+        .eq('slug', slug)
+        .single()
+
+      if (wpErr || !wp) {
+        setError('Walker not found')
+        setLoading(false)
+        return
+      }
+
+      setWalker(wp)
+
+      const [svcRes, revRes] = await Promise.all([
+        supabase
+          .from('services')
+          .select('*')
+          .eq('walker_id', wp.id)
+          .eq('active', true),
+        supabase
+          .from('reviews')
+          .select('*, users(name)')
+          .eq('walker_id', wp.id)
+          .order('created_at', { ascending: false }),
+      ])
+
+      setServices(svcRes.data || [])
+      setReviews(revRes.data || [])
+      setLoading(false)
+    }
+
+    load()
+  }, [slug])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (error || !walker) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold mb-2">Walker not found</h1>
@@ -86,7 +138,7 @@ export default function WalkerPage() {
               <div key={review.id} className="bg-white rounded-lg p-3">
                 <div className="flex items-center justify-between mb-1">
                   <div>
-                    <span className="font-semibold text-sm">{review.client_name}</span>
+                    <span className="font-semibold text-sm">{review.users?.name || 'Anonymous'}</span>
                     <span className="ml-2 text-sm">
                       <StarRating rating={review.rating} />
                     </span>

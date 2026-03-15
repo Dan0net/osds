@@ -144,3 +144,15 @@ All pages built with hardcoded mock data. One user (Ellie) who is both a walker 
 - [ ] SEO: meta tags, Open Graph for walker pages and platform landing
 
 **Milestone:** All user flows verified across devices and browsers. Security hardened. Ready to onboard additional walkers beyond the initial pilot.
+
+---
+
+## Phase 10 — Social Login (OAuth)
+
+- [ ] Enable Google + Apple OAuth providers in Supabase dashboard
+- [ ] Add "Continue with Google" / "Continue with Apple" buttons to Login + Signup pages
+- [ ] Wire `supabase.auth.signInWithOAuth()` for each provider
+- [ ] Ensure `users` table trigger handles OAuth sign-ups (name from provider metadata)
+- [ ] Test account linking (email/password + OAuth same email)
+
+**Milestone:** Users can sign up and log in with Google or Apple in addition to email/password.

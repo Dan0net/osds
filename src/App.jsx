@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { resolveWalker } from './lib/walker'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -49,14 +51,16 @@ function PlatformRoutes() {
         <Route path="w/:walker/confirmation" element={<Confirmation />} />
       </Route>
 
-      <Route path="account" element={<AccountLayout />}>
-        <Route index element={<AccountDashboard />} />
-        <Route path="bookings" element={<AccountBookings />} />
-        <Route path="pets" element={<AccountPets />} />
-        <Route path="payments" element={<AccountPayments />} />
-        <Route path="inbox" element={<AccountInbox />} />
-        <Route path="profile" element={<AccountProfile />} />
-        <Route path="settings" element={<AccountSettings />} />
+      <Route path="account" element={<ProtectedRoute />}>
+        <Route element={<AccountLayout />}>
+          <Route index element={<AccountDashboard />} />
+          <Route path="bookings" element={<AccountBookings />} />
+          <Route path="pets" element={<AccountPets />} />
+          <Route path="payments" element={<AccountPayments />} />
+          <Route path="inbox" element={<AccountInbox />} />
+          <Route path="profile" element={<AccountProfile />} />
+          <Route path="settings" element={<AccountSettings />} />
+        </Route>
       </Route>
     </Routes>
   )
@@ -66,9 +70,11 @@ export default function App() {
   const walker = resolveWalker(window.location.hostname)
 
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      {walker ? <WalkerRoutes walker={walker} /> : <PlatformRoutes />}
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        {walker ? <WalkerRoutes walker={walker} /> : <PlatformRoutes />}
+      </BrowserRouter>
+    </AuthProvider>
   )
 }

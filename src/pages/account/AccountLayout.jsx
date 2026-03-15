@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { MOCK_USER } from '../../lib/mockData'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
 
 const NAV_ITEMS = [
   { to: '/account', label: 'Dashboard', end: true },
@@ -12,6 +12,14 @@ const NAV_ITEMS = [
 ]
 
 export default function AccountLayout() {
+  const { profile, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/')
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -19,7 +27,15 @@ export default function AccountLayout() {
           <NavLink to="/" className="text-xl font-bold text-indigo-600">
             One Stop Dog Shop
           </NavLink>
-          <span className="text-sm text-gray-500">{MOCK_USER.name}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">{profile?.name || 'Account'}</span>
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-gray-400 hover:text-gray-600"
+            >
+              Log out
+            </button>
+          </div>
         </div>
       </header>
 

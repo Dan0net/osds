@@ -1,22 +1,102 @@
-import { useState } from 'react'
-import { MOCK_USER, MOCK_WALKER } from '../../lib/mockData'
+import { useState, useEffect } from 'react'
+import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
 
 export default function AccountProfile() {
+  const { user, profile, walkerProfile, refreshProfile } = useAuth()
   const [form, setForm] = useState({
-    name: MOCK_USER.name,
-    email: MOCK_USER.email,
-    phone: MOCK_USER.phone,
-    avatar_url: MOCK_USER.avatar_url || '',
-    business_name: MOCK_WALKER.business_name,
-    bio: MOCK_WALKER.bio,
-    theme_color: MOCK_WALKER.theme_color,
+    name: '',
+    email: '',
+    phone: '',
+    avatar_url: '',
+    business_name: '',
+    bio: '',
+    theme_color: '#4f46e5',
   })
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [creatingWalker, setCreatingWalker] = useState(false)
 
-  function handleSubmit(e) {
+  useEffect(() => {
+    if (profile) {
+      setForm((prev) => ({
+        ...prev,
+        name: profile.name || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        avatar_url: profile.avatar_url || '',
+      }))
+    }
+    if (walkerProfile) {
+      setForm((prev) => ({
+        ...prev,
+        business_name: walkerProfile.business_name || '',
+        bio: walkerProfile.bio || '',
+        theme_color: walkerProfile.theme_color || '#4f46e5',
+      }))
+    }
+  }, [profile, walkerProfile])
+
+  async function handleSubmit(e) {
     e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setError(null)
+    setSaving(true)
+    try {
+      const { error: userErr } = await supabase
+        .from('users')
+        .update({
+          name: form.name,
+          phone: form.phone,
+          avatar_url: form.avatar_url,
+        })
+        .eq('id', user.id)
+      if (userErr) throw userErr
+
+      if (walkerProfile) {
+        const { error: wpErr } = await supabase
+          .from('walker_profiles')
+          .update({
+            business_name: form.business_name,
+            bio: form.bio,
+            theme_color: form.theme_color,
+          })
+          .eq('user_id', user.id)
+        if (wpErr) throw wpErr
+      }
+
+      await refreshProfile()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleBecomeWalker() {
+    setCreatingWalker(true)
+    setError(null)
+    try {
+      const slug = (form.name || 'walker')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+      const { error: wpErr } = await supabase
+        .from('walker_profiles')
+        .insert({
+          user_id: user.id,
+          slug,
+          business_name: form.name + "'s Dog Walking",
+        })
+      if (wpErr) throw wpErr
+      await refreshProfile()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setCreatingWalker(false)
+    }
   }
 
   function update(field, value) {
@@ -86,7 +166,7 @@ export default function AccountProfile() {
         </div>
 
         {/* Walker profile (conditional) */}
-        {MOCK_USER.has_walker_profile && (
+        {walkerProfile ? (
           <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
             <h2 className="font-semibold">Walker profile</h2>
             <div>
@@ -130,14 +210,33 @@ export default function AccountProfile() {
               <p className="text-xs text-gray-400 mt-1">Required to accept payments.</p>
             </div>
           </div>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h2 className="font-semibold mb-2">Become a Walker</h2>
+            <p className="text-sm text-gray-500 mb-3">Create a walker profile to offer services and accept bookings.</p>
+            <button
+              type="button"
+              onClick={handleBecomeWalker}
+              disabled={creatingWalker}
+              className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {creatingWalker ? 'Creating…' : 'Create Walker Profile'}
+            </button>
+          </div>
         )}
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {error}
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700"
+            disabled={saving}
+            className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
           >
-            Save profile
+            {saving ? 'Saving…' : 'Save profile'}
           </button>
           {saved && <span className="text-green-600 text-sm">Saved!</span>}
         </div>
