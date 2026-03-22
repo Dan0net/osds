@@ -1,6 +1,9 @@
 import { Link, Outlet } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Layout({ walker }) {
+  const { user, profile } = useAuth()
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -9,10 +12,11 @@ export default function Layout({ walker }) {
             {walker ? `${walker}'s Dog Walking` : 'One Stop Dog Shop'}
           </Link>
           <nav className="flex items-center gap-3 text-sm">
-            <Link to="/account" className="text-gray-600 hover:text-indigo-600">
-              Account
-            </Link>
-            {!walker && (
+            {user ? (
+              <Link to="/account" className="text-gray-600 hover:text-indigo-600">
+                {profile?.name || user.email}
+              </Link>
+            ) : (
               <>
                 <Link to="/login" className="text-gray-600 hover:text-indigo-600">
                   Log in
