@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { apiFetch } from '../../lib/api'
+import { apiFetch, createCheckout } from '../../lib/api'
 
 export default function AccountDashboard() {
   const { user, walkerProfile: wp } = useAuth()
@@ -15,16 +15,26 @@ export default function AccountDashboard() {
   const [selectedIds, setSelectedIds] = useState(new Set())
 
   const [walkerPaymentsTotal, setWalkerPaymentsTotal] = useState(0)
+  const [awaitingPayments, setAwaitingPayments] = useState([])
 
   useEffect(() => {
     if (!user) return
     async function load() {
       const { data: cb } = await supabase
         .from('bookings')
-        .select('*, services(*), pets(*), walker_profiles(slug, business_name)')
+        .select('*, services(*), pets(*), walker_profiles(slug, business_name), payments(status)')
         .eq('client_id', user.id)
         .order('booking_date', { ascending: false })
       setClientBookings(cb || [])
+
+      // Load awaiting payment items for client
+      const { data: awp } = await supabase
+        .from('payments')
+        .select('*, walker_profiles(business_name)')
+        .eq('client_id', user.id)
+        .eq('status', 'awaiting_payment')
+        .order('created_at', { ascending: false })
+      setAwaitingPayments(awp || [])
 
       if (wp) {
         const { data: wb } = await supabase
@@ -142,6 +152,16 @@ export default function AccountDashboard() {
       .eq('walker_id', wp.id)
       .order('booking_date', { ascending: false })
     setWalkerBookings(wb || [])
+  }
+
+  async function handlePayNow(paymentId) {
+    setActionLoading(`pay-${paymentId}`)
+    const res = await createCheckout(paymentId)
+    if (res.data?.url) {
+      window.location.href = res.data.url
+    } else {
+      setActionLoading(null)
+    }
   }
 
   async function handleDeclineSelected(ids) {
@@ -306,6 +326,40 @@ export default function AccountDashboard() {
         </div>
       )}
 
+      {/* Awaiting payment */}
+      {awaitingPayments.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Awaiting payment</h2>
+            <Link to="/account/payments" className="text-sm text-indigo-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {awaitingPayments.map((p) => (
+              <div key={p.id} className="bg-white border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="text-sm">
+                  <span className="font-medium">{p.walker_profiles?.business_name || 'Walker'}</span>
+                  <span className="text-gray-400 mx-2">·</span>
+                  <span className="text-gray-500">£{(p.total_cents / 100).toFixed(2)}</span>
+                  <span className="text-gray-400 mx-2">·</span>
+                  <span className="text-gray-400 text-xs">
+                    {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handlePayNow(p.id)}
+                  disabled={!!actionLoading}
+                  className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {actionLoading === `pay-${p.id}` ? 'Redirecting…' : 'Pay now'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Upcoming bookings */}
       {(upcomingAsClient.length > 0 || upcomingAsWalker.length > 0) && (
         <div className="mb-8">
@@ -349,13 +403,24 @@ export default function AccountDashboard() {
                     {b.start_time && ` ${b.start_time.slice(0, 5)}`}
                   </span>
                 </div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                  b.status === 'confirmed' ? 'bg-green-100 text-green-700'
-                    : b.status === 'approved' ? 'bg-blue-100 text-blue-700'
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {b.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  {b.status === 'approved' && b.payment_id && b.payments?.status === 'awaiting_payment' && (
+                    <button
+                      onClick={() => handlePayNow(b.payment_id)}
+                      disabled={!!actionLoading}
+                      className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {actionLoading === `pay-${b.payment_id}` ? 'Redirecting…' : 'Pay now'}
+                    </button>
+                  )}
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                    b.status === 'confirmed' ? 'bg-green-100 text-green-700'
+                      : b.status === 'approved' ? 'bg-blue-100 text-blue-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {b.status}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

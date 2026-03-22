@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
-import { stripeDashboardLink } from '../../lib/api'
+import { stripeDashboardLink, createCheckout } from '../../lib/api'
 
 const STATUS_COLORS = {
   pending_approval: 'bg-yellow-100 text-yellow-700',
@@ -15,6 +15,7 @@ export default function AccountPayments() {
   const { user, walkerProfile: wp } = useAuth()
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(null)
 
   useEffect(() => {
     if (!user) return
@@ -89,9 +90,28 @@ export default function AccountPayments() {
                   </span>
                 </p>
               </div>
-              <span className={`font-semibold ${p.type === 'received' ? 'text-green-600' : 'text-gray-900'}`}>
-                {p.type === 'received' ? '+' : '−'}£{(p.total_cents / 100).toFixed(2)}
-              </span>
+              <div className="flex items-center gap-3">
+                {p.type === 'paid' && p.status === 'awaiting_payment' && (
+                  <button
+                    onClick={async () => {
+                      setActionLoading(p.id)
+                      const res = await createCheckout(p.id)
+                      if (res.data?.url) {
+                        window.location.href = res.data.url
+                      } else {
+                        setActionLoading(null)
+                      }
+                    }}
+                    disabled={!!actionLoading}
+                    className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {actionLoading === p.id ? 'Redirecting…' : 'Pay now'}
+                  </button>
+                )}
+                <span className={`font-semibold ${p.type === 'received' ? 'text-green-600' : 'text-gray-900'}`}>
+                  {p.type === 'received' ? '+' : '−'}£{(p.total_cents / 100).toFixed(2)}
+                </span>
+              </div>
             </div>
           ))}
         </div>

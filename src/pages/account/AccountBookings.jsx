@@ -71,7 +71,8 @@ export default function AccountBookings() {
         *,
         services(*),
         pets(*),
-        walker_profiles(slug, business_name)
+        walker_profiles(slug, business_name),
+        payments(status)
       `)
       .eq('client_id', user.id)
       .order('booking_date', { ascending: false })
@@ -112,6 +113,7 @@ export default function AccountBookings() {
       client_name: b.users?.name || '',
       walker_name: b.walker_profiles?.business_name || '',
       walker_slug: b.walker_profiles?.slug || '',
+      payment_status: b.payments?.status || null,
       price_cents: service ? (isOvernight ? service.price_cents * nights : service.price_cents) : 0,
       is_overnight: isOvernight,
       nights,
@@ -638,7 +640,7 @@ export default function AccountBookings() {
                 </div>
                 {/* Action buttons */}
                 <div className="flex gap-2 mt-3">
-                  {b.status === 'approved' && b.payment_id && (
+                  {b.status === 'approved' && b.payment_id && b.payment_status === 'awaiting_payment' && (
                     <button
                       onClick={() => handlePayNow(b.payment_id)}
                       disabled={!!actionLoading}
