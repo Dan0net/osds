@@ -12,6 +12,7 @@ export default function AccountDashboard() {
   const [walkerBookings, setWalkerBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(new Set())
 
   useEffect(() => {
     if (!user) return
@@ -57,6 +58,10 @@ export default function AccountDashboard() {
       b.booking_date <= in7Days,
   )
   const pendingRequests = walkerBookings.filter((b) => b.status === 'requested')
+
+  useEffect(() => {
+    setSelectedIds(new Set(pendingRequests.map((b) => b.id)))
+  }, [walkerBookings])
   const confirmedWalkerBookings = walkerBookings.filter((b) => b.status === 'confirmed')
   const totalRevenueCents = confirmedWalkerBookings.reduce((sum, b) => {
     return sum + (b.services?.price_cents || 0)
@@ -75,28 +80,79 @@ export default function AccountDashboard() {
     return b.pets?.name || ''
   }
 
-  async function handleApprove(id) {
-    setActionLoading(id)
-    const result = await apiFetch('approve-booking', {
-      method: 'POST',
-      body: JSON.stringify({ booking_id: id }),
-    })
-    setActionLoading(null)
-    if (!result.error) {
-      setWalkerBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: 'approved' } : b))
+  function groupByPayment(bookings) {
+    const groups = new Map()
+    const singles = []
+    for (const b of bookings) {
+      if (b.payment_id) {
+        if (!groups.has(b.payment_id)) groups.set(b.payment_id, [])
+        groups.get(b.payment_id).push(b)
+      } else {
+        singles.push([b])
+      }
     }
+    return [...groups.values(), ...singles]
   }
 
-  async function handleDecline(id) {
-    setActionLoading(id)
-    const result = await apiFetch('decline-booking', {
-      method: 'POST',
-      body: JSON.stringify({ booking_id: id }),
+  function toggleSelected(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
     })
-    setActionLoading(null)
-    if (!result.error) {
-      setWalkerBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: 'declined' } : b))
+  }
+
+  function toggleAllInGroup(group) {
+    const requestedIds = group.filter((b) => b.status === 'requested').map((b) => b.id)
+    const allSelected = requestedIds.every((id) => selectedIds.has(id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of requestedIds) {
+        if (allSelected) next.delete(id)
+        else next.add(id)
+      }
+      return next
+    })
+  }
+
+  async function handleApproveSelected(ids) {
+    const key = ids.join(',')
+    setActionLoading(key)
+    for (const id of ids) {
+      await apiFetch('approve-booking', {
+        method: 'POST',
+        body: JSON.stringify({ booking_id: id }),
+      })
     }
+    setActionLoading(null)
+    setSelectedIds(new Set())
+    // Refresh
+    const { data: wb } = await supabase
+      .from('bookings')
+      .select('*, services(*), pets(*), users!bookings_client_id_fkey(name)')
+      .eq('walker_id', wp.id)
+      .order('booking_date', { ascending: false })
+    setWalkerBookings(wb || [])
+  }
+
+  async function handleDeclineSelected(ids) {
+    const key = ids.join(',')
+    setActionLoading(key)
+    for (const id of ids) {
+      await apiFetch('decline-booking', {
+        method: 'POST',
+        body: JSON.stringify({ booking_id: id }),
+      })
+    }
+    setActionLoading(null)
+    setSelectedIds(new Set())
+    const { data: wb } = await supabase
+      .from('bookings')
+      .select('*, services(*), pets(*), users!bookings_client_id_fkey(name)')
+      .eq('walker_id', wp.id)
+      .order('booking_date', { ascending: false })
+    setWalkerBookings(wb || [])
   }
 
   if (loading) {
@@ -156,6 +212,92 @@ export default function AccountDashboard() {
         )}
       </div>
 
+      {/* Incoming requests — above upcoming */}
+      {wp && pendingRequests.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Incoming requests</h2>
+            <Link to="/account/bookings" className="text-sm text-indigo-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {groupByPayment(pendingRequests).map((group) => {
+              const key = group[0].payment_id || group[0].id
+              const selectedInGroup = group.filter((b) => selectedIds.has(b.id))
+              const allGroupSelected = group.every((b) => selectedIds.has(b.id))
+
+              return (
+                <div key={key} className="bg-white border border-gray-200 rounded-lg p-3">
+                  {/* Group header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    {group.length > 1 && (
+                      <input
+                        type="checkbox"
+                        checked={allGroupSelected}
+                        onChange={() => toggleAllInGroup(group)}
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    )}
+                    <span className="font-medium text-sm">{getClientName(group[0])}</span>
+                    {group.length > 1 && (
+                      <span className="text-gray-400 text-xs">({group.length} slots)</span>
+                    )}
+                  </div>
+
+                  {/* Slots with checkboxes */}
+                  <div className="space-y-1 mb-2">
+                    {group.map((b) => (
+                      <div key={b.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(b.id)}
+                          onChange={() => toggleSelected(b.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-gray-600">{getServiceName(b)}</span>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-gray-500">
+                          {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          {b.start_time && ` ${b.start_time.slice(0, 5)}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedInGroup.length > 0 && (
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => handleApproveSelected(selectedInGroup.map((b) => b.id))}
+                        disabled={!!actionLoading}
+                        className="bg-green-600 text-white text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {actionLoading ? '...' : selectedInGroup.length === group.length && group.length > 1
+                          ? `Approve all (${selectedInGroup.length})`
+                          : selectedInGroup.length > 1
+                          ? `Approve ${selectedInGroup.length}`
+                          : 'Approve'}
+                      </button>
+                      <button
+                        onClick={() => handleDeclineSelected(selectedInGroup.map((b) => b.id))}
+                        disabled={!!actionLoading}
+                        className="bg-red-600 text-white text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {actionLoading ? '...' : selectedInGroup.length === group.length && group.length > 1
+                          ? `Decline all (${selectedInGroup.length})`
+                          : selectedInGroup.length > 1
+                          ? `Decline ${selectedInGroup.length}`
+                          : 'Decline'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Upcoming bookings */}
       {(upcomingAsClient.length > 0 || upcomingAsWalker.length > 0) && (
         <div className="mb-8">
@@ -206,52 +348,6 @@ export default function AccountDashboard() {
                 }`}>
                   {b.status}
                 </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Pending walker requests */}
-      {wp && pendingRequests.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Incoming requests</h2>
-            <Link to="/account/bookings" className="text-sm text-indigo-600 hover:underline">
-              View all
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {pendingRequests.slice(0, 3).map((b) => (
-              <div key={b.id} className="bg-white border border-gray-200 rounded-lg p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm">
-                    <span className="font-medium">{getClientName(b)}</span>
-                    <span className="text-gray-400 mx-2">·</span>
-                    <span className="text-gray-600">{getServiceName(b)}</span>
-                    <span className="text-gray-400 mx-2">·</span>
-                    <span className="text-gray-500">
-                      {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                      {b.start_time && ` ${b.start_time.slice(0, 5)}`}
-                    </span>
-                  </div>
-                  <div className="flex gap-1.5 ml-3 shrink-0">
-                    <button
-                      onClick={() => handleApprove(b.id)}
-                      disabled={actionLoading === b.id}
-                      className="bg-green-600 text-white text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {actionLoading === b.id ? '...' : 'Approve'}
-                    </button>
-                    <button
-                      onClick={() => handleDecline(b.id)}
-                      disabled={actionLoading === b.id}
-                      className="bg-red-600 text-white text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {actionLoading === b.id ? '...' : 'Decline'}
-                    </button>
-                  </div>
-                </div>
               </div>
             ))}
           </div>

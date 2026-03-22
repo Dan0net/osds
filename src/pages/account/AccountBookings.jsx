@@ -23,10 +23,16 @@ export default function AccountBookings() {
   const [managingId, setManagingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(new Set())
 
   useEffect(() => {
     if (user) loadBookings()
   }, [user?.id, walkerProfile?.id])
+
+  useEffect(() => {
+    const requestedIds = incoming.filter((b) => b.status === 'requested').map((b) => b.id)
+    setSelectedIds(new Set(requestedIds))
+  }, [incoming])
 
   async function loadBookings() {
     setLoading(true)
@@ -101,26 +107,54 @@ export default function AccountBookings() {
     return [...groups.values(), ...singles]
   }
 
-  async function handleApprove(id, paymentId) {
-    const key = paymentId || id
-    setActionLoading(key)
-    const result = await apiFetch('approve-booking', {
-      method: 'POST',
-      body: JSON.stringify(paymentId ? { payment_id: paymentId } : { booking_id: id }),
+  function toggleSelected(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
     })
-    setActionLoading(null)
-    if (!result.error) await loadBookings()
   }
 
-  async function handleDecline(id, paymentId) {
-    const key = paymentId || id
-    setActionLoading(key)
-    const result = await apiFetch('decline-booking', {
-      method: 'POST',
-      body: JSON.stringify(paymentId ? { payment_id: paymentId } : { booking_id: id }),
+  function toggleAllInGroup(group) {
+    const requestedIds = group.filter((b) => b.status === 'requested').map((b) => b.id)
+    const allSelected = requestedIds.every((id) => selectedIds.has(id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of requestedIds) {
+        if (allSelected) next.delete(id)
+        else next.add(id)
+      }
+      return next
     })
+  }
+
+  async function handleApproveSelected(ids) {
+    const key = ids.join(',')
+    setActionLoading(key)
+    for (const id of ids) {
+      await apiFetch('approve-booking', {
+        method: 'POST',
+        body: JSON.stringify({ booking_id: id }),
+      })
+    }
     setActionLoading(null)
-    if (!result.error) await loadBookings()
+    setSelectedIds(new Set())
+    await loadBookings()
+  }
+
+  async function handleDeclineSelected(ids) {
+    const key = ids.join(',')
+    setActionLoading(key)
+    for (const id of ids) {
+      await apiFetch('decline-booking', {
+        method: 'POST',
+        body: JSON.stringify({ booking_id: id }),
+      })
+    }
+    setActionLoading(null)
+    setSelectedIds(new Set())
+    await loadBookings()
   }
 
   async function toggleReopenedSlot(bookingId, date, time) {
@@ -218,24 +252,36 @@ export default function AccountBookings() {
           {groupByPayment(incoming).map((group) => {
             const paymentId = group[0].payment_id
             const key = paymentId || group[0].id
-            const allRequested = group.every((b) => b.status === 'requested')
-            const groupStatus = allRequested ? 'requested' : group[0].status
+            const requestedInGroup = group.filter((b) => b.status === 'requested')
+            const hasRequested = requestedInGroup.length > 0
+            const groupStatus = hasRequested ? 'requested' : group[0].status
             const totalCents = group.reduce((sum, b) => sum + b.price_cents, 0)
+            const selectedInGroup = requestedInGroup.filter((b) => selectedIds.has(b.id))
+            const allGroupSelected = requestedInGroup.length > 0 && requestedInGroup.every((b) => selectedIds.has(b.id))
+            const selectedCents = selectedInGroup.reduce((sum, b) => sum + b.price_cents, 0)
 
             return (
               <div key={key} className="bg-white border border-gray-200 rounded-lg p-4">
-                {/* Batch header */}
+                {/* Group header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                  <div>
+                  <div className="flex items-center gap-2">
+                    {hasRequested && group.length > 1 && (
+                      <input
+                        type="checkbox"
+                        checked={allGroupSelected}
+                        onChange={() => toggleAllInGroup(group)}
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    )}
                     <span className="text-gray-600">{group[0].client_name}</span>
                     {group[0].pet_name && group[0].pet_name !== '—' && (
                       <>
-                        <span className="text-gray-400 mx-2">·</span>
+                        <span className="text-gray-400 mx-1">·</span>
                         <span className="text-gray-500">{group[0].pet_name}</span>
                       </>
                     )}
                     {group.length > 1 && (
-                      <span className="text-gray-400 ml-2 text-xs">({group.length} slots)</span>
+                      <span className="text-gray-400 text-xs">({group.length} slots)</span>
                     )}
                   </div>
                   <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${STATUS_STYLES[groupStatus] || 'bg-gray-100 text-gray-600'}`}>
@@ -243,52 +289,83 @@ export default function AccountBookings() {
                   </span>
                 </div>
 
-                {/* Individual slots */}
+                {/* Individual slots with checkboxes */}
                 <div className="space-y-1 text-sm text-gray-500 mb-3">
                   {group.map((b) => (
-                    <div key={b.id}>
-                      <span className="font-medium text-gray-700">{b.service_name}</span>
-                      <span className="text-gray-400 mx-1">·</span>
-                      {b.is_overnight ? (
-                        <>
-                          {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          {' '}{b.start_time}{' → '}
-                          {new Date(b.end_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          {' '}{b.end_time}
-                          {' · '}{b.nights} night{b.nights > 1 ? 's' : ''}
-                          {' · '}£{(b.price_cents / 100).toFixed(2)}
-                        </>
-                      ) : (
-                        <>
-                          {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          {' · '}{b.start_time}–{b.end_time}
-                          {' · '}£{(b.price_cents / 100).toFixed(2)}
-                        </>
+                    <div key={b.id} className="flex items-start gap-2">
+                      {b.status === 'requested' && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(b.id)}
+                          onChange={() => toggleSelected(b.id)}
+                          className="w-4 h-4 mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
                       )}
+                      {b.status !== 'requested' && group.some((g) => g.status === 'requested') && (
+                        <span className="w-4" />
+                      )}
+                      <div>
+                        <span className="font-medium text-gray-700">{b.service_name}</span>
+                        <span className="text-gray-400 mx-1">·</span>
+                        {b.is_overnight ? (
+                          <>
+                            {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                            {' '}{b.start_time}{' → '}
+                            {new Date(b.end_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                            {' '}{b.end_time}
+                            {' · '}{b.nights} night{b.nights > 1 ? 's' : ''}
+                            {' · '}£{(b.price_cents / 100).toFixed(2)}
+                          </>
+                        ) : (
+                          <>
+                            {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                            {' · '}{b.start_time}–{b.end_time}
+                            {' · '}£{(b.price_cents / 100).toFixed(2)}
+                          </>
+                        )}
+                        {b.status !== 'requested' && (
+                          <span className={`ml-2 inline-block text-xs font-medium px-1.5 py-0.5 rounded ${STATUS_STYLES[b.status] || 'bg-gray-100 text-gray-600'}`}>
+                            {b.status}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                   {group.length > 1 && (
                     <div className="text-xs font-medium text-gray-700 pt-1">
                       Total: £{(totalCents / 100).toFixed(2)}
+                      {selectedInGroup.length > 0 && selectedInGroup.length < requestedInGroup.length && (
+                        <span className="text-gray-500 ml-2">
+                          (selected: £{(selectedCents / 100).toFixed(2)})
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {allRequested && (
+                {hasRequested && selectedInGroup.length > 0 && (
                   <div className="flex gap-2 mb-3">
                     <button
-                      onClick={() => handleApprove(group[0].id, paymentId)}
-                      disabled={actionLoading === key}
+                      onClick={() => handleApproveSelected(selectedInGroup.map((b) => b.id))}
+                      disabled={!!actionLoading}
                       className="bg-green-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
                     >
-                      {actionLoading === key ? '...' : group.length > 1 ? `Approve all (${group.length})` : 'Approve'}
+                      {actionLoading ? '...' : selectedInGroup.length === requestedInGroup.length && group.length > 1
+                        ? `Approve all (${selectedInGroup.length})`
+                        : selectedInGroup.length > 1
+                        ? `Approve ${selectedInGroup.length} selected`
+                        : 'Approve'}
                     </button>
                     <button
-                      onClick={() => handleDecline(group[0].id, paymentId)}
-                      disabled={actionLoading === key}
+                      onClick={() => handleDeclineSelected(selectedInGroup.map((b) => b.id))}
+                      disabled={!!actionLoading}
                       className="bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
                     >
-                      {actionLoading === key ? '...' : group.length > 1 ? `Decline all (${group.length})` : 'Decline'}
+                      {actionLoading ? '...' : selectedInGroup.length === requestedInGroup.length && group.length > 1
+                        ? `Decline all (${selectedInGroup.length})`
+                        : selectedInGroup.length > 1
+                        ? `Decline ${selectedInGroup.length} selected`
+                        : 'Decline'}
                     </button>
                   </div>
                 )}
