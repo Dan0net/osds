@@ -13,6 +13,8 @@ function StarRating({ rating }) {
   )
 }
 
+import { clientPriceCents } from '../../lib/utils'
+
 export default function WalkerPage() {
   const { walker: walkerParam } = useParams()
   const slug = walkerParam || resolveWalker(window.location.hostname)
@@ -107,7 +109,7 @@ export default function WalkerPage() {
                 <div className="flex justify-between items-start">
                   <h3 className="font-semibold text-sm">{service.name}</h3>
                   <span className="text-indigo-600 font-bold text-sm">
-                    £{(service.price_cents / 100).toFixed(2)}
+                    £{(clientPriceCents(service.price_cents) / 100).toFixed(2)}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">

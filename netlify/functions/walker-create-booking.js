@@ -2,7 +2,11 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-const PLATFORM_FEE_RATE = 0.05
+const OSDS_FEE_RATE = 0.05
+const STRIPE_PERCENT_RATE = 0.034
+const STRIPE_FIXED_PENCE = 20
+const COMBINED_RATE = OSDS_FEE_RATE + STRIPE_PERCENT_RATE
+function grossUp(netCents) { return Math.ceil((netCents + STRIPE_FIXED_PENCE) / (1 - COMBINED_RATE)) }
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -87,8 +91,8 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'One or more services not found' }) }
   }
 
-  // Calculate total from server-side prices
-  const totalCents = slots.reduce((sum, slot) => {
+  // Calculate total from server-side prices (net = walker's price)
+  const netTotalCents = slots.reduce((sum, slot) => {
     const svc = serviceMap[slot.serviceId]
     if (slot.isOvernight && slot.endDate) {
       const nights = Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
@@ -97,7 +101,8 @@ export async function handler(event) {
     return sum + svc.price_cents
   }, 0)
 
-  const platformFeeCents = Math.round(totalCents * PLATFORM_FEE_RATE)
+  const grossTotalCents = grossUp(netTotalCents)
+  const platformFeeCents = grossTotalCents - netTotalCents
 
   const isCash = mode === 'cash'
 
@@ -107,7 +112,7 @@ export async function handler(event) {
     .insert({
       walker_id: wp.id,
       client_id,
-      total_cents: totalCents,
+      total_cents: isCash ? netTotalCents : grossTotalCents,
       platform_fee_cents: isCash ? 0 : platformFeeCents,
       status: isCash ? 'paid' : 'awaiting_payment',
       source: isCash ? 'cash' : 'stripe',
@@ -165,7 +170,7 @@ export async function handler(event) {
       return {
         price_data: {
           currency: 'gbp',
-          unit_amount: svc.price_cents,
+          unit_amount: grossUp(svc.price_cents),
           product_data: { name: `${svc.name} — ${dateStr}` },
         },
         quantity,

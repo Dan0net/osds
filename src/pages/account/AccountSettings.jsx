@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { clientPriceCents } from '../../lib/utils'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -212,9 +213,15 @@ export default function AccountSettings() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Price (£)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Your price (£)</label>
                     <input type="number" step="0.01" value={svcForm.price_cents} onChange={(e) => setSvcForm({ ...svcForm, price_cents: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                    {svcForm.price_cents && parseFloat(svcForm.price_cents) > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Client pays £{(clientPriceCents(Math.round(parseFloat(svcForm.price_cents) * 100)) / 100).toFixed(2)}
+                        {svcForm.service_type === 'overnight' ? '/night' : ''}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{svcForm.service_type === 'overnight' ? 'Drop-off slot (min)' : 'Duration (min)'}</label>
@@ -239,6 +246,8 @@ export default function AccountSettings() {
                     )}
                     <span className="text-gray-400 mx-2">·</span>
                     <span className="text-indigo-600 font-medium">£{(svc.price_cents / 100).toFixed(2)}{svc.service_type === 'overnight' ? '/night' : ''}</span>
+                    <span className="text-gray-400 mx-1">→</span>
+                    <span className="text-gray-500 text-sm">Client: £{(clientPriceCents(svc.price_cents) / 100).toFixed(2)}{svc.service_type === 'overnight' ? '/night' : ''}</span>
                     <span className="text-gray-400 mx-2">·</span>
                     <span className="text-gray-500 text-sm">{svc.duration_minutes} min</span>
                   </div>

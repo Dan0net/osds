@@ -1,5 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
+const OSDS_FEE_RATE = 0.05
+const STRIPE_PERCENT_RATE = 0.034
+const STRIPE_FIXED_PENCE = 20
+const COMBINED_RATE = OSDS_FEE_RATE + STRIPE_PERCENT_RATE
+function grossUp(netCents) { return Math.ceil((netCents + STRIPE_FIXED_PENCE) / (1 - COMBINED_RATE)) }
+
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) }
@@ -133,7 +139,7 @@ export async function handler(event) {
   }
 
   // Create payment row upfront to group bookings
-  const totalCents = slots.reduce((sum, slot) => {
+  const netTotalCents = slots.reduce((sum, slot) => {
     const svc = serviceMap[slot.serviceId]
     if (slot.isOvernight && slot.endDate) {
       const nights = Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
@@ -141,13 +147,14 @@ export async function handler(event) {
     }
     return sum + svc.price_cents
   }, 0)
+  const grossTotalCents = grossUp(netTotalCents)
 
   const { data: payment, error: paymentError } = await supabase
     .from('payments')
     .insert({
       walker_id,
       client_id: user.id,
-      total_cents: totalCents,
+      total_cents: grossTotalCents,
       status: 'pending_approval',
     })
     .select('id')

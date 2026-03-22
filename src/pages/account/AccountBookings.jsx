@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch, createCheckout, cancelBooking, rescheduleBooking, walkerCreateBooking } from '../../lib/api'
+import { clientPriceCents } from '../../lib/utils'
 import BookingsCalendar from '../../components/BookingsCalendar'
 
 const STATUS_STYLES = {
@@ -115,6 +116,7 @@ export default function AccountBookings() {
       walker_slug: b.walker_profiles?.slug || '',
       payment_status: b.payments?.status || null,
       price_cents: service ? (isOvernight ? service.price_cents * nights : service.price_cents) : 0,
+      client_price_cents: service ? (isOvernight ? clientPriceCents(service.price_cents) * nights : clientPriceCents(service.price_cents)) : 0,
       is_overnight: isOvernight,
       nights,
       start_time: b.start_time?.slice(0, 5),
@@ -636,7 +638,7 @@ export default function AccountBookings() {
                 <div className="text-sm text-gray-500">
                   {new Date(b.booking_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                   {' · '}{b.start_time}–{b.end_time}
-                  {b.price_cents > 0 && <>{' · '}£{(b.price_cents / 100).toFixed(2)}</>}
+                  {b.client_price_cents > 0 && <>{' · '}£{(b.client_price_cents / 100).toFixed(2)}</>}
                 </div>
                 {/* Action buttons */}
                 <div className="flex gap-2 mt-3">

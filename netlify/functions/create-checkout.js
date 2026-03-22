@@ -2,7 +2,11 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-const PLATFORM_FEE_RATE = 0.05 // 5%
+const OSDS_FEE_RATE = 0.05
+const STRIPE_PERCENT_RATE = 0.034
+const STRIPE_FIXED_PENCE = 20
+const COMBINED_RATE = OSDS_FEE_RATE + STRIPE_PERCENT_RATE
+function grossUp(netCents) { return Math.ceil((netCents + STRIPE_FIXED_PENCE) / (1 - COMBINED_RATE)) }
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -76,11 +80,11 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'No payable bookings found' }) }
   }
 
-  // Build line items from bookings (resolve prices server-side)
+  // Build line items from bookings (gross up walker net price for client)
   const lineItems = bookings.map((b) => {
     const svc = b.services
     const isOvernight = b.end_date && b.end_date !== b.booking_date
-    let unitAmount = svc.price_cents
+    let unitAmount = grossUp(svc.price_cents)
     let quantity = 1
     if (isOvernight) {
       const nights = Math.round((new Date(b.end_date) - new Date(b.booking_date)) / (1000 * 60 * 60 * 24))
@@ -99,9 +103,14 @@ export async function handler(event) {
     }
   })
 
-  // Compute total from server-side prices
-  const totalCents = lineItems.reduce((sum, li) => sum + li.price_data.unit_amount * li.quantity, 0)
-  const platformFeeCents = Math.round(totalCents * PLATFORM_FEE_RATE)
+  // Compute totals: client pays gross, walker gets net, platform keeps difference
+  const grossTotalCents = lineItems.reduce((sum, li) => sum + li.price_data.unit_amount * li.quantity, 0)
+  const netTotalCents = bookings.reduce((sum, b) => {
+    const isOvernight = b.end_date && b.end_date !== b.booking_date
+    const nights = isOvernight ? Math.round((new Date(b.end_date) - new Date(b.booking_date)) / (1000 * 60 * 60 * 24)) : 1
+    return sum + b.services.price_cents * nights
+  }, 0)
+  const platformFeeCents = grossTotalCents - netTotalCents
 
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
   const session = await stripe.checkout.sessions.create({
@@ -127,7 +136,7 @@ export async function handler(event) {
     .from('payments')
     .update({
       stripe_session_id: session.id,
-      total_cents: totalCents,
+      total_cents: grossTotalCents,
       platform_fee_cents: platformFeeCents,
     })
     .eq('id', payment_id)

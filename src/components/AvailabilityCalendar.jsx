@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { clientPriceCents } from '../lib/utils'
 
 function getWeekDates(baseDate) {
   const d = new Date(baseDate)
@@ -180,7 +181,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
             endTime: time,
             serviceId: svc.id,
             serviceName: svc.name,
-            priceCents: svc.price_cents * nights,
+            priceCents: clientPriceCents(svc.price_cents) * nights,
             durationMinutes: svc.duration_minutes,
             isOvernight: true,
             nights,
@@ -212,7 +213,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
           endDate: date,
           serviceId: svc.id,
           serviceName: svc.name,
-          priceCents: svc.price_cents,
+          priceCents: clientPriceCents(svc.price_cents),
           durationMinutes: svc.duration_minutes,
           isOvernight: false,
           nights: 0,
@@ -266,7 +267,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
           <option value="">All services (30 min slots)</option>
           {walkerServices.filter((s) => s.active).map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} — {s.service_type === 'overnight' ? 'per night' : `${s.duration_minutes} min`} — £{(s.price_cents / 100).toFixed(2)}
+              {s.name} — {s.service_type === 'overnight' ? 'per night' : `${s.duration_minutes} min`} — £{(clientPriceCents(s.price_cents) / 100).toFixed(2)}
             </option>
           ))}
         </select>
