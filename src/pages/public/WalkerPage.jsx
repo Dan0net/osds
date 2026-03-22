@@ -125,7 +125,7 @@ export default function WalkerPage() {
       <section className="py-6 md:py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-lg font-bold mb-3">Book a slot</h2>
-          <AvailabilityCalendar services={services} />
+          <AvailabilityCalendar services={services} walkerId={walker.id} />
         </div>
       </section>
 

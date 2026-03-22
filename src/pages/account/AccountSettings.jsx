@@ -1,32 +1,36 @@
-import { useState } from 'react'
-import { MOCK_USER, MOCK_SERVICES, MOCK_AVAILABILITY, MOCK_BLOCKED_DATES } from '../../lib/mockData'
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export default function AccountSettings() {
+  const { walkerProfile } = useAuth()
+  const isWalker = !!walkerProfile
+
   // Services
-  const [services, setServices] = useState(MOCK_SERVICES)
+  const [services, setServices] = useState([])
   const [editingSvc, setEditingSvc] = useState(null)
   const [svcForm, setSvcForm] = useState({ name: '', price_cents: '', duration_minutes: '', service_type: 'standard' })
+  const [svcLoading, setSvcLoading] = useState(false)
 
   // Availability
   const [availability, setAvailability] = useState(
-    DAYS.map((day, i) => {
-      const existing = MOCK_AVAILABILITY.find((a) => a.day_of_week === i + 1)
-      return {
-        day, day_of_week: i + 1, enabled: !!existing,
-        start_time: existing?.start_time || '09:00',
-        end_time: existing?.end_time || '17:00',
-      }
-    }),
+    DAYS.map((day, i) => ({
+      day, day_of_week: i + 1, enabled: false,
+      start_time: '09:00', end_time: '17:00',
+    })),
   )
-  const [blockedDates, setBlockedDates] = useState(MOCK_BLOCKED_DATES)
+  const [availSaving, setAvailSaving] = useState(false)
+  const [blockedDates, setBlockedDates] = useState([])
   const [newBlock, setNewBlock] = useState({ date: '', reason: '' })
 
   // Calendar
   const [icalUrl, setIcalUrl] = useState('')
   const [icalSaved, setIcalSaved] = useState(false)
-  const feedUrl = 'https://onestopdog.shop/cal/walker-1/mock-token-123.ics'
+  const feedUrl = walkerProfile
+    ? `https://onestopdog.shop/cal/${walkerProfile.id}/${walkerProfile.calendar_feed_token || 'not-set'}.ics`
+    : ''
   const [copied, setCopied] = useState(false)
 
   // Notifications
@@ -41,6 +45,51 @@ export default function AccountSettings() {
     push_reminders: false,
   })
 
+  // Load data on mount
+  useEffect(() => {
+    if (!walkerProfile) return
+    loadServices()
+    loadAvailability()
+    loadBlockedDates()
+    if (walkerProfile.ical_url) setIcalUrl(walkerProfile.ical_url)
+  }, [walkerProfile?.id])
+
+  async function loadServices() {
+    const { data } = await supabase
+      .from('services')
+      .select('*')
+      .eq('walker_id', walkerProfile.id)
+      .order('created_at')
+    setServices(data || [])
+  }
+
+  async function loadAvailability() {
+    const { data } = await supabase
+      .from('availability')
+      .select('*')
+      .eq('walker_id', walkerProfile.id)
+    setAvailability(
+      DAYS.map((day, i) => {
+        const existing = (data || []).find((a) => a.day_of_week === i + 1)
+        return {
+          id: existing?.id,
+          day, day_of_week: i + 1, enabled: !!existing,
+          start_time: existing?.start_time?.slice(0, 5) || '09:00',
+          end_time: existing?.end_time?.slice(0, 5) || '17:00',
+        }
+      }),
+    )
+  }
+
+  async function loadBlockedDates() {
+    const { data } = await supabase
+      .from('blocked_dates')
+      .select('*')
+      .eq('walker_id', walkerProfile.id)
+      .order('date')
+    setBlockedDates(data || [])
+  }
+
   function toggleNotification(key) {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }))
   }
@@ -54,7 +103,8 @@ export default function AccountSettings() {
     setEditingSvc(svc.id)
     setSvcForm({ name: svc.name, price_cents: String(svc.price_cents / 100), duration_minutes: String(svc.duration_minutes), service_type: svc.service_type || 'standard' })
   }
-  function saveSvc() {
+  async function saveSvc() {
+    setSvcLoading(true)
     const data = {
       name: svcForm.name,
       price_cents: Math.round(parseFloat(svcForm.price_cents) * 100),
@@ -62,14 +112,19 @@ export default function AccountSettings() {
       service_type: svcForm.service_type,
     }
     if (editingSvc === 'new') {
-      setServices((prev) => [...prev, { id: `svc-${Date.now()}`, walker_id: 'walker-1', active: true, ...data }])
+      await supabase.from('services').insert({ ...data, walker_id: walkerProfile.id })
     } else {
-      setServices((prev) => prev.map((s) => (s.id === editingSvc ? { ...s, ...data } : s)))
+      await supabase.from('services').update(data).eq('id', editingSvc)
     }
     setEditingSvc(null)
+    setSvcLoading(false)
+    await loadServices()
   }
-  function toggleActive(id) {
-    setServices((prev) => prev.map((s) => (s.id === id ? { ...s, active: !s.active } : s)))
+  async function toggleActive(id) {
+    const svc = services.find((s) => s.id === id)
+    if (!svc) return
+    await supabase.from('services').update({ active: !svc.active }).eq('id', id)
+    await loadServices()
   }
 
   // --- Availability ---
@@ -79,18 +134,43 @@ export default function AccountSettings() {
   function updateTime(dayOfWeek, field, value) {
     setAvailability((prev) => prev.map((a) => (a.day_of_week === dayOfWeek ? { ...a, [field]: value } : a)))
   }
-  function addBlockedDate() {
-    if (!newBlock.date) return
-    setBlockedDates((prev) => [...prev, { ...newBlock }])
-    setNewBlock({ date: '', reason: '' })
+  async function saveAvailability() {
+    setAvailSaving(true)
+    // Delete all existing availability for this walker, then insert enabled days
+    await supabase.from('availability').delete().eq('walker_id', walkerProfile.id)
+    const enabled = availability.filter((a) => a.enabled)
+    if (enabled.length > 0) {
+      await supabase.from('availability').insert(
+        enabled.map((a) => ({
+          walker_id: walkerProfile.id,
+          day_of_week: a.day_of_week,
+          start_time: a.start_time,
+          end_time: a.end_time,
+        })),
+      )
+    }
+    setAvailSaving(false)
+    await loadAvailability()
   }
-  function removeBlockedDate(date) {
-    setBlockedDates((prev) => prev.filter((b) => b.date !== date))
+  async function addBlockedDate() {
+    if (!newBlock.date) return
+    await supabase.from('blocked_dates').insert({
+      walker_id: walkerProfile.id,
+      date: newBlock.date,
+      reason: newBlock.reason,
+    })
+    setNewBlock({ date: '', reason: '' })
+    await loadBlockedDates()
+  }
+  async function removeBlockedDate(id) {
+    await supabase.from('blocked_dates').delete().eq('id', id)
+    await loadBlockedDates()
   }
 
   // --- Calendar ---
-  function handleSaveImport(e) {
+  async function handleSaveImport(e) {
     e.preventDefault()
+    await supabase.from('walker_profiles').update({ ical_url: icalUrl || null }).eq('id', walkerProfile.id)
     setIcalSaved(true)
   }
   function handleCopy() {
@@ -104,7 +184,7 @@ export default function AccountSettings() {
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* Walker settings */}
-      {MOCK_USER.has_walker_profile && (
+      {isWalker && (
         <>
           {/* Services */}
           <div className="mb-8">
@@ -143,7 +223,7 @@ export default function AccountSettings() {
                   </div>
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <button onClick={saveSvc} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">Save</button>
+                  <button onClick={saveSvc} disabled={svcLoading} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">{svcLoading ? 'Saving...' : 'Save'}</button>
                   <button onClick={() => setEditingSvc(null)} className="border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50">Cancel</button>
                 </div>
               </div>
@@ -197,6 +277,9 @@ export default function AccountSettings() {
                   </div>
                 ))}
               </div>
+              <button onClick={saveAvailability} disabled={availSaving} className="mt-3 bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {availSaving ? 'Saving...' : 'Save schedule'}
+              </button>
             </div>
 
             <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -210,14 +293,14 @@ export default function AccountSettings() {
               </div>
               <div className="space-y-2">
                 {blockedDates.map((block) => (
-                  <div key={block.date} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div key={block.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                     <div>
                       <span className="font-medium text-sm">
                         {new Date(block.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                       {block.reason && <span className="text-gray-500 text-sm ml-2">— {block.reason}</span>}
                     </div>
-                    <button onClick={() => removeBlockedDate(block.date)} className="text-red-500 text-sm hover:text-red-600">Remove</button>
+                    <button onClick={() => removeBlockedDate(block.id)} className="text-red-500 text-sm hover:text-red-600">Remove</button>
                   </div>
                 ))}
               </div>
@@ -296,7 +379,7 @@ export default function AccountSettings() {
       </div>
 
       {/* Become a Walker CTA */}
-      {!MOCK_USER.has_walker_profile && (
+      {!isWalker && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 text-center">
           <h2 className="text-lg font-semibold mb-2">Want to offer dog walking services?</h2>
           <p className="text-sm text-gray-600 mb-4">Create a walker page and start accepting bookings.</p>

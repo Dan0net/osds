@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "netlify dev",
+    "dev:vite": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-react": "^5.1.4",
+    "netlify-cli": "^24.4.0",
     "tailwindcss": "^4.2.1",
     "vite": "^7.3.1"
   }

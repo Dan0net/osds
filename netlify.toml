@@ -3,6 +3,12 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[dev]
+  command = "vite --host"
+  targetPort = 5173
+  framework = "#custom"
+  autoLaunch = false
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

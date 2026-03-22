@@ -166,10 +166,27 @@ create policy "Users can read own row" on public.users
   for select using (auth.uid() = id);
 create policy "Users can update own row" on public.users
   for update using (auth.uid() = id);
+create policy "Walker can read booking clients" on public.users
+  for select using (
+    exists (
+      select 1 from public.bookings b
+      join public.walker_profiles wp on wp.id = b.walker_id
+      where b.client_id = users.id and wp.user_id = auth.uid()
+    )
+  );
 
 -- pets: CRUD own
 create policy "Users can read own pets" on public.pets
   for select using (auth.uid() = user_id);
+create policy "Walker can read pets in their bookings" on public.pets
+  for select using (
+    exists (
+      select 1 from public.booking_items bi
+      join public.bookings b on b.id = bi.booking_id
+      join public.walker_profiles wp on wp.id = b.walker_id
+      where bi.pet_id = pets.id and wp.user_id = auth.uid()
+    )
+  );
 create policy "Users can insert own pets" on public.pets
   for insert with check (auth.uid() = user_id);
 create policy "Users can update own pets" on public.pets

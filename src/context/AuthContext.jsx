@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
       .from('walker_profiles')
       .select('*')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
     setWalkerProfile(data)
   }
 

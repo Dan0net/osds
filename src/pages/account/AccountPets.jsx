@@ -1,10 +1,26 @@
-import { useState } from 'react'
-import { MOCK_PETS } from '../../lib/mockData'
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function AccountPets() {
-  const [pets, setPets] = useState(MOCK_PETS)
+  const { user } = useAuth()
+  const [pets, setPets] = useState([])
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ name: '', breed: '', weight: '', age: '', notes: '' })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (user) loadPets()
+  }, [user?.id])
+
+  async function loadPets() {
+    const { data } = await supabase
+      .from('pets')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at')
+    setPets(data || [])
+  }
 
   function startAdd() {
     setEditing('new')
@@ -13,20 +29,24 @@ export default function AccountPets() {
 
   function startEdit(pet) {
     setEditing(pet.id)
-    setForm({ name: pet.name, breed: pet.breed, weight: pet.weight, age: pet.age, notes: pet.notes })
+    setForm({ name: pet.name, breed: pet.breed || '', weight: pet.weight || '', age: pet.age || '', notes: pet.notes || '' })
   }
 
-  function save() {
+  async function save() {
+    setSaving(true)
     if (editing === 'new') {
-      setPets((prev) => [...prev, { id: `pet-${Date.now()}`, user_id: 'user-1', ...form }])
+      await supabase.from('pets').insert({ user_id: user.id, ...form })
     } else {
-      setPets((prev) => prev.map((p) => (p.id === editing ? { ...p, ...form } : p)))
+      await supabase.from('pets').update(form).eq('id', editing)
     }
     setEditing(null)
+    setSaving(false)
+    await loadPets()
   }
 
-  function remove(id) {
-    setPets((prev) => prev.filter((p) => p.id !== id))
+  async function remove(id) {
+    await supabase.from('pets').delete().eq('id', id)
+    await loadPets()
   }
 
   return (
@@ -91,8 +111,8 @@ export default function AccountPets() {
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={save} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">
-              Save
+            <button onClick={save} disabled={saving} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? 'Saving...' : 'Save'}
             </button>
             <button onClick={() => setEditing(null)} className="border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
               Cancel

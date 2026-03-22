@@ -1,9 +1,12 @@
-import { useState } from 'react'
-import { MOCK_USER, MOCK_BOOKINGS, MOCK_CLIENT_BOOKINGS, MOCK_WALKERS, MOCK_EXTERNAL_EVENTS, getMockSlots } from '../../lib/mockData'
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import { apiFetch } from '../../lib/api'
 import BookingsCalendar from '../../components/BookingsCalendar'
 
 const STATUS_STYLES = {
   requested: 'bg-yellow-100 text-yellow-700',
+  approved: 'bg-blue-100 text-blue-700',
   confirmed: 'bg-green-100 text-green-700',
   declined: 'bg-red-100 text-red-700',
   pending: 'bg-blue-100 text-blue-700',
@@ -11,29 +14,114 @@ const STATUS_STYLES = {
 }
 
 export default function AccountBookings() {
-  const [tab, setTab] = useState(MOCK_USER.has_walker_profile ? 'incoming' : 'mine')
-  const [incoming, setIncoming] = useState(MOCK_BOOKINGS)
-  const [mine] = useState(MOCK_CLIENT_BOOKINGS)
-  const [managingId, setManagingId] = useState(null)
-  const [favourites] = useState(
-    MOCK_WALKERS.filter((w) => MOCK_USER.favourite_walkers.includes(w.id)),
-  )
+  const { user, walkerProfile } = useAuth()
+  const isWalker = !!walkerProfile
 
-  function updateStatus(id, status) {
-    setIncoming((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)))
+  const [tab, setTab] = useState(isWalker ? 'incoming' : 'mine')
+  const [incoming, setIncoming] = useState([])
+  const [mine, setMine] = useState([])
+  const [managingId, setManagingId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(null)
+
+  useEffect(() => {
+    if (user) loadBookings()
+  }, [user?.id, walkerProfile?.id])
+
+  async function loadBookings() {
+    setLoading(true)
+
+    // Load my bookings as a client
+    const { data: clientBookings } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        booking_items(*, services(*), pets(*)),
+        walker_profiles(slug, business_name)
+      `)
+      .eq('client_id', user.id)
+      .order('booking_date', { ascending: false })
+
+    setMine((clientBookings || []).map(formatBooking))
+
+    // Load incoming bookings as walker
+    if (walkerProfile) {
+      const { data: walkerBookings } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          booking_items(*, services(*), pets(*)),
+          users!bookings_client_id_fkey(name)
+        `)
+        .eq('walker_id', walkerProfile.id)
+        .order('booking_date', { ascending: false })
+
+      setIncoming((walkerBookings || []).map(formatBooking))
+    }
+
+    setLoading(false)
   }
 
-  function toggleReopenedSlot(bookingId, date, time) {
+  function formatBooking(b) {
+    const item = b.booking_items?.[0]
+    const service = item?.services
+    const pet = item?.pets
+    const isOvernight = !!b.end_date && b.end_date !== b.booking_date
+    let nights = 0
+    if (isOvernight) {
+      nights = Math.round((new Date(b.end_date) - new Date(b.booking_date)) / (1000 * 60 * 60 * 24))
+    }
+    return {
+      ...b,
+      service_name: service?.name || 'Unknown service',
+      pet_name: pet?.name || '—',
+      client_name: b.users?.name || '',
+      walker_name: b.walker_profiles?.business_name || '',
+      walker_slug: b.walker_profiles?.slug || '',
+      price_cents: service ? (isOvernight ? service.price_cents * nights : service.price_cents) : 0,
+      is_overnight: isOvernight,
+      nights,
+      start_time: b.start_time?.slice(0, 5),
+      end_time: b.end_time?.slice(0, 5),
+    }
+  }
+
+  async function handleApprove(id) {
+    setActionLoading(id)
+    const result = await apiFetch('approve-booking', {
+      method: 'POST',
+      body: JSON.stringify({ booking_id: id }),
+    })
+    setActionLoading(null)
+    if (!result.error) await loadBookings()
+  }
+
+  async function handleDecline(id) {
+    setActionLoading(id)
+    const result = await apiFetch('decline-booking', {
+      method: 'POST',
+      body: JSON.stringify({ booking_id: id }),
+    })
+    setActionLoading(null)
+    if (!result.error) await loadBookings()
+  }
+
+  async function toggleReopenedSlot(bookingId, date, time) {
+    const booking = incoming.find((b) => b.id === bookingId)
+    if (!booking) return
+    const slots = booking.reopened_slots || []
+    const idx = slots.findIndex((s) => s.date === date && s.time === time)
+    const newSlots = idx >= 0
+      ? slots.filter((_, i) => i !== idx)
+      : [...slots, { date, time }]
+
+    await supabase
+      .from('bookings')
+      .update({ reopened_slots: newSlots })
+      .eq('id', bookingId)
+
     setIncoming((prev) =>
-      prev.map((b) => {
-        if (b.id !== bookingId) return b
-        const slots = b.reopened_slots || []
-        const idx = slots.findIndex((s) => s.date === date && s.time === time)
-        if (idx >= 0) {
-          return { ...b, reopened_slots: slots.filter((_, i) => i !== idx) }
-        }
-        return { ...b, reopened_slots: [...slots, { date, time }] }
-      }),
+      prev.map((b) => (b.id === bookingId ? { ...b, reopened_slots: newSlots } : b)),
     )
   }
 
@@ -43,16 +131,17 @@ export default function AccountBookings() {
     const end = new Date(booking.end_date)
     while (current <= end) {
       const dateStr = current.toISOString().split('T')[0]
-      const daySlots = getMockSlots(dateStr, 30)
-      for (const time of daySlots) {
-        const [h, m] = time.split(':').map(Number)
-        const slotMin = h * 60 + m
+      // Generate 30-min slots from 7am to 7pm
+      for (let m = 7 * 60; m < 19 * 60; m += 30) {
+        const time = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+        const [h, min] = time.split(':').map(Number)
+        const slotMin = h * 60 + min
         let blocked = false
         if (dateStr === booking.booking_date) {
-          const [sh, sm] = booking.start_time.split(':').map(Number)
+          const [sh, sm] = (booking.start_time || '00:00').split(':').map(Number)
           blocked = slotMin >= sh * 60 + sm
         } else if (dateStr === booking.end_date) {
-          const [eh, em] = booking.end_time.split(':').map(Number)
+          const [eh, em] = (booking.end_time || '23:59').split(':').map(Number)
           blocked = slotMin < eh * 60 + em
         } else {
           blocked = true
@@ -64,14 +153,25 @@ export default function AccountBookings() {
     return result
   }
 
+  if (loading) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Bookings</h1>
+        <div className="flex justify-center py-8">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Bookings</h1>
 
-      <BookingsCalendar incoming={incoming} mine={mine} external={MOCK_EXTERNAL_EVENTS} />
+      <BookingsCalendar incoming={incoming} mine={mine} external={[]} />
 
       {/* Tabs */}
-      {MOCK_USER.has_walker_profile && (
+      {isWalker && (
         <div className="flex gap-1 mb-6">
           <button
             onClick={() => setTab('incoming')}
@@ -95,6 +195,9 @@ export default function AccountBookings() {
       {/* Incoming requests (walker view) */}
       {tab === 'incoming' && (
         <div className="space-y-3">
+          {incoming.length === 0 && (
+            <p className="text-gray-400 text-center py-8">No incoming bookings yet.</p>
+          )}
           {incoming.map((b) => {
             const isOvernight = b.is_overnight
             const isManaging = managingId === b.id
@@ -136,28 +239,30 @@ export default function AccountBookings() {
                 {b.status === 'requested' && (
                   <div className="flex gap-2 mb-3">
                     <button
-                      onClick={() => updateStatus(b.id, 'confirmed')}
-                      className="bg-green-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-green-700"
+                      onClick={() => handleApprove(b.id)}
+                      disabled={actionLoading === b.id}
+                      className="bg-green-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
                     >
-                      Approve
+                      {actionLoading === b.id ? '...' : 'Approve'}
                     </button>
                     <button
-                      onClick={() => updateStatus(b.id, 'declined')}
-                      className="bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-700"
+                      onClick={() => handleDecline(b.id)}
+                      disabled={actionLoading === b.id}
+                      className="bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
                     >
-                      Decline
+                      {actionLoading === b.id ? '...' : 'Decline'}
                     </button>
                   </div>
                 )}
 
                 {/* Overnight slot management */}
-                {isOvernight && (b.status === 'confirmed' || b.status === 'requested') && (
+                {isOvernight && (b.status === 'confirmed' || b.status === 'requested' || b.status === 'approved') && (
                   <div>
                     <button
                       onClick={() => setManagingId(isManaging ? null : b.id)}
                       className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
                     >
-                      {isManaging ? 'Hide Availability \u25B2' : 'Manage Availability \u25BC'}
+                      {isManaging ? 'Hide Availability ▲' : 'Manage Availability ▼'}
                     </button>
 
                     {isManaging && (() => {
@@ -239,39 +344,14 @@ export default function AccountBookings() {
                 <div className="text-sm text-gray-500">
                   {new Date(b.booking_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                   {' · '}{b.start_time}–{b.end_time}
-                  {' · '}£{(b.price_cents / 100).toFixed(2)}
+                  {b.price_cents > 0 && <>{' · '}£{(b.price_cents / 100).toFixed(2)}</>}
                 </div>
-                {(b.status === 'requested' || b.status === 'confirmed') && (
-                  <button className="mt-2 text-sm text-red-500 hover:text-red-600">Cancel</button>
-                )}
               </div>
             ))}
             {mine.length === 0 && (
               <p className="text-gray-400 text-center py-8">No bookings yet.</p>
             )}
           </div>
-
-          {/* Favourites */}
-          {favourites.length > 0 && (
-            <>
-              <h2 className="text-xl font-bold mb-4">Favourite Walkers</h2>
-              <div className="space-y-2">
-                {favourites.map((w) => (
-                  <div key={w.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
-                        {w.business_name.charAt(0)}
-                      </div>
-                      <span className="font-semibold">{w.business_name}</span>
-                    </div>
-                    <a href={`/w/${w.slug}`} className="text-sm text-indigo-600 hover:text-indigo-700">
-                      View page
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </>
       )}
     </div>

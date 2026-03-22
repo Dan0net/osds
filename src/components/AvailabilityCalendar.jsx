@@ -1,6 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { MOCK_SERVICES, MOCK_BOOKINGS, getMockSlots } from '../lib/mockData'
 
 function getWeekDates(baseDate) {
   const d = new Date(baseDate)
@@ -20,8 +19,8 @@ function formatTime(time) {
   return time
 }
 
-export default function AvailabilityCalendar({ services }) {
-  const walkerServices = services || MOCK_SERVICES
+export default function AvailabilityCalendar({ services, walkerId }) {
+  const walkerServices = services || []
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
   const navigate = useNavigate()
@@ -30,6 +29,8 @@ export default function AvailabilityCalendar({ services }) {
   const [selectedService, setSelectedService] = useState('')
   const [selectedSlots, setSelectedSlots] = useState([]) // [{date, time, service}]
   const [overnightStart, setOvernightStart] = useState(null) // {date, time} — first click for overnight
+  const [weekSlots, setWeekSlots] = useState({}) // { date: [time, ...] }
+  const [loadingSlots, setLoadingSlots] = useState(false)
 
   const today = new Date()
   const baseDate = new Date(today)
@@ -40,25 +41,49 @@ export default function AvailabilityCalendar({ services }) {
   const duration = service?.duration_minutes || 30
   const isOvernight = service?.service_type === 'overnight'
 
-  // Compute slots for each day in the week
-  const weekSlots = useMemo(() => {
-    const result = {}
-    for (const date of weekDates) {
-      result[date] = getMockSlots(date, duration, { overnight: isOvernight })
+  // Fetch availability from API when week/service changes
+  useEffect(() => {
+    if (!walkerId) return
+    let cancelled = false
+    setLoadingSlots(true)
+
+    async function fetchWeek() {
+      const result = {}
+      const promises = weekDates.map(async (date) => {
+        const params = new URLSearchParams({
+          walker_id: walkerId,
+          date,
+          duration_minutes: String(duration),
+          service_type: isOvernight ? 'overnight' : 'standard',
+        })
+        try {
+          const res = await fetch(`/.netlify/functions/get-availability?${params}`)
+          const json = await res.json()
+          result[date] = json.data?.slots || []
+        } catch {
+          result[date] = []
+        }
+      })
+      await Promise.all(promises)
+      if (!cancelled) {
+        setWeekSlots(result)
+        setLoadingSlots(false)
+      }
     }
-    return result
-  }, [weekDates.join(','), duration, isOvernight])
+
+    fetchWeek()
+    return () => { cancelled = true }
+  }, [walkerId, weekDates.join(','), duration, isOvernight])
 
   // Build unified time row list (all unique times across the week)
   const allTimes = useMemo(() => {
     const timeSet = new Set()
     for (const date of weekDates) {
-      // When overnight service selected, only show 7am-7pm slots
-      const baseSlots = getMockSlots(date, 30, { overnight: isOvernight })
-      baseSlots.forEach((t) => timeSet.add(t))
+      const slots = weekSlots[date] || []
+      slots.forEach((t) => timeSet.add(t))
     }
     return Array.from(timeSet).sort()
-  }, [weekDates.join(','), isOvernight])
+  }, [weekDates.join(','), weekSlots])
 
   function isAvailable(date, time) {
     return weekSlots[date]?.includes(time) || false
@@ -107,41 +132,8 @@ export default function AvailabilityCalendar({ services }) {
     })
   }
 
-  // Check if a slot is blocked by an existing confirmed/requested overnight booking
-  // Returns false if the slot has been reopened by admin AND current service < 3 hours
-  function isBlockedByExistingBooking(date, time) {
-    const [h, m] = time.split(':').map(Number)
-    const slotMin = h * 60 + m
-
-    for (const booking of MOCK_BOOKINGS) {
-      if (!booking.is_overnight) continue
-      if (booking.status !== 'confirmed' && booking.status !== 'requested') continue
-
-      let inRange = false
-      if (date > booking.booking_date && date < booking.end_date) {
-        inRange = true
-      } else if (date === booking.booking_date) {
-        const [sh, sm] = booking.start_time.split(':').map(Number)
-        inRange = slotMin >= sh * 60 + sm
-      } else if (date === booking.end_date) {
-        const [eh, em] = booking.end_time.split(':').map(Number)
-        inRange = slotMin < eh * 60 + em
-      }
-
-      if (!inRange) continue
-
-      // Check if admin reopened this slot
-      const reopened = (booking.reopened_slots || []).some(
-        (s) => s.date === date && s.time === time,
-      )
-
-      // Reopened slots are available only for non-overnight services under 3 hours
-      if (reopened && service && service.duration_minutes < 180 && service.service_type !== 'overnight') {
-        continue
-      }
-
-      return true
-    }
+  // Existing booking blocking is handled server-side by get-availability
+  function isBlockedByExistingBooking() {
     return false
   }
 
@@ -236,7 +228,7 @@ export default function AvailabilityCalendar({ services }) {
   }
 
   function handleBookNow() {
-    navigate(`${prefix}/book`, { state: { slots: selectedSlots } })
+    navigate(`${prefix}/book`, { state: { slots: selectedSlots, walkerId } })
   }
 
   const canGoPrev = weekOffset > 0
@@ -326,7 +318,11 @@ export default function AvailabilityCalendar({ services }) {
         </div>
 
         {/* Time slots grid */}
-        {allTimes.length === 0 ? (
+        {loadingSlots ? (
+          <div className="flex justify-center py-6">
+            <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : allTimes.length === 0 ? (
           <p className="text-gray-400 text-center py-6 text-sm">No availability this week</p>
         ) : (
           <div className="grid grid-cols-7 gap-0.5 sm:gap-1">

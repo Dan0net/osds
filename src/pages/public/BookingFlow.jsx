@@ -1,24 +1,71 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
-import { MOCK_PETS } from '../../lib/mockData'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import { apiFetch } from '../../lib/api'
 
 export default function BookingFlow() {
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
   const navigate = useNavigate()
   const location = useLocation()
+  const { user } = useAuth()
 
   const slots = location.state?.slots || []
-  const [selectedPetId, setSelectedPetId] = useState(MOCK_PETS[0]?.id || '')
+  const walkerId = location.state?.walkerId
+  const [pets, setPets] = useState([])
+  const [selectedPetId, setSelectedPetId] = useState('')
   const [petNotes, setPetNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
   const totalCents = slots.reduce((sum, s) => sum + s.priceCents, 0)
-  const selectedPet = MOCK_PETS.find((p) => p.id === selectedPetId)
+  const selectedPet = pets.find((p) => p.id === selectedPetId)
 
-  function handleSubmit(e) {
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('pets')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at')
+        .then(({ data }) => {
+          setPets(data || [])
+          if (data && data.length > 0) setSelectedPetId(data[0].id)
+        })
+    }
+  }, [user?.id])
+
+  async function handleSubmit(e) {
     e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    const result = await apiFetch('create-booking-request', {
+      method: 'POST',
+      body: JSON.stringify({
+        walker_id: walkerId,
+        pet_id: selectedPetId || null,
+        slots: slots.map((s) => ({
+          date: s.date,
+          time: s.time,
+          endTime: s.endTime,
+          endDate: s.endDate,
+          serviceId: s.serviceId,
+          isOvernight: s.isOvernight,
+        })),
+      }),
+    })
+
+    setSubmitting(false)
+
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+
     navigate(`${prefix}/confirmation`, {
-      state: { slots, pet: selectedPet, petNotes, totalCents },
+      state: { slots, pet: selectedPet, petNotes, totalCents, bookingIds: result.data?.bookingIds },
     })
   }
 
@@ -106,11 +153,12 @@ export default function BookingFlow() {
             onChange={(e) => setSelectedPetId(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
           >
-            {MOCK_PETS.map((pet) => (
+            {pets.map((pet) => (
               <option key={pet.id} value={pet.id}>
-                {pet.name} — {pet.breed}, {pet.weight}
+                {pet.name} — {pet.breed}{pet.weight ? `, ${pet.weight}` : ''}
               </option>
             ))}
+            {pets.length === 0 && <option value="">No pets added — add one in your account</option>}
           </select>
         </div>
         <div>
@@ -125,6 +173,9 @@ export default function BookingFlow() {
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
           />
         </div>
+        {error && (
+          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</p>
+        )}
         <div className="flex gap-3 pt-2">
           <button
             type="button"
@@ -135,9 +186,10 @@ export default function BookingFlow() {
           </button>
           <button
             type="submit"
-            className="flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700"
+            disabled={submitting}
+            className="flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
           >
-            Submit Request
+            {submitting ? 'Submitting...' : 'Submit Request'}
           </button>
         </div>
       </form>
