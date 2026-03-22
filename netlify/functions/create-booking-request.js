@@ -134,11 +134,14 @@ export async function handler(event) {
 
   // Create bookings
   const bookingIds = []
+  const batchId = slots.length > 1 ? crypto.randomUUID() : null
+
   for (const slot of slots) {
     const svc = serviceMap[slot.serviceId]
     const bookingData = {
       walker_id,
       client_id: user.id,
+      batch_id: batchId,
       booking_date: slot.date,
       start_time: slot.time,
       end_time: slot.endTime || null,

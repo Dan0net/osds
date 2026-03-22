@@ -176,6 +176,7 @@ export default function AccountDashboard() {
                   <span className="text-gray-400 mx-2">·</span>
                   <span className="text-gray-500">
                     {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    {b.start_time && ` ${b.start_time.slice(0, 5)}`}
                   </span>
                 </div>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded ${
@@ -196,6 +197,7 @@ export default function AccountDashboard() {
                   <span className="text-gray-400 mx-2">·</span>
                   <span className="text-gray-500">
                     {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    {b.start_time && ` ${b.start_time.slice(0, 5)}`}
                   </span>
                 </div>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded ${
@@ -230,7 +232,8 @@ export default function AccountDashboard() {
                     <span className="text-gray-600">{getServiceName(b)}</span>
                     <span className="text-gray-400 mx-2">·</span>
                     <span className="text-gray-500">
-                      {new Date(b.booking_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      {b.start_time && ` ${b.start_time.slice(0, 5)}`}
                     </span>
                   </div>
                   <div className="flex gap-1.5 ml-3 shrink-0">

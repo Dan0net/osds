@@ -160,7 +160,7 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
                 {date.getDate()}
               </span>
               <div className="mt-0.5 space-y-0.5">
-                {dayEvents.slice(0, 3).map((ev, j) => {
+                {dayEvents.map((ev, j) => {
                   const style = getStyle(ev)
                   return (
                     <div key={j} className={`text-[10px] leading-tight truncate rounded px-1 py-0.5 ${style.bg} ${style.text}`}>
@@ -168,9 +168,6 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
                     </div>
                   )
                 })}
-                {dayEvents.length > 3 && (
-                  <span className="text-[10px] text-gray-400 px-1">+{dayEvents.length - 3} more</span>
-                )}
               </div>
             </div>
           )

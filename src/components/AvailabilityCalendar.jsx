@@ -30,6 +30,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
   const [selectedSlots, setSelectedSlots] = useState([]) // [{date, time, service}]
   const [overnightStart, setOvernightStart] = useState(null) // {date, time} — first click for overnight
   const [weekSlots, setWeekSlots] = useState({}) // { date: [time, ...] }
+  const [fullTimeGrid, setFullTimeGrid] = useState([]) // all possible times across the week
   const [loadingSlots, setLoadingSlots] = useState(false)
 
   const today = new Date()
@@ -49,6 +50,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
 
     async function fetchWeek() {
       const result = {}
+      const allTimesSet = new Set()
       const promises = weekDates.map(async (date) => {
         const params = new URLSearchParams({
           walker_id: walkerId,
@@ -60,6 +62,8 @@ export default function AvailabilityCalendar({ services, walkerId }) {
           const res = await fetch(`/.netlify/functions/get-availability?${params}`)
           const json = await res.json()
           result[date] = json.data?.slots || []
+          // Collect all possible slots (available or not) for complete time grid
+          for (const t of (json.data?.allSlots || json.data?.slots || [])) allTimesSet.add(t)
         } catch {
           result[date] = []
         }
@@ -67,6 +71,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
       await Promise.all(promises)
       if (!cancelled) {
         setWeekSlots(result)
+        setFullTimeGrid(Array.from(allTimesSet).sort())
         setLoadingSlots(false)
       }
     }
@@ -75,15 +80,8 @@ export default function AvailabilityCalendar({ services, walkerId }) {
     return () => { cancelled = true }
   }, [walkerId, weekDates.join(','), duration, isOvernight])
 
-  // Build unified time row list (all unique times across the week)
-  const allTimes = useMemo(() => {
-    const timeSet = new Set()
-    for (const date of weekDates) {
-      const slots = weekSlots[date] || []
-      slots.forEach((t) => timeSet.add(t))
-    }
-    return Array.from(timeSet).sort()
-  }, [weekDates.join(','), weekSlots])
+  // Use the full time grid (includes unavailable slots) so all rows render
+  const allTimes = fullTimeGrid
 
   function isAvailable(date, time) {
     return weekSlots[date]?.includes(time) || false

@@ -86,21 +86,37 @@ export default function AccountBookings() {
     }
   }
 
-  async function handleApprove(id) {
-    setActionLoading(id)
+  function groupByBatch(bookings) {
+    const batches = new Map()
+    const singles = []
+    for (const b of bookings) {
+      if (b.batch_id) {
+        if (!batches.has(b.batch_id)) batches.set(b.batch_id, [])
+        batches.get(b.batch_id).push(b)
+      } else {
+        singles.push([b])
+      }
+    }
+    return [...batches.values(), ...singles]
+  }
+
+  async function handleApprove(id, batchId) {
+    const key = batchId || id
+    setActionLoading(key)
     const result = await apiFetch('approve-booking', {
       method: 'POST',
-      body: JSON.stringify({ booking_id: id }),
+      body: JSON.stringify(batchId ? { batch_id: batchId } : { booking_id: id }),
     })
     setActionLoading(null)
     if (!result.error) await loadBookings()
   }
 
-  async function handleDecline(id) {
-    setActionLoading(id)
+  async function handleDecline(id, batchId) {
+    const key = batchId || id
+    setActionLoading(key)
     const result = await apiFetch('decline-booking', {
       method: 'POST',
-      body: JSON.stringify({ booking_id: id }),
+      body: JSON.stringify(batchId ? { batch_id: batchId } : { booking_id: id }),
     })
     setActionLoading(null)
     if (!result.error) await loadBookings()
@@ -198,125 +214,149 @@ export default function AccountBookings() {
           {incoming.length === 0 && (
             <p className="text-gray-400 text-center py-8">No incoming bookings yet.</p>
           )}
-          {incoming.map((b) => {
-            const isOvernight = b.is_overnight
-            const isManaging = managingId === b.id
+          {groupByBatch(incoming).map((group) => {
+            const batchId = group[0].batch_id
+            const key = batchId || group[0].id
+            const allRequested = group.every((b) => b.status === 'requested')
+            const groupStatus = allRequested ? 'requested' : group[0].status
+            const totalCents = group.reduce((sum, b) => sum + b.price_cents, 0)
 
             return (
-              <div key={b.id} className="bg-white border border-gray-200 rounded-lg p-4">
+              <div key={key} className="bg-white border border-gray-200 rounded-lg p-4">
+                {/* Batch header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <div>
-                    <span className="font-semibold">{b.service_name}</span>
-                    <span className="text-gray-400 mx-2">·</span>
-                    <span className="text-gray-600">{b.client_name}</span>
-                    <span className="text-gray-400 mx-2">·</span>
-                    <span className="text-gray-500">{b.pet_name}</span>
+                    <span className="text-gray-600">{group[0].client_name}</span>
+                    {group[0].pet_name && group[0].pet_name !== '—' && (
+                      <>
+                        <span className="text-gray-400 mx-2">·</span>
+                        <span className="text-gray-500">{group[0].pet_name}</span>
+                      </>
+                    )}
+                    {group.length > 1 && (
+                      <span className="text-gray-400 ml-2 text-xs">({group.length} slots)</span>
+                    )}
                   </div>
-                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${STATUS_STYLES[b.status] || 'bg-gray-100 text-gray-600'}`}>
-                    {b.status}
+                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${STATUS_STYLES[groupStatus] || 'bg-gray-100 text-gray-600'}`}>
+                    {groupStatus}
                   </span>
                 </div>
 
-                <div className="text-sm text-gray-500 mb-3">
-                  {isOvernight ? (
-                    <>
-                      {new Date(b.booking_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                      {' '}{b.start_time}{' → '}
-                      {new Date(b.end_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                      {' '}{b.end_time}
-                      {' · '}{b.nights} night{b.nights > 1 ? 's' : ''}
-                      {' · '}£{(b.price_cents / 100).toFixed(2)}
-                    </>
-                  ) : (
-                    <>
-                      {new Date(b.booking_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                      {' · '}{b.start_time}–{b.end_time}
-                      {' · '}£{(b.price_cents / 100).toFixed(2)}
-                    </>
+                {/* Individual slots */}
+                <div className="space-y-1 text-sm text-gray-500 mb-3">
+                  {group.map((b) => (
+                    <div key={b.id}>
+                      <span className="font-medium text-gray-700">{b.service_name}</span>
+                      <span className="text-gray-400 mx-1">·</span>
+                      {b.is_overnight ? (
+                        <>
+                          {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          {' '}{b.start_time}{' → '}
+                          {new Date(b.end_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          {' '}{b.end_time}
+                          {' · '}{b.nights} night{b.nights > 1 ? 's' : ''}
+                          {' · '}£{(b.price_cents / 100).toFixed(2)}
+                        </>
+                      ) : (
+                        <>
+                          {new Date(b.booking_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          {' · '}{b.start_time}–{b.end_time}
+                          {' · '}£{(b.price_cents / 100).toFixed(2)}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {group.length > 1 && (
+                    <div className="text-xs font-medium text-gray-700 pt-1">
+                      Total: £{(totalCents / 100).toFixed(2)}
+                    </div>
                   )}
                 </div>
 
-                {b.status === 'requested' && (
+                {allRequested && (
                   <div className="flex gap-2 mb-3">
                     <button
-                      onClick={() => handleApprove(b.id)}
-                      disabled={actionLoading === b.id}
+                      onClick={() => handleApprove(group[0].id, batchId)}
+                      disabled={actionLoading === key}
                       className="bg-green-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
                     >
-                      {actionLoading === b.id ? '...' : 'Approve'}
+                      {actionLoading === key ? '...' : group.length > 1 ? `Approve all (${group.length})` : 'Approve'}
                     </button>
                     <button
-                      onClick={() => handleDecline(b.id)}
-                      disabled={actionLoading === b.id}
+                      onClick={() => handleDecline(group[0].id, batchId)}
+                      disabled={actionLoading === key}
                       className="bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
                     >
-                      {actionLoading === b.id ? '...' : 'Decline'}
+                      {actionLoading === key ? '...' : group.length > 1 ? `Decline all (${group.length})` : 'Decline'}
                     </button>
                   </div>
                 )}
 
-                {/* Overnight slot management */}
-                {isOvernight && (b.status === 'confirmed' || b.status === 'requested' || b.status === 'approved') && (
-                  <div>
-                    <button
-                      onClick={() => setManagingId(isManaging ? null : b.id)}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
-                    >
-                      {isManaging ? 'Hide Availability ▲' : 'Manage Availability ▼'}
-                    </button>
+                {/* Overnight slot management for each overnight booking in the group */}
+                {group.filter((b) => b.is_overnight && (b.status === 'confirmed' || b.status === 'requested' || b.status === 'approved')).map((b) => {
+                  const isManaging = managingId === b.id
+                  return (
+                    <div key={`overnight-${b.id}`} className="mt-2">
+                      <button
+                        onClick={() => setManagingId(isManaging ? null : b.id)}
+                        className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                      >
+                        {isManaging ? 'Hide Availability ▲' : 'Manage Availability ▼'}
+                      </button>
 
-                    {isManaging && (() => {
-                      const blockedSlots = getOvernightBlockedSlots(b)
-                      const byDate = {}
-                      for (const s of blockedSlots) {
-                        if (!byDate[s.date]) byDate[s.date] = []
-                        byDate[s.date].push(s.time)
-                      }
-                      const dates = Object.keys(byDate).sort()
-                      const reopenedCount = (b.reopened_slots || []).length
+                      {isManaging && (() => {
+                        const blockedSlots = getOvernightBlockedSlots(b)
+                        const byDate = {}
+                        for (const s of blockedSlots) {
+                          if (!byDate[s.date]) byDate[s.date] = []
+                          byDate[s.date].push(s.time)
+                        }
+                        const dates = Object.keys(byDate).sort()
+                        const reopenedCount = (b.reopened_slots || []).length
 
-                      return (
-                        <div className="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
-                          <p className="text-xs text-gray-500 mb-3">
-                            Toggle slots to re-open for services under 3 hours. All slots are blocked by default.
-                            {reopenedCount > 0 && (
-                              <span className="ml-1 font-medium text-green-700">
-                                {reopenedCount} slot{reopenedCount > 1 ? 's' : ''} reopened
-                              </span>
-                            )}
-                          </p>
-                          <div className="space-y-3">
-                            {dates.map((date) => (
-                              <div key={date}>
-                                <p className="text-xs font-medium text-gray-600 mb-1">
-                                  {new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                                </p>
-                                <div className="flex flex-wrap gap-1">
-                                  {byDate[date].map((time) => {
-                                    const reopened = (b.reopened_slots || []).some((s) => s.date === date && s.time === time)
-                                    return (
-                                      <button
-                                        key={`${date}-${time}`}
-                                        onClick={() => toggleReopenedSlot(b.id, date, time)}
-                                        className={`px-2 py-1 text-xs rounded transition ${
-                                          reopened
-                                            ? 'bg-green-100 text-green-700 border border-green-300 font-medium'
-                                            : 'bg-gray-200 text-gray-500 border border-gray-300 hover:bg-gray-300'
-                                        }`}
-                                      >
-                                        {time}
-                                      </button>
-                                    )
-                                  })}
+                        return (
+                          <div className="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                            <p className="text-xs text-gray-500 mb-3">
+                              Toggle slots to re-open for services under 3 hours. All slots are blocked by default.
+                              {reopenedCount > 0 && (
+                                <span className="ml-1 font-medium text-green-700">
+                                  {reopenedCount} slot{reopenedCount > 1 ? 's' : ''} reopened
+                                </span>
+                              )}
+                            </p>
+                            <div className="space-y-3">
+                              {dates.map((date) => (
+                                <div key={date}>
+                                  <p className="text-xs font-medium text-gray-600 mb-1">
+                                    {new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                  </p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {byDate[date].map((time) => {
+                                      const reopened = (b.reopened_slots || []).some((s) => s.date === date && s.time === time)
+                                      return (
+                                        <button
+                                          key={`${date}-${time}`}
+                                          onClick={() => toggleReopenedSlot(b.id, date, time)}
+                                          className={`px-2 py-1 text-xs rounded transition ${
+                                            reopened
+                                              ? 'bg-green-100 text-green-700 border border-green-300 font-medium'
+                                              : 'bg-gray-200 text-gray-500 border border-gray-300 hover:bg-gray-300'
+                                          }`}
+                                        >
+                                          {time}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
+                        )
+                      })()}
+                    </div>
+                  )
+                })}
               </div>
             )
           })}

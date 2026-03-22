@@ -86,6 +86,7 @@ create table public.bookings (
   walker_id uuid not null references public.walker_profiles(id) on delete cascade,
   client_id uuid not null references public.users(id) on delete cascade,
   payment_id uuid references public.payments(id) on delete set null,
+  batch_id uuid default null,
   booking_date date not null,
   start_time time not null,
   end_date date default null,

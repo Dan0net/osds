@@ -51,11 +51,25 @@ services           walker_id, name, price_cents, duration_minutes, service_type 
 availability       walker_id, day_of_week, start_time, end_time
 blocked_dates      walker_id, date, reason
 payments           walker_id, client_id, stripe_session_id, total_cents, tip_cents, status, source, receipt_url, created_at
-bookings           walker_id, client_id, payment_id (nullable), booking_date, start_time, end_date (nullable), end_time, capacity, status, reopened_slots[]
+bookings           walker_id, client_id, payment_id (nullable), batch_id (nullable), booking_date, start_time, end_date (nullable), end_time, capacity, status, reopened_slots[]
 booking_items      booking_id, service_id, pet_id, pet_details
 reviews            walker_id, client_id, booking_id, rating, comment, created_at
 push_subscriptions user_id, endpoint, keys, device_type, created_at
 ```
+
+| Table | Purpose |
+|-------|---------|
+| `users` | Every authenticated account — both clients and walkers |
+| `pets` | Client pets with breed/weight/age for booking context |
+| `walker_profiles` | Public walker page config — slug, branding, Stripe + iCal links |
+| `services` | Services a walker offers with pricing and duration |
+| `availability` | Weekly recurring time windows a walker is available |
+| `blocked_dates` | Single-date overrides where a walker is unavailable |
+| `payments` | Stripe/cash payment records linking to one or more bookings |
+| `bookings` | Individual booking slots — date, time, status lifecycle. `batch_id` groups multi-slot requests |
+| `booking_items` | Links a booking to its service and pet |
+| `reviews` | Client ratings/comments tied to a completed booking |
+| `push_subscriptions` | Web push notification endpoints per device |
 
 **Statuses:**
 - `payment.status`: `paid` · `refunded` · `partially_refunded`
