@@ -104,7 +104,7 @@ All pages built with hardcoded mock data. One user (Ellie) who is both a walker 
 5. As client: visit walker page → "Book a slot" calendar shows only available days
 6. Pick a date → time slots match walker's availability minus blocked dates
 7. Select service + pet + time slot → submit request → redirected to confirmation
-8. Check Supabase: `bookings` row with status `requested`, `booking_items` row linking service + pet
+8. Check Supabase: `bookings` row with status `requested`, `service_id` and `pet_id` set, `payment_id` linking to payment group
 9. As walker: go to `/account/bookings` → incoming request visible with correct details
 10. Approve the request → status changes to `approved`, client sees update
 11. Decline a different request → status changes to `declined`, client sees update

@@ -75,7 +75,7 @@ create table public.payments (
   stripe_session_id text default null,
   total_cents integer not null default 0,
   tip_cents integer not null default 0,
-  status text not null default 'paid' check (status in ('paid', 'refunded', 'partially_refunded')),
+  status text not null default 'pending_approval' check (status in ('pending_approval', 'awaiting_payment', 'paid', 'refunded', 'partially_refunded')),
   source text not null default 'stripe' check (source in ('stripe', 'cash')),
   receipt_url text default null,
   created_at timestamptz default now()
@@ -86,7 +86,8 @@ create table public.bookings (
   walker_id uuid not null references public.walker_profiles(id) on delete cascade,
   client_id uuid not null references public.users(id) on delete cascade,
   payment_id uuid references public.payments(id) on delete set null,
-  batch_id uuid default null,
+  service_id uuid not null references public.services(id) on delete restrict,
+  pet_id uuid references public.pets(id) on delete set null,
   booking_date date not null,
   start_time time not null,
   end_date date default null,
@@ -94,15 +95,6 @@ create table public.bookings (
   capacity integer not null default 1,
   status text not null default 'requested' check (status in ('requested', 'approved', 'hold', 'confirmed', 'pending', 'cancelled', 'declined', 'refunded')),
   reopened_slots jsonb default '[]',
-  created_at timestamptz default now()
-);
-
-create table public.booking_items (
-  id uuid primary key default gen_random_uuid(),
-  booking_id uuid not null references public.bookings(id) on delete cascade,
-  service_id uuid not null references public.services(id) on delete cascade,
-  pet_id uuid references public.pets(id) on delete set null,
-  pet_details jsonb default null,
   created_at timestamptz default now()
 );
 
@@ -158,7 +150,6 @@ alter table public.availability enable row level security;
 alter table public.blocked_dates enable row level security;
 alter table public.payments enable row level security;
 alter table public.bookings enable row level security;
-alter table public.booking_items enable row level security;
 alter table public.reviews enable row level security;
 alter table public.push_subscriptions enable row level security;
 
@@ -182,10 +173,9 @@ create policy "Users can read own pets" on public.pets
 create policy "Walker can read pets in their bookings" on public.pets
   for select using (
     exists (
-      select 1 from public.booking_items bi
-      join public.bookings b on b.id = bi.booking_id
+      select 1 from public.bookings b
       join public.walker_profiles wp on wp.id = b.walker_id
-      where bi.pet_id = pets.id and wp.user_id = auth.uid()
+      where b.pet_id = pets.id and wp.user_id = auth.uid()
     )
   );
 create policy "Users can insert own pets" on public.pets
@@ -251,12 +241,14 @@ create policy "Walker can delete blocked dates" on public.blocked_dates
     exists (select 1 from public.walker_profiles where id = walker_id and user_id = auth.uid())
   );
 
--- payments: walker or client can read own
+-- payments: walker or client can read own, client can insert
 create policy "Users can read own payments" on public.payments
   for select using (
     auth.uid() = client_id or
     exists (select 1 from public.walker_profiles where id = walker_id and user_id = auth.uid())
   );
+create policy "Clients can insert payments" on public.payments
+  for insert with check (auth.uid() = client_id);
 
 -- bookings: walker or client can read own, walker can update
 create policy "Users can read own bookings" on public.bookings
@@ -269,25 +261,6 @@ create policy "Users can insert bookings" on public.bookings
 create policy "Walker can update bookings" on public.bookings
   for update using (
     exists (select 1 from public.walker_profiles where id = walker_id and user_id = auth.uid())
-  );
-
--- booking_items: readable by booking owner
-create policy "Users can read own booking items" on public.booking_items
-  for select using (
-    exists (
-      select 1 from public.bookings b
-      where b.id = booking_id and (
-        b.client_id = auth.uid() or
-        exists (select 1 from public.walker_profiles wp where wp.id = b.walker_id and wp.user_id = auth.uid())
-      )
-    )
-  );
-create policy "Users can insert booking items" on public.booking_items
-  for insert with check (
-    exists (
-      select 1 from public.bookings b
-      where b.id = booking_id and b.client_id = auth.uid()
-    )
   );
 
 -- reviews: public read, client writes own

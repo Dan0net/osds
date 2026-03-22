@@ -36,7 +36,8 @@ export default function AccountBookings() {
       .from('bookings')
       .select(`
         *,
-        booking_items(*, services(*), pets(*)),
+        services(*),
+        pets(*),
         walker_profiles(slug, business_name)
       `)
       .eq('client_id', user.id)
@@ -50,7 +51,8 @@ export default function AccountBookings() {
         .from('bookings')
         .select(`
           *,
-          booking_items(*, services(*), pets(*)),
+          services(*),
+          pets(*),
           users!bookings_client_id_fkey(name)
         `)
         .eq('walker_id', walkerProfile.id)
@@ -63,9 +65,8 @@ export default function AccountBookings() {
   }
 
   function formatBooking(b) {
-    const item = b.booking_items?.[0]
-    const service = item?.services
-    const pet = item?.pets
+    const service = b.services
+    const pet = b.pets
     const isOvernight = !!b.end_date && b.end_date !== b.booking_date
     let nights = 0
     if (isOvernight) {
@@ -86,37 +87,37 @@ export default function AccountBookings() {
     }
   }
 
-  function groupByBatch(bookings) {
-    const batches = new Map()
+  function groupByPayment(bookings) {
+    const groups = new Map()
     const singles = []
     for (const b of bookings) {
-      if (b.batch_id) {
-        if (!batches.has(b.batch_id)) batches.set(b.batch_id, [])
-        batches.get(b.batch_id).push(b)
+      if (b.payment_id) {
+        if (!groups.has(b.payment_id)) groups.set(b.payment_id, [])
+        groups.get(b.payment_id).push(b)
       } else {
         singles.push([b])
       }
     }
-    return [...batches.values(), ...singles]
+    return [...groups.values(), ...singles]
   }
 
-  async function handleApprove(id, batchId) {
-    const key = batchId || id
+  async function handleApprove(id, paymentId) {
+    const key = paymentId || id
     setActionLoading(key)
     const result = await apiFetch('approve-booking', {
       method: 'POST',
-      body: JSON.stringify(batchId ? { batch_id: batchId } : { booking_id: id }),
+      body: JSON.stringify(paymentId ? { payment_id: paymentId } : { booking_id: id }),
     })
     setActionLoading(null)
     if (!result.error) await loadBookings()
   }
 
-  async function handleDecline(id, batchId) {
-    const key = batchId || id
+  async function handleDecline(id, paymentId) {
+    const key = paymentId || id
     setActionLoading(key)
     const result = await apiFetch('decline-booking', {
       method: 'POST',
-      body: JSON.stringify(batchId ? { batch_id: batchId } : { booking_id: id }),
+      body: JSON.stringify(paymentId ? { payment_id: paymentId } : { booking_id: id }),
     })
     setActionLoading(null)
     if (!result.error) await loadBookings()
@@ -214,9 +215,9 @@ export default function AccountBookings() {
           {incoming.length === 0 && (
             <p className="text-gray-400 text-center py-8">No incoming bookings yet.</p>
           )}
-          {groupByBatch(incoming).map((group) => {
-            const batchId = group[0].batch_id
-            const key = batchId || group[0].id
+          {groupByPayment(incoming).map((group) => {
+            const paymentId = group[0].payment_id
+            const key = paymentId || group[0].id
             const allRequested = group.every((b) => b.status === 'requested')
             const groupStatus = allRequested ? 'requested' : group[0].status
             const totalCents = group.reduce((sum, b) => sum + b.price_cents, 0)
@@ -276,14 +277,14 @@ export default function AccountBookings() {
                 {allRequested && (
                   <div className="flex gap-2 mb-3">
                     <button
-                      onClick={() => handleApprove(group[0].id, batchId)}
+                      onClick={() => handleApprove(group[0].id, paymentId)}
                       disabled={actionLoading === key}
                       className="bg-green-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
                     >
                       {actionLoading === key ? '...' : group.length > 1 ? `Approve all (${group.length})` : 'Approve'}
                     </button>
                     <button
-                      onClick={() => handleDecline(group[0].id, batchId)}
+                      onClick={() => handleDecline(group[0].id, paymentId)}
                       disabled={actionLoading === key}
                       className="bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
                     >

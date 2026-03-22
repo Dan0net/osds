@@ -132,16 +132,42 @@ export async function handler(event) {
     }
   }
 
+  // Create payment row upfront to group bookings
+  const totalCents = slots.reduce((sum, slot) => {
+    const svc = serviceMap[slot.serviceId]
+    if (slot.isOvernight && slot.endDate) {
+      const nights = Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
+      return sum + svc.price_cents * nights
+    }
+    return sum + svc.price_cents
+  }, 0)
+
+  const { data: payment, error: paymentError } = await supabase
+    .from('payments')
+    .insert({
+      walker_id,
+      client_id: user.id,
+      total_cents: totalCents,
+      status: 'pending_approval',
+    })
+    .select('id')
+    .single()
+
+  if (paymentError) {
+    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to create payment: ' + paymentError.message }) }
+  }
+
   // Create bookings
   const bookingIds = []
-  const batchId = slots.length > 1 ? crypto.randomUUID() : null
 
   for (const slot of slots) {
     const svc = serviceMap[slot.serviceId]
     const bookingData = {
       walker_id,
       client_id: user.id,
-      batch_id: batchId,
+      payment_id: payment.id,
+      service_id: slot.serviceId,
+      pet_id: pet_id || null,
       booking_date: slot.date,
       start_time: slot.time,
       end_time: slot.endTime || null,
@@ -166,27 +192,11 @@ export async function handler(event) {
     }
 
     bookingIds.push(booking.id)
-
-    // Create booking_item
-    const itemData = {
-      booking_id: booking.id,
-      service_id: slot.serviceId,
-      pet_id: pet_id || null,
-      pet_details: null,
-    }
-
-    const { error: itemError } = await supabase
-      .from('booking_items')
-      .insert(itemData)
-
-    if (itemError) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'Failed to create booking item: ' + itemError.message }) }
-    }
   }
 
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: { bookingIds } }),
+    body: JSON.stringify({ data: { bookingIds, paymentId: payment.id } }),
   }
 }

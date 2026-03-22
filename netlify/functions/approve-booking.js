@@ -21,21 +21,21 @@ export async function handler(event) {
     return { statusCode: 401, body: JSON.stringify({ error: 'Invalid token' }) }
   }
 
-  const { booking_id, batch_id } = JSON.parse(event.body)
-  if (!booking_id && !batch_id) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'booking_id or batch_id is required' }) }
+  const { booking_id, payment_id } = JSON.parse(event.body)
+  if (!booking_id && !payment_id) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'booking_id or payment_id is required' }) }
   }
 
-  if (batch_id) {
-    // Batch approve: fetch all bookings in the batch
+  if (payment_id) {
+    // Batch approve: fetch all bookings in the payment group
     const { data: bookings, error: bkError } = await supabase
       .from('bookings')
       .select('*, walker_profiles!inner(user_id)')
-      .eq('batch_id', batch_id)
+      .eq('payment_id', payment_id)
       .eq('status', 'requested')
 
     if (bkError || !bookings || bookings.length === 0) {
-      return { statusCode: 404, body: JSON.stringify({ error: 'No requested bookings found for this batch' }) }
+      return { statusCode: 404, body: JSON.stringify({ error: 'No requested bookings found for this payment' }) }
     }
 
     if (bookings.some((b) => b.walker_profiles.user_id !== user.id)) {

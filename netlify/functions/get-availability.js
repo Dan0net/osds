@@ -83,7 +83,7 @@ export async function handler(event) {
   // Standard bookings on this date
   const { data: standardBookings } = await supabase
     .from('bookings')
-    .select('*, booking_items(service_id, services(duration_minutes, service_type))')
+    .select('*, services(duration_minutes, service_type)')
     .eq('walker_id', walker_id)
     .eq('booking_date', date)
     .in('status', blockingStatuses)
@@ -107,7 +107,7 @@ export async function handler(event) {
     const [bStartH, bStartM] = booking.start_time.split(':').map(Number)
     const bStartMin = bStartH * 60 + bStartM
 
-    // Determine duration from booking_items or fall back to end_time
+    // Determine duration from end_time
     let bDuration = 30
     if (booking.end_time) {
       const [bEndH, bEndM] = booking.end_time.split(':').map(Number)

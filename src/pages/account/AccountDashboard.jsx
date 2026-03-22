@@ -18,7 +18,7 @@ export default function AccountDashboard() {
     async function load() {
       const { data: cb } = await supabase
         .from('bookings')
-        .select('*, booking_items(*, services(*), pets(*)), walker_profiles(slug, business_name)')
+        .select('*, services(*), pets(*), walker_profiles(slug, business_name)')
         .eq('client_id', user.id)
         .order('booking_date', { ascending: false })
       setClientBookings(cb || [])
@@ -26,7 +26,7 @@ export default function AccountDashboard() {
       if (wp) {
         const { data: wb } = await supabase
           .from('bookings')
-          .select('*, booking_items(*, services(*), pets(*)), users!bookings_client_id_fkey(name)')
+          .select('*, services(*), pets(*), users!bookings_client_id_fkey(name)')
           .eq('walker_id', wp.id)
           .order('booking_date', { ascending: false })
         setWalkerBookings(wb || [])
@@ -59,12 +59,11 @@ export default function AccountDashboard() {
   const pendingRequests = walkerBookings.filter((b) => b.status === 'requested')
   const confirmedWalkerBookings = walkerBookings.filter((b) => b.status === 'confirmed')
   const totalRevenueCents = confirmedWalkerBookings.reduce((sum, b) => {
-    const svc = b.booking_items?.[0]?.services
-    return sum + (svc?.price_cents || 0)
+    return sum + (b.services?.price_cents || 0)
   }, 0)
 
   function getServiceName(b) {
-    return b.booking_items?.[0]?.services?.name || 'Service'
+    return b.services?.name || 'Service'
   }
   function getWalkerName(b) {
     return b.walker_profiles?.business_name || ''
@@ -73,7 +72,7 @@ export default function AccountDashboard() {
     return b.users?.name || ''
   }
   function getPetName(b) {
-    return b.booking_items?.[0]?.pets?.name || ''
+    return b.pets?.name || ''
   }
 
   async function handleApprove(id) {
