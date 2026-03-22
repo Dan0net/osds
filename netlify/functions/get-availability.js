@@ -77,8 +77,8 @@ export async function handler(event) {
   }
 
   // Fetch existing bookings that could affect availability on this date
-  // Include: requested, approved, hold, confirmed, pending
-  const activeStatuses = ['requested', 'approved', 'hold', 'confirmed', 'pending']
+  // Only confirmed-path bookings block availability
+  const blockingStatuses = ['approved', 'hold', 'confirmed']
 
   // Standard bookings on this date
   const { data: standardBookings } = await supabase
@@ -86,14 +86,14 @@ export async function handler(event) {
     .select('*, booking_items(service_id, services(duration_minutes, service_type))')
     .eq('walker_id', walker_id)
     .eq('booking_date', date)
-    .in('status', activeStatuses)
+    .in('status', blockingStatuses)
 
   // Overnight bookings that may span this date (end_date differs from booking_date)
   const { data: overnightBookings } = await supabase
     .from('bookings')
     .select('*')
     .eq('walker_id', walker_id)
-    .in('status', activeStatuses)
+    .in('status', blockingStatuses)
     .not('end_date', 'is', null)
     .lte('booking_date', date)
     .gte('end_date', date)
