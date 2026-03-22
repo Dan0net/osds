@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "netlify dev",
+    "dev": "stripe listen --forward-to localhost:8888/.netlify/functions/stripe-webhook & netlify dev",
     "dev:vite": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
