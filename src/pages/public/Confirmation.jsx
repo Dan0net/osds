@@ -1,8 +1,41 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 
 export default function Confirmation() {
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { slots = [], pet, totalCents = 0 } = location.state || {}
+
+  // Check if this is a return from Stripe Checkout
+  const sessionId = searchParams.get('session_id')
+  const isPaymentSuccess = !!sessionId
+
+  if (isPaymentSuccess) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">
+          ✓
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Payment successful!</h1>
+        <p className="text-gray-600 mb-8">
+          Your booking is now confirmed. You'll receive a confirmation email shortly.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            to="/account/bookings"
+            className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700"
+          >
+            View my bookings
+          </Link>
+          <Link
+            to="/"
+            className="border border-gray-300 text-gray-700 font-semibold px-6 py-2.5 rounded-lg hover:bg-gray-50"
+          >
+            Back to home
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16 text-center">

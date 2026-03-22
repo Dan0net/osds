@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { apiFetch } from '../../lib/api'
+import { apiFetch, createCheckout, cancelBooking, rescheduleBooking, walkerCreateBooking } from '../../lib/api'
 import BookingsCalendar from '../../components/BookingsCalendar'
 
 const STATUS_STYLES = {
@@ -11,6 +12,8 @@ const STATUS_STYLES = {
   declined: 'bg-red-100 text-red-700',
   pending: 'bg-blue-100 text-blue-700',
   cancelled: 'bg-gray-100 text-gray-600',
+  hold: 'bg-purple-100 text-purple-700',
+  refunded: 'bg-gray-100 text-gray-600',
 }
 
 export default function AccountBookings() {
@@ -24,6 +27,30 @@ export default function AccountBookings() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [paymentBanner, setPaymentBanner] = useState(null)
+  const [cancelConfirm, setCancelConfirm] = useState(null)
+  const [rescheduleModal, setRescheduleModal] = useState(null)
+  const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '' })
+  const [createBookingModal, setCreateBookingModal] = useState(false)
+  const [createForm, setCreateForm] = useState({ clientSearch: '', clientId: '', serviceId: '', date: '', time: '', endTime: '', pet_id: '', mode: 'cash' })
+  const [clients, setClients] = useState([])
+  const [walkerServices, setWalkerServices] = useState([])
+
+  // Payment success/cancel banner from Stripe redirect
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment')
+    if (paymentStatus === 'success') {
+      setPaymentBanner('success')
+      searchParams.delete('payment')
+      searchParams.delete('session_id')
+      setSearchParams(searchParams, { replace: true })
+    } else if (paymentStatus === 'cancelled') {
+      setPaymentBanner('cancelled')
+      searchParams.delete('payment')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [])
 
   useEffect(() => {
     if (user) loadBookings()
@@ -157,6 +184,95 @@ export default function AccountBookings() {
     await loadBookings()
   }
 
+  async function handlePayNow(paymentId) {
+    setActionLoading(`pay-${paymentId}`)
+    const res = await createCheckout(paymentId)
+    if (res.data?.url) {
+      window.location.href = res.data.url
+    } else {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleCancel(bookingId, paymentId) {
+    const params = paymentId ? { payment_id: paymentId } : { booking_id: bookingId }
+    setActionLoading(`cancel-${bookingId || paymentId}`)
+    await cancelBooking(params)
+    setActionLoading(null)
+    setCancelConfirm(null)
+    await loadBookings()
+  }
+
+  async function handleReschedule(bookingId) {
+    if (!rescheduleForm.date || !rescheduleForm.time) return
+    setActionLoading(`reschedule-${bookingId}`)
+    await rescheduleBooking({
+      booking_id: bookingId,
+      new_date: rescheduleForm.date,
+      new_start_time: rescheduleForm.time,
+    })
+    setActionLoading(null)
+    setRescheduleModal(null)
+    setRescheduleForm({ date: '', time: '' })
+    await loadBookings()
+  }
+
+  async function handleCreateBooking() {
+    if (!createForm.clientId || !createForm.serviceId || !createForm.date || !createForm.time) return
+    setActionLoading('create-booking')
+    const svc = walkerServices.find((s) => s.id === createForm.serviceId)
+    const endMin = createForm.time.split(':').map(Number).reduce((h, m) => h * 60 + m) + (svc?.duration_minutes || 30)
+    const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
+    const res = await walkerCreateBooking({
+      client_id: createForm.clientId,
+      slots: [{
+        serviceId: createForm.serviceId,
+        date: createForm.date,
+        time: createForm.time,
+        endTime,
+      }],
+      pet_id: createForm.pet_id || null,
+      mode: createForm.mode,
+    })
+    setActionLoading(null)
+    if (res.data) {
+      setCreateBookingModal(false)
+      setCreateForm({ clientSearch: '', clientId: '', serviceId: '', date: '', time: '', endTime: '', pet_id: '', mode: 'cash' })
+      await loadBookings()
+    }
+  }
+
+  // Load walker's clients and services for create-booking modal
+  useEffect(() => {
+    if (!isWalker || !createBookingModal) return
+    async function loadModalData() {
+      // Load clients from existing bookings
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('client_id, users!bookings_client_id_fkey(id, name, email)')
+        .eq('walker_id', walkerProfile.id)
+
+      const seen = new Set()
+      const uniqueClients = []
+      for (const b of (bookings || [])) {
+        if (b.users && !seen.has(b.users.id)) {
+          seen.add(b.users.id)
+          uniqueClients.push(b.users)
+        }
+      }
+      setClients(uniqueClients)
+
+      // Load walker's active services
+      const { data: svcs } = await supabase
+        .from('services')
+        .select('*')
+        .eq('walker_id', walkerProfile.id)
+        .eq('active', true)
+      setWalkerServices(svcs || [])
+    }
+    loadModalData()
+  }, [createBookingModal])
+
   async function toggleReopenedSlot(bookingId, date, time) {
     const booking = incoming.find((b) => b.id === bookingId)
     if (!booking) return
@@ -217,7 +333,30 @@ export default function AccountBookings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Bookings</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Bookings</h1>
+        {isWalker && (
+          <button
+            onClick={() => setCreateBookingModal(true)}
+            className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700"
+          >
+            + Create booking
+          </button>
+        )}
+      </div>
+
+      {paymentBanner === 'success' && (
+        <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+          <span>Payment successful! Your booking is now confirmed.</span>
+          <button onClick={() => setPaymentBanner(null)} className="text-green-700 hover:text-green-900 font-bold">×</button>
+        </div>
+      )}
+      {paymentBanner === 'cancelled' && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+          <span>Payment was cancelled. You can try again from your bookings.</span>
+          <button onClick={() => setPaymentBanner(null)} className="text-yellow-700 hover:text-yellow-900 font-bold">×</button>
+        </div>
+      )}
 
       <BookingsCalendar incoming={incoming} mine={mine} external={[]} />
 
@@ -370,6 +509,39 @@ export default function AccountBookings() {
                   </div>
                 )}
 
+                {/* Walker actions: cancel, reschedule */}
+                {!hasRequested && group.some((b) => ['approved', 'confirmed', 'pending'].includes(b.status)) && (
+                  <div className="flex gap-2 mb-3">
+                    {group.some((b) => ['approved', 'confirmed'].includes(b.status)) && (
+                      <>
+                        {group.filter((b) => ['approved', 'confirmed'].includes(b.status)).map((b) => (
+                          <button key={`resched-${b.id}`}
+                            onClick={() => setRescheduleModal(b.id)}
+                            className="border border-gray-300 text-gray-600 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50"
+                          >
+                            Reschedule
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {cancelConfirm === key ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Cancel all?</span>
+                        <button onClick={() => handleCancel(null, paymentId)} disabled={!!actionLoading}
+                          className="bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50">
+                          {actionLoading ? '…' : 'Yes'}
+                        </button>
+                        <button onClick={() => setCancelConfirm(null)} className="text-xs text-gray-500 hover:text-gray-700">No</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setCancelConfirm(key)}
+                        className="border border-red-300 text-red-600 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-red-50">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Overnight slot management for each overnight booking in the group */}
                 {group.filter((b) => b.is_overnight && (b.status === 'confirmed' || b.status === 'requested' || b.status === 'approved')).map((b) => {
                   const isManaging = managingId === b.id
@@ -464,6 +636,40 @@ export default function AccountBookings() {
                   {' · '}{b.start_time}–{b.end_time}
                   {b.price_cents > 0 && <>{' · '}£{(b.price_cents / 100).toFixed(2)}</>}
                 </div>
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-3">
+                  {b.status === 'approved' && b.payment_id && (
+                    <button
+                      onClick={() => handlePayNow(b.payment_id)}
+                      disabled={!!actionLoading}
+                      className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {actionLoading === `pay-${b.payment_id}` ? 'Redirecting…' : 'Pay now'}
+                    </button>
+                  )}
+                  {['requested', 'approved', 'pending', 'confirmed'].includes(b.status) && (
+                    cancelConfirm === b.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Cancel this booking?</span>
+                        <button
+                          onClick={() => handleCancel(b.id)}
+                          disabled={!!actionLoading}
+                          className="bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {actionLoading === `cancel-${b.id}` ? '…' : 'Yes, cancel'}
+                        </button>
+                        <button onClick={() => setCancelConfirm(null)} className="text-xs text-gray-500 hover:text-gray-700">No</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setCancelConfirm(b.id)}
+                        className="border border-gray-300 text-gray-600 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
             ))}
             {mine.length === 0 && (
@@ -471,6 +677,102 @@ export default function AccountBookings() {
             )}
           </div>
         </>
+      )}
+
+      {/* Reschedule modal */}
+      {rescheduleModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+            <h3 className="font-semibold mb-4">Reschedule booking</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New date</label>
+                <input type="date" value={rescheduleForm.date} onChange={(e) => setRescheduleForm((f) => ({ ...f, date: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New time</label>
+                <input type="time" value={rescheduleForm.time} onChange={(e) => setRescheduleForm((f) => ({ ...f, time: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => handleReschedule(rescheduleModal)} disabled={!!actionLoading || !rescheduleForm.date || !rescheduleForm.time}
+                className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {actionLoading ? '…' : 'Reschedule'}
+              </button>
+              <button onClick={() => { setRescheduleModal(null); setRescheduleForm({ date: '', time: '' }) }}
+                className="border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Walker create booking modal */}
+      {createBookingModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="font-semibold mb-4">Create booking for client</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                <select value={createForm.clientId} onChange={(e) => setCreateForm((f) => ({ ...f, clientId: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                  <option value="">Select client…</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.email})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
+                <select value={createForm.serviceId} onChange={(e) => setCreateForm((f) => ({ ...f, serviceId: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                  <option value="">Select service…</option>
+                  {walkerServices.map((s) => <option key={s.id} value={s.id}>{s.name} — £{(s.price_cents / 100).toFixed(2)}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input type="date" value={createForm.date} onChange={(e) => setCreateForm((f) => ({ ...f, date: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                  <input type="time" value={createForm.time} onChange={(e) => setCreateForm((f) => ({ ...f, time: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment</label>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="mode" value="cash" checked={createForm.mode === 'cash'}
+                      onChange={() => setCreateForm((f) => ({ ...f, mode: 'cash' }))} className="text-indigo-600" />
+                    Mark as paid (cash)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="mode" value="send_link" checked={createForm.mode === 'send_link'}
+                      onChange={() => setCreateForm((f) => ({ ...f, mode: 'send_link' }))} className="text-indigo-600" />
+                    Send payment link
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={handleCreateBooking}
+                disabled={!!actionLoading || !createForm.clientId || !createForm.serviceId || !createForm.date || !createForm.time}
+                className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {actionLoading === 'create-booking' ? 'Creating…' : 'Create booking'}
+              </button>
+              <button onClick={() => setCreateBookingModal(false)}
+                className="border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

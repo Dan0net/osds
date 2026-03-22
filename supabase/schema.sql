@@ -74,6 +74,7 @@ create table public.payments (
   client_id uuid not null references public.users(id) on delete cascade,
   stripe_session_id text default null,
   total_cents integer not null default 0,
+  platform_fee_cents integer not null default 0,
   tip_cents integer not null default 0,
   status text not null default 'pending_approval' check (status in ('pending_approval', 'awaiting_payment', 'paid', 'refunded', 'partially_refunded')),
   source text not null default 'stripe' check (source in ('stripe', 'cash')),

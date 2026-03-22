@@ -14,6 +14,8 @@ export default function AccountDashboard() {
   const [actionLoading, setActionLoading] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
 
+  const [walkerPaymentsTotal, setWalkerPaymentsTotal] = useState(0)
+
   useEffect(() => {
     if (!user) return
     async function load() {
@@ -31,6 +33,15 @@ export default function AccountDashboard() {
           .eq('walker_id', wp.id)
           .order('booking_date', { ascending: false })
         setWalkerBookings(wb || [])
+
+        // Get real payment totals
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('total_cents, platform_fee_cents, status')
+          .eq('walker_id', wp.id)
+          .eq('status', 'paid')
+        const total = (payments || []).reduce((sum, p) => sum + p.total_cents - (p.platform_fee_cents || 0), 0)
+        setWalkerPaymentsTotal(total)
       }
       setLoading(false)
     }
@@ -43,7 +54,7 @@ export default function AccountDashboard() {
   in7.setDate(in7.getDate() + 7)
   const in7Days = `${in7.getFullYear()}-${String(in7.getMonth() + 1).padStart(2, '0')}-${String(in7.getDate()).padStart(2, '0')}`
 
-  const activeStatuses = ['confirmed', 'requested', 'approved']
+  const activeStatuses = ['confirmed', 'requested', 'approved', 'hold', 'pending']
 
   const upcomingAsClient = clientBookings.filter(
     (b) =>
@@ -62,10 +73,7 @@ export default function AccountDashboard() {
   useEffect(() => {
     setSelectedIds(new Set(pendingRequests.map((b) => b.id)))
   }, [walkerBookings])
-  const confirmedWalkerBookings = walkerBookings.filter((b) => b.status === 'confirmed')
-  const totalRevenueCents = confirmedWalkerBookings.reduce((sum, b) => {
-    return sum + (b.services?.price_cents || 0)
-  }, 0)
+  const totalRevenueCents = walkerPaymentsTotal
 
   function getServiceName(b) {
     return b.services?.name || 'Service'

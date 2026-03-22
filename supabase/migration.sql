@@ -77,3 +77,11 @@ CREATE POLICY "Walker can read pets in their bookings" ON public.pets
   );
 
 COMMIT;
+
+-- ============================================================
+-- Phase 5 Migration: Add platform_fee_cents to payments
+-- Run this ONCE after the Phase 4 migration above
+-- ============================================================
+
+ALTER TABLE public.payments
+  ADD COLUMN IF NOT EXISTS platform_fee_cents integer NOT NULL DEFAULT 0;

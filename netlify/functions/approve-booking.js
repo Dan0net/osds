@@ -1,5 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
+function createAdminClient() {
+  return createClient(
+    process.env.VITE_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  )
+}
+
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) }
@@ -52,6 +59,14 @@ export async function handler(event) {
       return { statusCode: 500, body: JSON.stringify({ error: 'Failed to approve bookings' }) }
     }
 
+    // Transition payment to awaiting_payment
+    const adminSupabase = createAdminClient()
+    await adminSupabase
+      .from('payments')
+      .update({ status: 'awaiting_payment' })
+      .eq('id', payment_id)
+      .eq('status', 'pending_approval')
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -87,6 +102,26 @@ export async function handler(event) {
 
   if (updateError) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Failed to approve booking' }) }
+  }
+
+  // Transition payment to awaiting_payment if all bookings in this payment are approved
+  if (updated.payment_id) {
+    const adminSupabase = createAdminClient()
+    const { data: siblings } = await adminSupabase
+      .from('bookings')
+      .select('id, status')
+      .eq('payment_id', updated.payment_id)
+
+    const allApprovedOrBeyond = siblings?.every((b) =>
+      ['approved', 'hold', 'confirmed'].includes(b.status),
+    )
+    if (allApprovedOrBeyond) {
+      await adminSupabase
+        .from('payments')
+        .update({ status: 'awaiting_payment' })
+        .eq('id', updated.payment_id)
+        .eq('status', 'pending_approval')
+    }
   }
 
   return {
