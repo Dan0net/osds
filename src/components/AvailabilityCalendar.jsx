@@ -4,14 +4,9 @@ import { clientPriceCents } from '../lib/utils'
 
 function getWeekDates(baseDate) {
   const d = new Date(baseDate)
-  const day = d.getDay()
-  // Start on Monday
-  const diff = day === 0 ? -6 : 1 - day
-  const monday = new Date(d)
-  monday.setDate(d.getDate() + diff)
   return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(monday)
-    date.setDate(monday.getDate() + i)
+    const date = new Date(d)
+    date.setDate(d.getDate() + i)
     return date.toISOString().split('T')[0]
   })
 }
