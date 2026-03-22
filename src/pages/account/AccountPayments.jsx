@@ -109,7 +109,7 @@ export default function AccountPayments() {
                   </button>
                 )}
                 <span className={`font-semibold ${p.type === 'received' ? 'text-green-600' : 'text-gray-900'}`}>
-                  {p.type === 'received' ? '+' : '−'}£{(p.total_cents / 100).toFixed(2)}
+                  {p.type === 'received' ? '+' : '−'}£{((p.type === 'received' ? p.total_cents - (p.platform_fee_cents || 0) : p.total_cents) / 100).toFixed(2)}
                 </span>
               </div>
             </div>
