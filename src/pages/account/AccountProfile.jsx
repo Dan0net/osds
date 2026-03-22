@@ -10,6 +10,7 @@ export default function AccountProfile() {
     phone: '',
     avatar_url: '',
     business_name: '',
+    slug: '',
     bio: '',
     theme_color: '#4f46e5',
   })
@@ -32,6 +33,7 @@ export default function AccountProfile() {
       setForm((prev) => ({
         ...prev,
         business_name: walkerProfile.business_name || '',
+        slug: walkerProfile.slug || '',
         bio: walkerProfile.bio || '',
         theme_color: walkerProfile.theme_color || '#4f46e5',
       }))
@@ -58,6 +60,7 @@ export default function AccountProfile() {
           .from('walker_profiles')
           .update({
             business_name: form.business_name,
+            slug: form.slug,
             bio: form.bio,
             theme_color: form.theme_color,
           })
@@ -76,10 +79,14 @@ export default function AccountProfile() {
   }
 
   async function handleBecomeWalker() {
+    if (!form.name.trim()) {
+      setError('Please enter your name first')
+      return
+    }
     setCreatingWalker(true)
     setError(null)
     try {
-      const slug = (form.name || 'walker')
+      const slug = form.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
@@ -169,6 +176,20 @@ export default function AccountProfile() {
         {walkerProfile ? (
           <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
             <h2 className="font-semibold">Walker profile</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Page URL (slug)</label>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-400 shrink-0">/w/</span>
+                <input
+                  type="text"
+                  value={form.slug}
+                  onChange={(e) => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  placeholder="your-slug"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{form.slug}.onestopdog.shop</p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Business name</label>
               <input

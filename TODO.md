@@ -1,0 +1,8 @@
+- subdomain walker landing pages (cloudflare)
+- social signup
+- walker/owner select on signup
+- first and last name fields
+- postcode on signup
+- page name on signup
+- walkers signup -> add services + stripe (profile setup)
+- owners signup -> add pets

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { MOCK_USER, MOCK_BOOKINGS, MOCK_CLIENT_BOOKINGS, MOCK_WALKERS } from '../../lib/mockData'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function AccountDashboard() {
   const upcomingAsClient = MOCK_CLIENT_BOOKINGS.filter(
@@ -8,7 +9,9 @@ export default function AccountDashboard() {
   const pendingRequests = MOCK_BOOKINGS.filter((b) => b.status === 'requested')
   const confirmedWalkerBookings = MOCK_BOOKINGS.filter((b) => b.status === 'confirmed')
   const totalRevenueCents = confirmedWalkerBookings.reduce((sum, b) => sum + b.price_cents, 0)
-  const walkerProfile = MOCK_WALKERS.find((w) => w.slug === 'ellie')
+  const walkerProfileMock = MOCK_WALKERS.find((w) => w.slug === 'ellie')
+  const { walkerProfile: wp } = useAuth()
+  const walkerSlug = wp?.slug
 
   return (
     <div>
@@ -20,7 +23,7 @@ export default function AccountDashboard() {
           <p className="text-xs text-gray-500">Upcoming</p>
           <p className="text-xl font-bold mt-0.5">{upcomingAsClient.length}</p>
         </div>
-        {MOCK_USER.has_walker_profile && (
+        {wp && (
           <>
             <div className="bg-white border border-gray-200 rounded-lg p-3">
               <p className="text-xs text-gray-500">Pending</p>
@@ -33,19 +36,21 @@ export default function AccountDashboard() {
             <div className="bg-white border border-gray-200 rounded-lg p-3">
               <p className="text-xs text-gray-500">Rating</p>
               <p className="text-xl font-bold mt-0.5">
-                <span className="text-yellow-400 mr-0.5">★</span>{walkerProfile?.rating || '4.7'}
+                <span className="text-yellow-400 mr-0.5">★</span>{walkerProfileMock?.rating || '4.7'}
               </p>
             </div>
             <div className="bg-white border border-gray-200 rounded-lg p-3">
               <p className="text-xs text-gray-500">Revenue</p>
               <p className="text-xl font-bold mt-0.5">£{(totalRevenueCents / 100).toFixed(0)}</p>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-3 min-w-0">
-              <p className="text-xs text-gray-500">Walker page</p>
-              <a href="https://ellie.onestopdog.shop" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-indigo-600 hover:underline mt-0.5 inline-block break-all">
-                ellie.onestopdog.shop
-              </a>
-            </div>
+            {walkerSlug && (
+              <div className="bg-white border border-gray-200 rounded-lg p-3 min-w-0">
+                <p className="text-xs text-gray-500">Walker page</p>
+                <a href={`/w/${walkerSlug}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-indigo-600 hover:underline mt-0.5 inline-block break-all">
+                  {walkerSlug}.onestopdog.shop
+                </a>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -83,7 +88,7 @@ export default function AccountDashboard() {
       )}
 
       {/* Pending walker requests */}
-      {MOCK_USER.has_walker_profile && pendingRequests.length > 0 && (
+      {wp && pendingRequests.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Incoming requests</h2>
