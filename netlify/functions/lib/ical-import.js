@@ -145,14 +145,36 @@ function parseIcsEvents(rawText) {
     const uidExdates = exdates[item.uid] || new Set()
 
     if (item.rrule) {
-      // Recurring event — expand occurrences within window
+      // RRULE-based recurring event — expand occurrences within window
       const occurrences = item.rrule.between(today, windowEnd, true)
       for (const occ of occurrences) {
         if (uidExdates.has(toDateStr(occ))) continue
         const occEnd = new Date(occ.getTime() + duration)
         addEvent(events, `${uid}-r`, title, occ, occEnd, allDay, today, windowEnd)
       }
-    } else {
+    }
+
+    if (item.recurrences) {
+      // Pre-expanded recurring instances (Google Calendar style)
+      // node-ical stores duplicate keys (date-only + datetime), dedupe by date string
+      const seen = new Set()
+      for (const [, rec] of Object.entries(item.recurrences)) {
+        if (rec.status === 'CANCELLED') continue
+        if (rec.transparency === 'TRANSPARENT') continue
+        const rStart = rec.start instanceof Date ? rec.start : new Date(rec.start)
+        if (isNaN(rStart.getTime())) continue
+        const dateKey = toDateStr(rStart)
+        if (seen.has(dateKey)) continue
+        seen.add(dateKey)
+        if (uidExdates.has(dateKey)) continue
+        const rEnd = rec.end instanceof Date ? rec.end : (rec.end ? new Date(rec.end) : null)
+        const rTitle = rec.summary || title
+        const rAllDay = rec.start?.dateOnly === true || rec.datetype === 'date'
+        addEvent(events, `${uid}-rec`, rTitle, rStart, rEnd, rAllDay, today, windowEnd)
+      }
+    }
+
+    if (!item.rrule && !item.recurrences) {
       // One-off event
       if (!uidExdates.has(toDateStr(start))) {
         addEvent(events, uid, title, start, end, allDay, today, windowEnd)
