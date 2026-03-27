@@ -12,6 +12,7 @@ create table public.users (
   phone text default '',
   avatar_url text default '',
   favourite_walkers uuid[] default '{}',
+  notification_preferences jsonb not null default '{"email_new_request":true,"email_approval":true,"email_cancellation":true,"email_reminders":true,"push_new_request":true,"push_approval":true,"push_cancellation":true,"push_reminders":false}',
   created_at timestamptz default now()
 );
 
@@ -111,9 +112,20 @@ create table public.reviews (
 create table public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
-  endpoint text not null,
+  endpoint text not null unique,
   keys jsonb not null,
   device_type text default '',
+  created_at timestamptz default now()
+);
+
+create table public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  type text not null,
+  title text not null,
+  body text not null default '',
+  link text default null,
+  read boolean not null default false,
   created_at timestamptz default now()
 );
 
@@ -166,6 +178,7 @@ alter table public.payments enable row level security;
 alter table public.bookings enable row level security;
 alter table public.reviews enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.notifications enable row level security;
 alter table public.ical_imports enable row level security;
 alter table public.ical_cache enable row level security;
 
@@ -292,6 +305,12 @@ create policy "Users can insert own subscriptions" on public.push_subscriptions
   for insert with check (auth.uid() = user_id);
 create policy "Users can delete own subscriptions" on public.push_subscriptions
   for delete using (auth.uid() = user_id);
+
+-- notifications: user read/update own
+create policy "Users can read own notifications" on public.notifications
+  for select using (auth.uid() = user_id);
+create policy "Users can update own notifications" on public.notifications
+  for update using (auth.uid() = user_id);
 
 -- ical_imports: walker owner CRUD
 create policy "Walker can read own imports" on public.ical_imports

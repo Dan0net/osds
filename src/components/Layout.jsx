@@ -8,8 +8,8 @@ export default function Layout({ walker }) {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-indigo-600">
-            {walker ? `${walker}'s Dog Walking` : 'One Stop Dog Shop'}
+          <Link to="/" className="flex items-center">
+            <img src="/osds-logo.svg" alt="One Stop Dog Shop" className="h-10" />
           </Link>
           <nav className="flex items-center gap-3 text-sm">
             {user ? (

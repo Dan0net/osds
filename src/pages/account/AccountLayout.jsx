@@ -1,5 +1,8 @@
+import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
+import InstallPrompt from '../../components/InstallPrompt'
 
 const NAV_ITEMS = [
   { to: '/account', label: 'Dashboard', end: true },
@@ -12,8 +15,27 @@ const NAV_ITEMS = [
 ]
 
 export default function AccountLayout() {
-  const { profile, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  function refreshUnread() {
+    if (!user) return
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('read', false)
+      .then(({ count }) => setUnreadCount(count || 0))
+  }
+
+  useEffect(() => {
+    refreshUnread()
+
+    // Listen for reads from Inbox
+    window.addEventListener('notifications-read', refreshUnread)
+    return () => window.removeEventListener('notifications-read', refreshUnread)
+  }, [user?.id])
 
   async function handleSignOut() {
     await signOut()
@@ -55,6 +77,11 @@ export default function AccountLayout() {
               }
             >
               {item.label}
+              {item.label === 'Inbox' && unreadCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
@@ -63,6 +90,7 @@ export default function AccountLayout() {
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
         <Outlet />
       </main>
+      <InstallPrompt />
     </div>
   )
 }

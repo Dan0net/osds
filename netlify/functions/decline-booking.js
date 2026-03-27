@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { notify, emailTemplate } from './lib/notify.js'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -52,6 +53,22 @@ export async function handler(event) {
       return { statusCode: 500, body: JSON.stringify({ error: 'Failed to decline bookings' }) }
     }
 
+    // Notify client
+    const adminSupabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const { data: wp } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
+    const walkerName = wp?.business_name || 'Your walker'
+    notify(adminSupabase, bookings[0].client_id, {
+      type: 'booking_declined',
+      title: 'Booking declined',
+      body: `${walkerName} declined your booking request`,
+      link: '/account/bookings',
+      emailSubject: `${walkerName} declined your booking request`,
+      emailHtml: emailTemplate('Booking declined', [
+        `Unfortunately, <strong>${walkerName}</strong> was unable to accept your booking request.`,
+        'You can browse other walkers or try different dates.',
+      ]),
+    })
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -88,6 +105,22 @@ export async function handler(event) {
   if (updateError) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Failed to decline booking' }) }
   }
+
+  // Notify client
+  const adminSupabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  const { data: wp } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', updated.walker_id).single()
+  const wName = wp?.business_name || 'Your walker'
+  notify(adminSupabase, updated.client_id, {
+    type: 'booking_declined',
+    title: 'Booking declined',
+    body: `${wName} declined your booking for ${updated.booking_date}`,
+    link: '/account/bookings',
+    emailSubject: `${wName} declined your booking request`,
+    emailHtml: emailTemplate('Booking declined', [
+      `Unfortunately, <strong>${wName}</strong> was unable to accept your booking for ${updated.booking_date}.`,
+      'You can browse other walkers or try different dates.',
+    ]),
+  })
 
   return {
     statusCode: 200,

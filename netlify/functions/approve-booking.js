@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { notify, emailTemplate } from './lib/notify.js'
 
 function createAdminClient() {
   return createClient(
@@ -67,6 +68,22 @@ export async function handler(event) {
       .eq('id', payment_id)
       .eq('status', 'pending_approval')
 
+    // Notify client
+    const { data: walkerUser } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
+    const walkerName = walkerUser?.business_name || 'Your walker'
+    const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
+    notify(adminSupabase, bookings[0].client_id, {
+      type: 'booking_approved',
+      title: 'Booking approved',
+      body: `${walkerName} approved your booking`,
+      link: '/account/bookings',
+      emailSubject: `Your booking with ${walkerName} has been approved`,
+      emailHtml: emailTemplate('Booking approved', [
+        `Great news! <strong>${walkerName}</strong> has approved your booking.`,
+        'You can now proceed to pay from your bookings page.',
+      ], 'Pay now', `${siteUrl}/account/bookings`),
+    })
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -123,6 +140,23 @@ export async function handler(event) {
         .eq('status', 'pending_approval')
     }
   }
+
+  // Notify client
+  const adminSupabase2 = createAdminClient()
+  const { data: wp } = await adminSupabase2.from('walker_profiles').select('business_name').eq('id', updated.walker_id).single()
+  const wName = wp?.business_name || 'Your walker'
+  const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
+  notify(adminSupabase2, updated.client_id, {
+    type: 'booking_approved',
+    title: 'Booking approved',
+    body: `${wName} approved your booking on ${updated.booking_date}`,
+    link: '/account/bookings',
+    emailSubject: `Your booking with ${wName} has been approved`,
+    emailHtml: emailTemplate('Booking approved', [
+      `Great news! <strong>${wName}</strong> has approved your booking for ${updated.booking_date}.`,
+      'You can now proceed to pay from your bookings page.',
+    ], 'Pay now', `${siteUrl}/account/bookings`),
+  })
 
   return {
     statusCode: 200,

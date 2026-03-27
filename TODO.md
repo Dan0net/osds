@@ -1,5 +1,10 @@
 # UI
-- show availabilty on account calendar, as well as bookings
+- fast book with regular walkers for clients
+
+# Notifications
+- take user to booking request / payment directly
+- emojis
+- better text descriptions
 
 # Subdomain
 - subdomain walker landing pages (cloudflare)
@@ -16,3 +21,5 @@
 - walkers signup -> add services + stripe (profile setup)
 - owners signup -> add pets
 
+# Payment
+- stripe auto fill email?

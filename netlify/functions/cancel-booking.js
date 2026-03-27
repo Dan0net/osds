@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { notify, emailTemplate } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const OSDS_FEE_RATE = 0.05
@@ -167,6 +168,20 @@ export async function handler(event) {
       }
     }
   }
+
+  // Notify the other party
+  const otherPartyId = isWalker ? bookings[0].client_id : bookings[0].walker_profiles.user_id
+  notify(adminSupabase, otherPartyId, {
+    type: 'booking_cancelled',
+    title: 'Booking cancelled',
+    body: `A booking has been cancelled`,
+    link: '/account/bookings',
+    emailSubject: 'A booking has been cancelled',
+    emailHtml: emailTemplate('Booking cancelled', [
+      'A booking has been cancelled.',
+      'Check your bookings page for details.',
+    ], 'View bookings', `${process.env.SITE_URL || 'https://onestopdog.shop'}/account/bookings`),
+  })
 
   return {
     statusCode: 200,

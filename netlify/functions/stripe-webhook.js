@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { notify, emailTemplate } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -61,6 +62,28 @@ export async function handler(event) {
 
     if (paymentError) {
       console.error('Failed to update payment:', paymentError)
+    }
+
+    // Notify walker of payment
+    const { data: paymentRow } = await supabase.from('payments').select('walker_id, client_id, total_cents').eq('id', paymentId).single()
+    if (paymentRow) {
+      const { data: walkerProfile } = await supabase.from('walker_profiles').select('user_id, business_name').eq('id', paymentRow.walker_id).single()
+      const { data: clientUser } = await supabase.from('users').select('name').eq('id', paymentRow.client_id).single()
+      const clientName = clientUser?.name || 'A client'
+      const amount = `£${(paymentRow.total_cents / 100).toFixed(2)}`
+      if (walkerProfile) {
+        notify(supabase, walkerProfile.user_id, {
+          type: 'payment_confirmed',
+          title: 'Payment received',
+          body: `${clientName} paid ${amount}`,
+          link: '/account/payments',
+          emailSubject: `Payment received — ${amount} from ${clientName}`,
+          emailHtml: emailTemplate('Payment received', [
+            `<strong>${clientName}</strong> has paid <strong>${amount}</strong> for their booking.`,
+            'The booking is now confirmed.',
+          ], 'View payments', `${process.env.SITE_URL || 'https://onestopdog.shop'}/account/payments`),
+        })
+      }
     }
   }
 

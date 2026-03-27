@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { usePushSubscription } from '../../hooks/usePushSubscription'
 import { apiFetch } from '../../lib/api'
 import { clientPriceCents } from '../../lib/utils'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export default function AccountSettings() {
-  const { walkerProfile } = useAuth()
+  const { user, walkerProfile, refreshProfile } = useAuth()
   const isWalker = !!walkerProfile
+  const { subscription: pushSub, supported: pushSupported, permission: pushPermission, subscribe: subscribePush, unsubscribe: unsubscribePush } = usePushSubscription()
 
   // Services
   const [services, setServices] = useState([])
@@ -26,6 +28,39 @@ export default function AccountSettings() {
   const [availSaving, setAvailSaving] = useState(false)
   const [blockedDates, setBlockedDates] = useState([])
   const [newBlock, setNewBlock] = useState({ date: '', reason: '' })
+
+  // Become a walker
+  const [creatingWalker, setCreatingWalker] = useState(false)
+
+  async function handleBecomeWalker() {
+    setCreatingWalker(true)
+    try {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', user.id)
+        .single()
+      const name = prof?.name || user.email.split('@')[0]
+      const slug = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+      const { error: wpErr } = await supabase
+        .from('walker_profiles')
+        .insert({
+          user_id: user.id,
+          slug,
+          business_name: name + "'s Dog Walking",
+          calendar_feed_token: crypto.randomUUID(),
+        })
+      if (wpErr) throw wpErr
+      await refreshProfile()
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setCreatingWalker(false)
+    }
+  }
 
   // Calendar imports
   const [icalImports, setIcalImports] = useState([])
@@ -48,6 +83,15 @@ export default function AccountSettings() {
     push_cancellation: true,
     push_reminders: false,
   })
+
+  // Load notification preferences
+  useEffect(() => {
+    if (!user) return
+    supabase.from('users').select('notification_preferences').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (data?.notification_preferences) setNotifications(data.notification_preferences)
+      })
+  }, [user?.id])
 
   // Load data on mount
   useEffect(() => {
@@ -105,7 +149,22 @@ export default function AccountSettings() {
   }
 
   function toggleNotification(key) {
-    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }))
+    const isPushKey = key.startsWith('push_')
+    const turningOn = !notifications[key]
+
+    // Update toggle immediately
+    setNotifications((prev) => {
+      const updated = { ...prev, [key]: !prev[key] }
+      if (user) {
+        supabase.from('users').update({ notification_preferences: updated }).eq('id', user.id)
+      }
+      return updated
+    })
+
+    // If enabling a push preference and no active subscription, request permission as side effect
+    if (isPushKey && turningOn && !pushSub && pushSupported) {
+      subscribePush()
+    }
   }
 
   // --- Services ---
@@ -450,6 +509,31 @@ export default function AccountSettings() {
       {/* Notifications */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-4">Notifications</h2>
+
+        {pushSupported && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Push notifications</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {pushPermission === 'denied'
+                  ? 'Blocked by your browser. Enable in your browser settings.'
+                  : pushSub
+                    ? 'Enabled on this device'
+                    : pushPermission === 'granted'
+                      ? 'Permission granted but not subscribed. Click Enable to finish setup.'
+                      : 'Not enabled on this device'}
+              </p>
+            </div>
+            {pushPermission !== 'denied' && (
+              pushSub ? (
+                <button onClick={unsubscribePush} className="text-sm text-red-500 hover:text-red-700 font-medium">Disable</button>
+              ) : (
+                <button onClick={subscribePush} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">Enable</button>
+              )
+            )}
+          </div>
+        )}
+
         <div className="bg-white border border-gray-200 rounded-lg divide-y">
           {[
             { label: 'New booking request', emailKey: 'email_new_request', pushKey: 'push_new_request' },
@@ -489,8 +573,12 @@ export default function AccountSettings() {
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 text-center">
           <h2 className="text-lg font-semibold mb-2">Want to offer dog walking services?</h2>
           <p className="text-sm text-gray-600 mb-4">Create a walker page and start accepting bookings.</p>
-          <button className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700">
-            Become a Walker
+          <button
+            onClick={handleBecomeWalker}
+            disabled={creatingWalker}
+            className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {creatingWalker ? 'Creating…' : 'Become a Walker'}
           </button>
         </div>
       )}

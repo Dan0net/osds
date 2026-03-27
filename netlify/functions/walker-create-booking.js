@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { notify, emailTemplate } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const OSDS_FEE_RATE = 0.05
@@ -200,6 +201,37 @@ export async function handler(event) {
       .eq('id', payment.id)
 
     checkoutUrl = session.url
+  }
+
+  // Notify client
+  const serviceNames = [...new Set(slots.map((s) => serviceMap[s.serviceId]?.name || 'a service'))].join(', ')
+  const dates = [...new Set(slots.map((s) => s.date))].join(', ')
+  const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
+
+  if (isCash) {
+    notify(adminSupabase, client_id, {
+      type: 'booking_confirmed',
+      title: 'Booking confirmed',
+      body: `${wp.business_name} booked ${serviceNames} for you on ${dates}`,
+      link: '/account/bookings',
+      emailSubject: `Booking confirmed with ${wp.business_name}`,
+      emailHtml: emailTemplate('Booking confirmed', [
+        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${dates}.`,
+        'Your booking is confirmed.',
+      ], 'View bookings', `${siteUrl}/account/bookings`),
+    })
+  } else {
+    notify(adminSupabase, client_id, {
+      type: 'booking_payment_link',
+      title: 'Payment requested',
+      body: `${wp.business_name} has sent you a payment link for ${serviceNames}`,
+      link: '/account/bookings',
+      emailSubject: `Payment requested from ${wp.business_name}`,
+      emailHtml: emailTemplate('Payment requested', [
+        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${dates}.`,
+        'Please complete payment to confirm your booking.',
+      ], 'Pay now', `${siteUrl}/account/bookings`),
+    })
   }
 
   return {
