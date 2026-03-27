@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { apiFetch } from '../../lib/api'
 import { clientPriceCents } from '../../lib/utils'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -30,6 +31,7 @@ export default function AccountSettings() {
   const [icalImports, setIcalImports] = useState([])
   const [importForm, setImportForm] = useState({ label: '', url: '' })
   const [importError, setImportError] = useState(null)
+  const [importValidating, setImportValidating] = useState(false)
   const feedUrl = walkerProfile
     ? `https://onestopdog.shop/cal/${walkerProfile.id}/${walkerProfile.calendar_feed_token || 'not-set'}.ics`
     : ''
@@ -198,6 +200,25 @@ export default function AccountSettings() {
       setImportError('URL must start with https://')
       return
     }
+
+    // Validate URL returns actual iCal data before saving
+    setImportValidating(true)
+    try {
+      const res = await apiFetch('validate-ical-url', {
+        method: 'POST',
+        body: JSON.stringify({ url: importForm.url.trim() }),
+      })
+      if (!res.data?.valid) {
+        setImportError(res.data?.error || 'Could not validate URL')
+        return
+      }
+    } catch {
+      setImportError('Failed to validate URL')
+      return
+    } finally {
+      setImportValidating(false)
+    }
+
     const { error } = await supabase.from('ical_imports').insert({
       walker_id: walkerProfile.id,
       label: importForm.label.trim(),
@@ -372,7 +393,7 @@ export default function AccountSettings() {
             <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
               <h3 className="font-medium mb-2">Import calendars</h3>
               <p className="text-sm text-gray-500 mb-3">
-                Add your Google, Apple, Outlook, Rover, or other iCal URLs. Busy times will block your availability.
+                Add iCal feed URLs to block your availability. For Google Calendar: Settings &gt; [calendar name] &gt; Integrate calendar &gt; "Secret address in iCal format" (the URL ending in .ics).
               </p>
 
               {icalImports.length > 0 && (
@@ -400,7 +421,9 @@ export default function AccountSettings() {
                 <input type="url" value={importForm.url} onChange={(e) => { setImportForm({ ...importForm, url: e.target.value }); setImportError(null) }}
                   placeholder="https://calendar.google.com/calendar/ical/..."
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
-                <button onClick={addIcalImport} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">Add</button>
+                <button onClick={addIcalImport} disabled={importValidating} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  {importValidating ? 'Validating...' : 'Add'}
+                </button>
               </div>
               {importError && <p className="text-red-600 text-sm mt-2">{importError}</p>}
             </div>

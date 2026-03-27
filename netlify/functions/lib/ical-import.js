@@ -56,6 +56,52 @@ function toTimeStr(d) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+function addEvent(events, uid, title, start, end, allDay, today, windowEnd) {
+  if (allDay) {
+    const endDate = end || new Date(start.getTime() + 24 * 60 * 60 * 1000)
+    for (let d = new Date(start); d < endDate; d.setDate(d.getDate() + 1)) {
+      if (d < today || d >= windowEnd) continue
+      events.push({
+        id: `${uid}-${toDateStr(d)}`,
+        title,
+        date: toDateStr(d),
+        start_time: null,
+        end_time: null,
+        allDay: true,
+      })
+    }
+  } else {
+    const effectiveEnd = end || new Date(start.getTime() + 60 * 60 * 1000)
+
+    if (toDateStr(start) === toDateStr(effectiveEnd) || !end) {
+      if (start >= today && start < windowEnd) {
+        events.push({
+          id: `${uid}-${toDateStr(start)}`,
+          title,
+          date: toDateStr(start),
+          start_time: toTimeStr(start),
+          end_time: toTimeStr(effectiveEnd),
+          allDay: false,
+        })
+      }
+    } else {
+      for (let d = new Date(start); d < effectiveEnd; d.setDate(d.getDate() + 1)) {
+        if (d < today || d >= windowEnd) continue
+        const dayStart = toDateStr(d) === toDateStr(start) ? toTimeStr(start) : '00:00'
+        const dayEnd = toDateStr(d) === toDateStr(effectiveEnd) ? toTimeStr(effectiveEnd) : '23:59'
+        events.push({
+          id: `${uid}-${toDateStr(d)}`,
+          title,
+          date: toDateStr(d),
+          start_time: dayStart,
+          end_time: dayEnd,
+          allDay: false,
+        })
+      }
+    }
+  }
+}
+
 function parseIcsEvents(rawText) {
   const parsed = ical.parseICS(rawText)
   const now = new Date()
@@ -64,6 +110,18 @@ function parseIcsEvents(rawText) {
   windowEnd.setDate(windowEnd.getDate() + WINDOW_DAYS)
 
   const events = []
+
+  // Collect exdates (cancelled occurrences) per UID
+  const exdates = {}
+  for (const [, item] of Object.entries(parsed)) {
+    if (item.type !== 'VEVENT' || !item.exdate) continue
+    const uid = item.uid
+    if (!exdates[uid]) exdates[uid] = new Set()
+    for (const [, exd] of Object.entries(item.exdate)) {
+      const d = exd instanceof Date ? exd : new Date(exd)
+      if (!isNaN(d.getTime())) exdates[uid].add(toDateStr(d))
+    }
+  }
 
   for (const [, item] of Object.entries(parsed)) {
     if (item.type !== 'VEVENT') continue
@@ -75,7 +133,6 @@ function parseIcsEvents(rawText) {
 
     if (isNaN(start.getTime())) continue
 
-    // Check if it's an all-day event (date-only, no time component)
     const allDay = item.start?.dateOnly === true ||
       (item.datetype === 'date') ||
       (start.getHours() === 0 && start.getMinutes() === 0 && end &&
@@ -83,57 +140,67 @@ function parseIcsEvents(rawText) {
        (end - start) % (24 * 60 * 60 * 1000) === 0)
 
     const title = item.summary || 'Busy'
+    const uid = item.uid || `evt-${start.getTime()}`
+    const duration = end ? end.getTime() - start.getTime() : (allDay ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000)
+    const uidExdates = exdates[item.uid] || new Set()
 
-    if (allDay) {
-      // Expand multi-day all-day events
-      const endDate = end || new Date(start.getTime() + 24 * 60 * 60 * 1000)
-      for (let d = new Date(start); d < endDate; d.setDate(d.getDate() + 1)) {
-        if (d < today || d >= windowEnd) continue
-        events.push({
-          id: `${item.uid}-${toDateStr(d)}`,
-          title,
-          date: toDateStr(d),
-          start_time: null,
-          end_time: null,
-          allDay: true,
-        })
+    if (item.rrule) {
+      // Recurring event — expand occurrences within window
+      const occurrences = item.rrule.between(today, windowEnd, true)
+      for (const occ of occurrences) {
+        if (uidExdates.has(toDateStr(occ))) continue
+        const occEnd = new Date(occ.getTime() + duration)
+        addEvent(events, `${uid}-r`, title, occ, occEnd, allDay, today, windowEnd)
       }
     } else {
-      // Timed event — might span multiple days
-      const effectiveEnd = end || new Date(start.getTime() + 60 * 60 * 1000) // default 1hr
-
-      if (toDateStr(start) === toDateStr(effectiveEnd) || !end) {
-        // Single-day timed event
-        if (start >= today && start < windowEnd) {
-          events.push({
-            id: item.uid || `evt-${start.getTime()}`,
-            title,
-            date: toDateStr(start),
-            start_time: toTimeStr(start),
-            end_time: toTimeStr(effectiveEnd),
-            allDay: false,
-          })
-        }
-      } else {
-        // Multi-day timed event — expand per day
-        for (let d = new Date(start); d < effectiveEnd; d.setDate(d.getDate() + 1)) {
-          if (d < today || d >= windowEnd) continue
-          const dayStart = toDateStr(d) === toDateStr(start) ? toTimeStr(start) : '00:00'
-          const dayEnd = toDateStr(d) === toDateStr(effectiveEnd) ? toTimeStr(effectiveEnd) : '23:59'
-          events.push({
-            id: `${item.uid}-${toDateStr(d)}`,
-            title,
-            date: toDateStr(d),
-            start_time: dayStart,
-            end_time: dayEnd,
-            allDay: false,
-          })
-        }
+      // One-off event
+      if (!uidExdates.has(toDateStr(start))) {
+        addEvent(events, uid, title, start, end, allDay, today, windowEnd)
       }
     }
   }
 
   return events
+}
+
+/**
+ * Validate and fetch an iCal URL. Returns { rawText } on success, { error } on failure.
+ * Used both for upfront validation (before saving) and for cache-miss fetches.
+ */
+export async function fetchIcalUrl(url) {
+  const validationError = await validateUrl(url)
+  if (validationError) return { error: validationError }
+
+  let rawText
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept': 'text/calendar' },
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) return { error: `HTTP ${res.status}` }
+
+    const contentLength = res.headers.get('content-length')
+    if (contentLength && parseInt(contentLength) > MAX_BODY_BYTES) {
+      return { error: 'Response too large' }
+    }
+
+    rawText = await res.text()
+    if (rawText.length > MAX_BODY_BYTES) {
+      return { error: 'Response too large' }
+    }
+
+    if (!rawText.trimStart().startsWith('BEGIN:VCALENDAR')) {
+      return { error: 'URL did not return calendar data. Use the "Secret address in iCal format" (ending in .ics), not a sharing or web link.' }
+    }
+  } catch (err) {
+    return { error: err.name === 'AbortError' ? 'Request timed out' : err.message }
+  }
+
+  return { rawText }
 }
 
 async function fetchAndParseSingle(supabase, importRow) {
@@ -148,39 +215,10 @@ async function fetchAndParseSingle(supabase, importRow) {
     return { events: cached.events_json, error: null }
   }
 
-  // Validate URL
-  const validationError = await validateUrl(importRow.url)
-  if (validationError) {
-    return { events: [], error: `${importRow.label}: ${validationError}` }
-  }
-
-  // Fetch
-  let rawText
-  try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-    const res = await fetch(importRow.url, {
-      signal: controller.signal,
-      headers: { 'Accept': 'text/calendar' },
-    })
-    clearTimeout(timeout)
-
-    if (!res.ok) {
-      return { events: [], error: `${importRow.label}: HTTP ${res.status}` }
-    }
-
-    const contentLength = res.headers.get('content-length')
-    if (contentLength && parseInt(contentLength) > MAX_BODY_BYTES) {
-      return { events: [], error: `${importRow.label}: Response too large` }
-    }
-
-    rawText = await res.text()
-    if (rawText.length > MAX_BODY_BYTES) {
-      return { events: [], error: `${importRow.label}: Response too large` }
-    }
-  } catch (err) {
-    const msg = err.name === 'AbortError' ? 'Timeout' : err.message
-    return { events: [], error: `${importRow.label}: ${msg}` }
+  // Fetch and validate
+  const { rawText, error: fetchError } = await fetchIcalUrl(importRow.url)
+  if (fetchError) {
+    return { events: [], error: `${importRow.label}: ${fetchError}` }
   }
 
   // Parse
