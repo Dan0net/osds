@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate } from './lib/notify.js'
+import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -69,19 +69,22 @@ export async function handler(event) {
     if (paymentRow) {
       const { data: walkerProfile } = await supabase.from('walker_profiles').select('user_id, business_name').eq('id', paymentRow.walker_id).single()
       const { data: clientUser } = await supabase.from('users').select('name').eq('id', paymentRow.client_id).single()
+      const { data: paidBookings } = await supabase.from('bookings').select('booking_date, start_time, service_id, services(name)').eq('payment_id', paymentId).limit(1).single()
       const clientName = clientUser?.name || 'A client'
       const amount = `£${(paymentRow.total_cents / 100).toFixed(2)}`
+      const svcName = paidBookings?.services?.name || 'booking'
+      const when = paidBookings ? formatDateTime(paidBookings.booking_date, paidBookings.start_time) : ''
       if (walkerProfile) {
         notify(supabase, walkerProfile.user_id, {
           type: 'payment_confirmed',
           title: 'Payment received',
-          body: `${clientName} paid ${amount}`,
+          body: `${clientName} paid ${amount} for ${svcName}${when ? ` on ${when}` : ''}`,
           link: '/account/payments',
           emailSubject: `Payment received — ${amount} from ${clientName}`,
           emailHtml: emailTemplate('Payment received', [
-            `<strong>${clientName}</strong> has paid <strong>${amount}</strong> for their booking.`,
+            `<strong>${clientName}</strong> has paid <strong>${amount}</strong> for <strong>${svcName}</strong>${when ? ` on ${when}` : ''}.`,
             'The booking is now confirmed.',
-          ], 'View payments', `${process.env.SITE_URL || 'https://onestopdog.shop'}/account/payments`),
+          ], 'View payments', 'https://onestopdog.shop/account/payments'),
         })
       }
     }

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate } from './lib/notify.js'
+import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -118,20 +118,22 @@ export async function handler(event) {
 
   // Notify client of reschedule
   const { data: wp } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', booking.walker_id).single()
+  const { data: rSvc } = await adminSupabase.from('services').select('name').eq('id', booking.service_id).single()
   const walkerName = wp?.business_name || 'Your walker'
-  const oldDate = booking.booking_date
-  const oldTime = booking.start_time?.slice(0, 5)
+  const svcName = rSvc?.name || 'booking'
+  const oldWhen = formatDateTime(booking.booking_date, booking.start_time)
+  const newWhen = formatDateTime(new_date, new_start_time)
   notify(adminSupabase, booking.client_id, {
     type: 'booking_rescheduled',
     title: 'Booking rescheduled',
-    body: `${walkerName} moved your booking from ${oldDate} ${oldTime} to ${new_date} ${new_start_time}`,
+    body: `${walkerName} moved your ${svcName} from ${oldWhen} to ${newWhen}`,
     link: '/account/bookings',
     emailSubject: `${walkerName} rescheduled your booking`,
     emailHtml: emailTemplate('Booking rescheduled', [
-      `<strong>${walkerName}</strong> has moved your booking.`,
-      `<strong>From:</strong> ${oldDate} at ${oldTime}`,
-      `<strong>To:</strong> ${new_date} at ${new_start_time}`,
-    ], 'View bookings', `${process.env.SITE_URL || 'https://onestopdog.shop'}/account/bookings`),
+      `<strong>${walkerName}</strong> has moved your <strong>${svcName}</strong>.`,
+      `<strong>From:</strong> ${oldWhen}`,
+      `<strong>To:</strong> ${newWhen}`,
+    ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
   })
 
   return {

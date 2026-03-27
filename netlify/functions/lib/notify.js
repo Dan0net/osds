@@ -1,7 +1,5 @@
 import { Resend } from 'resend'
 import webpush from 'web-push'
-import { createClient } from '@supabase/supabase-js'
-
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null
@@ -14,11 +12,36 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   )
 }
 
-function getAdminClient() {
-  return createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-  )
+/**
+ * Format a YYYY-MM-DD date string as "Friday 26th April"
+ */
+export function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.toLocaleDateString('en-GB', { weekday: 'long' })
+  const date = d.getDate()
+  const month = d.toLocaleDateString('en-GB', { month: 'long' })
+  const suffix = date === 1 || date === 21 || date === 31 ? 'st'
+    : date === 2 || date === 22 ? 'nd'
+    : date === 3 || date === 23 ? 'rd' : 'th'
+  return `${day} ${date}${suffix} ${month}`
+}
+
+/**
+ * Format a date + time: "Friday 26th April at 15:00"
+ */
+export function formatDateTime(dateStr, timeStr) {
+  const formatted = formatDate(dateStr)
+  return timeStr ? `${formatted} at ${timeStr.slice(0, 5)}` : formatted
+}
+
+/**
+ * Format multiple slots: "Friday 26th April at 15:00 (+2 more)"
+ */
+export function formatSlots(slots) {
+  if (!slots || slots.length === 0) return ''
+  const first = formatDateTime(slots[0].date, slots[0].time)
+  if (slots.length === 1) return first
+  return `${first} (+${slots.length - 1} more)`
 }
 
 // Map event type to notification preference keys
@@ -37,6 +60,7 @@ const PREF_MAP = {
  * Simple HTML email template with OSDS branding.
  */
 export function emailTemplate(title, bodyParagraphs, ctaText, ctaUrl) {
+  const siteUrl = 'https://onestopdog.shop'
   const ctaHtml = ctaText && ctaUrl
     ? `<div style="text-align:center;margin:24px 0"><a href="${ctaUrl}" style="background-color:#4f46e5;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">${ctaText}</a></div>`
     : ''
@@ -47,14 +71,14 @@ export function emailTemplate(title, bodyParagraphs, ctaText, ctaUrl) {
 <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
   <div style="max-width:480px;margin:0 auto;padding:24px">
     <div style="text-align:center;padding:16px 0">
-      <span style="font-size:18px;font-weight:700;color:#4f46e5">One Stop Dog Shop</span>
+      <a href="${siteUrl}"><img src="${siteUrl}/osds-logo-192.png" alt="One Stop Dog Shop" height="40" style="height:40px" /></a>
     </div>
     <div style="background:#ffffff;border-radius:12px;padding:24px;border:1px solid #e5e7eb">
       <h2 style="margin:0 0 16px;font-size:18px;color:#111827">${title}</h2>
       ${bodyParagraphs.map((p) => `<p style="margin:0 0 12px;font-size:14px;color:#4b5563;line-height:1.5">${p}</p>`).join('')}
       ${ctaHtml}
     </div>
-    <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px">You can manage your notification preferences in your account settings.</p>
+    <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px"><a href="${siteUrl}/account/notifications" style="color:#9ca3af;text-decoration:underline">Manage your notification preferences</a></p>
   </div>
 </body>
 </html>`

@@ -1,16 +1,14 @@
 import { Link, Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import AppHeader from './AppHeader'
 
 export default function Layout({ walker }) {
   const { user, profile } = useAuth()
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <img src="/osds-logo.svg" alt="One Stop Dog Shop" className="h-10" />
-          </Link>
+      <AppHeader
+        right={
           <nav className="flex items-center gap-3 text-sm">
             {user ? (
               <Link to="/account" className="text-gray-600 hover:text-indigo-600">
@@ -30,8 +28,8 @@ export default function Layout({ walker }) {
               </>
             )}
           </nav>
-        </div>
-      </header>
+        }
+      />
 
       <main className="flex-1">
         <Outlet />

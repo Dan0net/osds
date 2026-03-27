@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate } from './lib/notify.js'
+import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
 
 function createAdminClient() {
   return createClient(
@@ -71,17 +71,16 @@ export async function handler(event) {
     // Notify client
     const { data: walkerUser } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
     const walkerName = walkerUser?.business_name || 'Your walker'
-    const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
     notify(adminSupabase, bookings[0].client_id, {
       type: 'booking_approved',
       title: 'Booking approved',
-      body: `${walkerName} approved your booking`,
+      body: `${walkerName} approved your booking — pay now to confirm`,
       link: '/account/bookings',
       emailSubject: `Your booking with ${walkerName} has been approved`,
       emailHtml: emailTemplate('Booking approved', [
         `Great news! <strong>${walkerName}</strong> has approved your booking.`,
         'You can now proceed to pay from your bookings page.',
-      ], 'Pay now', `${siteUrl}/account/bookings`),
+      ], 'Pay now', 'https://onestopdog.shop/account/bookings'),
     })
 
     return {
@@ -144,18 +143,20 @@ export async function handler(event) {
   // Notify client
   const adminSupabase2 = createAdminClient()
   const { data: wp } = await adminSupabase2.from('walker_profiles').select('business_name').eq('id', updated.walker_id).single()
+  const { data: svc } = await adminSupabase2.from('services').select('name').eq('id', updated.service_id).single()
   const wName = wp?.business_name || 'Your walker'
-  const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
+  const svcName = svc?.name || 'booking'
+  const when = formatDateTime(updated.booking_date, updated.start_time)
   notify(adminSupabase2, updated.client_id, {
     type: 'booking_approved',
     title: 'Booking approved',
-    body: `${wName} approved your booking on ${updated.booking_date}`,
+    body: `${wName} approved your ${svcName} on ${when}`,
     link: '/account/bookings',
     emailSubject: `Your booking with ${wName} has been approved`,
     emailHtml: emailTemplate('Booking approved', [
-      `Great news! <strong>${wName}</strong> has approved your booking for ${updated.booking_date}.`,
+      `Great news! <strong>${wName}</strong> has approved your <strong>${svcName}</strong> on ${when}.`,
       'You can now proceed to pay from your bookings page.',
-    ], 'Pay now', `${siteUrl}/account/bookings`),
+    ], 'Pay now', 'https://onestopdog.shop/account/bookings'),
   })
 
   return {

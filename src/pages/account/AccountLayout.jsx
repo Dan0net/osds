@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
+import AppHeader from '../../components/AppHeader'
 import InstallPrompt from '../../components/InstallPrompt'
 
 const NAV_ITEMS = [
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
   { to: '/account/pets', label: 'Pets' },
   { to: '/account/payments', label: 'Payments' },
   { to: '/account/inbox', label: 'Inbox' },
+  { to: '/account/notifications', label: 'Notifications' },
   { to: '/account/profile', label: 'Profile' },
   { to: '/account/settings', label: 'Settings' },
 ]
@@ -44,11 +46,8 @@ export default function AccountLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <NavLink to="/" className="text-xl font-bold text-indigo-600">
-            One Stop Dog Shop
-          </NavLink>
+      <AppHeader
+        right={
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500">{profile?.name || 'Account'}</span>
             <button
@@ -58,8 +57,8 @@ export default function AccountLayout() {
               Log out
             </button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <nav className="bg-white border-b">
         <div className="max-w-5xl mx-auto px-4 grid grid-cols-4 sm:flex sm:gap-1">

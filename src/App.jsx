@@ -24,6 +24,7 @@ import AccountPayments from './pages/account/AccountPayments'
 import AccountInbox from './pages/account/AccountInbox'
 import AccountProfile from './pages/account/AccountProfile'
 import AccountSettings from './pages/account/AccountSettings'
+import AccountNotifications from './pages/account/AccountNotifications'
 
 function WalkerRoutes({ walker }) {
   return (
@@ -59,6 +60,7 @@ function PlatformRoutes() {
           <Route path="payments" element={<AccountPayments />} />
           <Route path="inbox" element={<AccountInbox />} />
           <Route path="profile" element={<AccountProfile />} />
+          <Route path="notifications" element={<AccountNotifications />} />
           <Route path="settings" element={<AccountSettings />} />
         </Route>
       </Route>

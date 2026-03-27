@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate } from './lib/notify.js'
+import { notify, emailTemplate, formatSlots } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const OSDS_FEE_RATE = 0.05
@@ -205,32 +205,31 @@ export async function handler(event) {
 
   // Notify client
   const serviceNames = [...new Set(slots.map((s) => serviceMap[s.serviceId]?.name || 'a service'))].join(', ')
-  const dates = [...new Set(slots.map((s) => s.date))].join(', ')
-  const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
+  const when = formatSlots(slots)
 
   if (isCash) {
     notify(adminSupabase, client_id, {
       type: 'booking_confirmed',
       title: 'Booking confirmed',
-      body: `${wp.business_name} booked ${serviceNames} for you on ${dates}`,
+      body: `${wp.business_name} booked ${serviceNames} for you on ${when}`,
       link: '/account/bookings',
       emailSubject: `Booking confirmed with ${wp.business_name}`,
       emailHtml: emailTemplate('Booking confirmed', [
-        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${dates}.`,
+        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${when}.`,
         'Your booking is confirmed.',
-      ], 'View bookings', `${siteUrl}/account/bookings`),
+      ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
     })
   } else {
     notify(adminSupabase, client_id, {
       type: 'booking_payment_link',
       title: 'Payment requested',
-      body: `${wp.business_name} has sent you a payment link for ${serviceNames}`,
+      body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,
       link: '/account/bookings',
       emailSubject: `Payment requested from ${wp.business_name}`,
       emailHtml: emailTemplate('Payment requested', [
-        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${dates}.`,
+        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${when}.`,
         'Please complete payment to confirm your booking.',
-      ], 'Pay now', `${siteUrl}/account/bookings`),
+      ], 'Pay now', 'https://onestopdog.shop/account/bookings'),
     })
   }
 

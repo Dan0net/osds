@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate } from './lib/notify.js'
+import { notify, emailTemplate, formatSlots } from './lib/notify.js'
 
 const OSDS_FEE_RATE = 0.05
 const STRIPE_PERCENT_RATE = 0.034
@@ -207,17 +207,17 @@ export async function handler(event) {
   const { data: clientUser } = await adminSupabase.from('users').select('name').eq('id', user.id).single()
   const clientName = clientUser?.name || 'A client'
   const serviceNames = [...new Set(slots.map((s) => serviceMap[s.serviceId]?.name || 'a service'))].join(', ')
-  const dates = [...new Set(slots.map((s) => s.date))].join(', ')
+  const when = formatSlots(slots)
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
 
   notify(adminSupabase, walker.user_id, {
     type: 'booking_request',
     title: 'New booking request',
-    body: `${clientName} requested ${serviceNames} on ${dates}`,
+    body: `${clientName} requested ${serviceNames} on ${when}`,
     link: '/account/bookings',
     emailSubject: `New booking request from ${clientName}`,
     emailHtml: emailTemplate('New booking request', [
-      `${clientName} has requested <strong>${serviceNames}</strong> on ${dates}.`,
+      `${clientName} has requested <strong>${serviceNames}</strong> on ${when}.`,
       'Review and approve or decline from your dashboard.',
     ], 'View request', `${siteUrl}/account/bookings`),
   })
