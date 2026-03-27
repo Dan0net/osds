@@ -65,7 +65,11 @@ function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-export default function BookingsCalendar({ incoming = [], mine = [], external = [] }) {
+function jsDayToDbDay(jsDay) {
+  return jsDay === 0 ? 7 : jsDay
+}
+
+export default function BookingsCalendar({ incoming = [], mine = [], external = [], availability = [], blockedDates = [] }) {
   const [view, setView] = useState('month')
   const [current, setCurrent] = useState(new Date())
 
@@ -120,6 +124,39 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
     return map
   }, [allEvents])
 
+  // Build lookup maps for availability
+  const availByDay = useMemo(() => {
+    const map = {}
+    for (const a of availability) {
+      map[a.day_of_week] = {
+        start: timeToMinutes(a.start_time?.slice(0, 5) || '09:00'),
+        end: timeToMinutes(a.end_time?.slice(0, 5) || '17:00'),
+      }
+    }
+    return map
+  }, [availability])
+
+  const blockedSet = useMemo(() => {
+    const set = new Set()
+    for (const b of blockedDates) set.add(b.date)
+    return set
+  }, [blockedDates])
+
+  function isAvailable(dateStr, jsDay, hourMinutes) {
+    if (blockedSet.has(dateStr)) return false
+    const dbDay = jsDayToDbDay(jsDay)
+    const window = availByDay[dbDay]
+    if (!window) return false
+    return hourMinutes >= window.start && hourMinutes < window.end
+  }
+
+  function dayHasAvailability(dateStr, jsDay) {
+    if (blockedSet.has(dateStr)) return false
+    return !!availByDay[jsDayToDbDay(jsDay)]
+  }
+
+  const hasAvailability = availability.length > 0
+
   const today = new Date()
   const todayStr = toDateStr(today)
 
@@ -149,16 +186,21 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
           const ds = toDateStr(date)
           const dayEvents = eventsByDate[ds] || []
           const isToday = ds === todayStr
+          const hasAvail = hasAvailability && !outside && dayHasAvailability(ds, date.getDay())
+          const isBlocked = hasAvailability && !outside && blockedSet.has(ds)
           return (
             <div
               key={i}
-              className={`min-h-[5rem] border-t border-gray-100 p-1 ${outside ? 'bg-gray-50' : ''}`}
+              className={`min-h-[5rem] border-t border-gray-100 p-1 ${outside ? 'bg-gray-50' : hasAvail ? 'bg-emerald-50/60' : ''}`}
             >
-              <span className={`text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full ${
-                isToday ? 'bg-indigo-600 text-white' : outside ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                {date.getDate()}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className={`text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                  isToday ? 'bg-indigo-600 text-white' : outside ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {date.getDate()}
+                </span>
+                {isBlocked && <span className="text-[9px] text-red-400 font-medium">Blocked</span>}
+              </div>
               <div className="mt-0.5 space-y-0.5">
                 {dayEvents.map((ev, j) => {
                   const style = getStyle(ev)
@@ -215,8 +257,10 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
                 </div>
                 {days.map((d) => {
                   const ds = toDateStr(d)
+                  const hourMin = hour * 60
+                  const cellAvail = hasAvailability && isAvailable(ds, d.getDay(), hourMin)
                   return (
-                    <div key={`${ds}-${hour}`} className="border-t border-l border-gray-100 h-12 relative">
+                    <div key={`${ds}-${hour}`} className={`border-t border-l border-gray-100 h-12 relative ${cellAvail ? 'bg-emerald-50' : ''}`}>
                       {/* Render events that start in this hour */}
                       {(eventsByDate[ds] || [])
                         .filter((ev) => {
@@ -302,6 +346,7 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 px-3 pb-3 text-xs text-gray-500">
+        {hasAvailability && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-300" />Available</span>}
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />Incoming</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />Requested</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" />My bookings</span>

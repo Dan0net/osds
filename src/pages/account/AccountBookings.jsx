@@ -37,6 +37,8 @@ export default function AccountBookings() {
   const [createForm, setCreateForm] = useState({ clientSearch: '', clientId: '', serviceId: '', date: '', time: '', endTime: '', pet_id: '', mode: 'cash' })
   const [clients, setClients] = useState([])
   const [walkerServices, setWalkerServices] = useState([])
+  const [availability, setAvailability] = useState([])
+  const [blockedDates, setBlockedDates] = useState([])
 
   // Payment success/cancel banner from Stripe redirect
   useEffect(() => {
@@ -94,6 +96,16 @@ export default function AccountBookings() {
         .order('booking_date', { ascending: false })
 
       setIncoming((walkerBookings || []).map(formatBooking))
+    }
+
+    // Load availability + blocked dates for calendar shading
+    if (walkerProfile) {
+      const [{ data: availData }, { data: blockData }] = await Promise.all([
+        supabase.from('availability').select('*').eq('walker_id', walkerProfile.id),
+        supabase.from('blocked_dates').select('*').eq('walker_id', walkerProfile.id),
+      ])
+      setAvailability(availData || [])
+      setBlockedDates(blockData || [])
     }
 
     setLoading(false)
@@ -362,7 +374,7 @@ export default function AccountBookings() {
         </div>
       )}
 
-      <BookingsCalendar incoming={incoming} mine={mine} external={[]} />
+      <BookingsCalendar incoming={incoming} mine={mine} external={[]} availability={availability} blockedDates={blockedDates} />
 
       {/* Tabs */}
       {isWalker && (

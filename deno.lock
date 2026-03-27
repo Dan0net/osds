@@ -15,9 +15,11 @@
         "npm:@tailwindcss/vite@^4.2.1",
         "npm:@vitejs/plugin-react@^5.1.4",
         "npm:date-fns@^4.1.0",
+        "npm:netlify-cli@^24.4.0",
         "npm:react-dom@^19.2.4",
         "npm:react-router-dom@^7.13.1",
         "npm:react@^19.2.4",
+        "npm:stripe@^20.4.1",
         "npm:tailwindcss@^4.2.1",
         "npm:vite@^7.3.1"
       ]
