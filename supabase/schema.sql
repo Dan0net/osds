@@ -35,7 +35,6 @@ create table public.walker_profiles (
   stripe_account_id text default null,
   theme_color text default '#4f46e5',
   is_default boolean default false,
-  ical_url text default null,
   calendar_feed_token text default null,
   created_at timestamptz default now()
 );
@@ -54,7 +53,7 @@ create table public.services (
 create table public.availability (
   id uuid primary key default gen_random_uuid(),
   walker_id uuid not null references public.walker_profiles(id) on delete cascade,
-  day_of_week integer not null check (day_of_week between 0 and 6),
+  day_of_week integer not null check (day_of_week between 1 and 7),
   start_time time not null,
   end_time time not null,
   created_at timestamptz default now()
@@ -118,6 +117,20 @@ create table public.push_subscriptions (
   created_at timestamptz default now()
 );
 
+create table public.ical_imports (
+  id uuid primary key default gen_random_uuid(),
+  walker_id uuid not null references public.walker_profiles(id) on delete cascade,
+  url text not null,
+  label text not null,
+  created_at timestamptz default now()
+);
+
+create table public.ical_cache (
+  import_id uuid primary key references public.ical_imports(id) on delete cascade,
+  events_json jsonb not null default '[]',
+  fetched_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- AUTO-CREATE USER ROW ON SIGN-UP
 -- ============================================================
@@ -153,6 +166,8 @@ alter table public.payments enable row level security;
 alter table public.bookings enable row level security;
 alter table public.reviews enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.ical_imports enable row level security;
+alter table public.ical_cache enable row level security;
 
 -- users: read/update own row
 create policy "Users can read own row" on public.users
@@ -277,3 +292,19 @@ create policy "Users can insert own subscriptions" on public.push_subscriptions
   for insert with check (auth.uid() = user_id);
 create policy "Users can delete own subscriptions" on public.push_subscriptions
   for delete using (auth.uid() = user_id);
+
+-- ical_imports: walker owner CRUD
+create policy "Walker can read own imports" on public.ical_imports
+  for select using (
+    exists (select 1 from public.walker_profiles where id = walker_id and user_id = auth.uid())
+  );
+create policy "Walker can insert imports" on public.ical_imports
+  for insert with check (
+    exists (select 1 from public.walker_profiles where id = walker_id and user_id = auth.uid())
+  );
+create policy "Walker can delete imports" on public.ical_imports
+  for delete using (
+    exists (select 1 from public.walker_profiles where id = walker_id and user_id = auth.uid())
+  );
+
+-- ical_cache: no client policies — service role only

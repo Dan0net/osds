@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { fetchExternalEvents } from './lib/ical-import.js'
 
 // Use service role to bypass RLS — this function runs server-side only
 // and returns only computed slot times, never raw booking data
@@ -21,10 +22,10 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'walker_id and date are required' }) }
   }
 
-  // Get day of week (0=Sun, 1=Mon ... 6=Sat in JS, but schema uses 0-6 where 0=Sun)
+  // Get day of week — schema uses Mon=1...Sun=7 (written by AccountSettings)
   const dateObj = new Date(date + 'T00:00:00')
   const jsDay = dateObj.getDay() // 0=Sun
-  const dayOfWeek = jsDay // schema uses 0=Sun, 1=Mon...6=Sat
+  const dayOfWeek = jsDay === 0 ? 7 : jsDay
 
   // Check if date is blocked
   const { data: blocked } = await supabase
@@ -152,6 +153,28 @@ export async function handler(event) {
           continue // slot available for short non-overnight services
         }
         overnightBlocked.add(slot)
+      }
+    }
+  }
+
+  // Subtract external calendar events (iCal imports)
+  const { events: externalEvents } = await fetchExternalEvents(supabase, walker_id)
+  for (const ext of externalEvents) {
+    if (ext.date !== date) continue
+    if (ext.allDay) {
+      // All-day event blocks the entire availability window
+      for (let m = startMinutes; m < endMinutes; m += 30) {
+        const slotTime = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+        slotUsage[slotTime] = (slotUsage[slotTime] || 0) + 1
+      }
+    } else if (ext.start_time && ext.end_time) {
+      const [eStartH, eStartM] = ext.start_time.split(':').map(Number)
+      const [eEndH, eEndM] = ext.end_time.split(':').map(Number)
+      const eStart = eStartH * 60 + eStartM
+      const eEnd = eEndH * 60 + eEndM
+      for (let m = eStart; m < eEnd; m += 30) {
+        const slotTime = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+        slotUsage[slotTime] = (slotUsage[slotTime] || 0) + 1
       }
     }
   }

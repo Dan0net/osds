@@ -110,6 +110,7 @@ export default function AccountProfile() {
           user_id: user.id,
           slug,
           business_name: form.name + "'s Dog Walking",
+          calendar_feed_token: crypto.randomUUID(),
         })
       if (wpErr) throw wpErr
       await refreshProfile()

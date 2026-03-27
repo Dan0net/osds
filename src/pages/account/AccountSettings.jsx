@@ -26,9 +26,10 @@ export default function AccountSettings() {
   const [blockedDates, setBlockedDates] = useState([])
   const [newBlock, setNewBlock] = useState({ date: '', reason: '' })
 
-  // Calendar
-  const [icalUrl, setIcalUrl] = useState('')
-  const [icalSaved, setIcalSaved] = useState(false)
+  // Calendar imports
+  const [icalImports, setIcalImports] = useState([])
+  const [importForm, setImportForm] = useState({ label: '', url: '' })
+  const [importError, setImportError] = useState(null)
   const feedUrl = walkerProfile
     ? `https://onestopdog.shop/cal/${walkerProfile.id}/${walkerProfile.calendar_feed_token || 'not-set'}.ics`
     : ''
@@ -52,7 +53,17 @@ export default function AccountSettings() {
     loadServices()
     loadAvailability()
     loadBlockedDates()
-    if (walkerProfile.ical_url) setIcalUrl(walkerProfile.ical_url)
+    loadIcalImports()
+    // Backfill calendar_feed_token if missing
+    if (!walkerProfile.calendar_feed_token) {
+      const token = crypto.randomUUID()
+      supabase.from('walker_profiles')
+        .update({ calendar_feed_token: token })
+        .eq('id', walkerProfile.id)
+        .then(() => {
+          // Token will be picked up on next profile refresh
+        })
+    }
   }, [walkerProfile?.id])
 
   async function loadServices() {
@@ -168,16 +179,54 @@ export default function AccountSettings() {
     await loadBlockedDates()
   }
 
-  // --- Calendar ---
-  async function handleSaveImport(e) {
-    e.preventDefault()
-    await supabase.from('walker_profiles').update({ ical_url: icalUrl || null }).eq('id', walkerProfile.id)
-    setIcalSaved(true)
+  // --- Calendar imports ---
+  async function loadIcalImports() {
+    const { data } = await supabase
+      .from('ical_imports')
+      .select('*')
+      .eq('walker_id', walkerProfile.id)
+      .order('created_at')
+    setIcalImports(data || [])
+  }
+  async function addIcalImport() {
+    setImportError(null)
+    if (!importForm.label.trim() || !importForm.url.trim()) {
+      setImportError('Label and URL are required')
+      return
+    }
+    if (!importForm.url.startsWith('https://')) {
+      setImportError('URL must start with https://')
+      return
+    }
+    const { error } = await supabase.from('ical_imports').insert({
+      walker_id: walkerProfile.id,
+      label: importForm.label.trim(),
+      url: importForm.url.trim(),
+    })
+    if (error) {
+      setImportError(error.message)
+      return
+    }
+    setImportForm({ label: '', url: '' })
+    await loadIcalImports()
+  }
+  async function removeIcalImport(id) {
+    await supabase.from('ical_imports').delete().eq('id', id)
+    await loadIcalImports()
   }
   function handleCopy() {
     navigator.clipboard.writeText(feedUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+  async function handleRegenerateToken() {
+    if (!confirm('Regenerating will invalidate the current feed URL. Any calendars subscribed to it will stop updating. Continue?')) return
+    const newToken = crypto.randomUUID()
+    await supabase.from('walker_profiles')
+      .update({ calendar_feed_token: newToken })
+      .eq('id', walkerProfile.id)
+    // Force page reload to pick up new token
+    window.location.reload()
   }
 
   return (
@@ -321,17 +370,39 @@ export default function AccountSettings() {
             <h2 className="text-lg font-semibold mb-4">Calendar sync</h2>
 
             <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-              <h3 className="font-medium mb-2">Import your calendar</h3>
+              <h3 className="font-medium mb-2">Import calendars</h3>
               <p className="text-sm text-gray-500 mb-3">
-                Paste your Google/Apple/Outlook iCal URL. Busy times will block your availability.
+                Add your Google, Apple, Outlook, Rover, or other iCal URLs. Busy times will block your availability.
               </p>
-              <form onSubmit={handleSaveImport} className="flex gap-2">
-                <input type="url" value={icalUrl} onChange={(e) => { setIcalUrl(e.target.value); setIcalSaved(false) }}
+
+              {icalImports.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {icalImports.map((imp) => (
+                    <div key={imp.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium text-sm">{imp.label}</span>
+                        <span className="text-gray-400 text-xs ml-2 truncate block sm:inline">{imp.url.length > 50 ? imp.url.slice(0, 50) + '...' : imp.url}</span>
+                      </div>
+                      <button onClick={() => removeIcalImport(imp.id)} className="text-red-500 text-sm hover:text-red-600 ml-2 shrink-0">Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {icalImports.length === 0 && (
+                <p className="text-sm text-gray-400 mb-4">No calendars added yet.</p>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input type="text" value={importForm.label} onChange={(e) => { setImportForm({ ...importForm, label: e.target.value }); setImportError(null) }}
+                  placeholder="Label (e.g. Personal, Rover)"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:w-40 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                <input type="url" value={importForm.url} onChange={(e) => { setImportForm({ ...importForm, url: e.target.value }); setImportError(null) }}
                   placeholder="https://calendar.google.com/calendar/ical/..."
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
-                <button type="submit" className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">Save</button>
-              </form>
-              {icalSaved && <p className="text-green-600 text-sm mt-2">Calendar URL saved!</p>}
+                <button onClick={addIcalImport} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">Add</button>
+              </div>
+              {importError && <p className="text-red-600 text-sm mt-2">{importError}</p>}
             </div>
 
             <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -345,6 +416,9 @@ export default function AccountSettings() {
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
+              <button onClick={handleRegenerateToken} className="text-sm text-red-500 hover:text-red-700 mt-2">
+                Regenerate URL
+              </button>
             </div>
           </div>
         </>
