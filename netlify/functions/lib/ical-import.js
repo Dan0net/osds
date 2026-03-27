@@ -1,5 +1,5 @@
 import dns from 'dns/promises'
-import ical from 'node-ical'
+import IcalExpander from 'ical-expander'
 
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 const FETCH_TIMEOUT_MS = 10_000
@@ -28,14 +28,12 @@ async function validateUrl(url) {
   }
   try {
     const hostname = new URL(url).hostname
-    // Resolve IPv4
     try {
       const addresses = await dns.resolve4(hostname)
       if (addresses.some(isPrivateIP)) return 'URL resolves to a private IP address'
     } catch {
       // No A record — try AAAA
     }
-    // Resolve IPv6
     try {
       const addresses = await dns.resolve6(hostname)
       if (addresses.some(isPrivateIP)) return 'URL resolves to a private IP address'
@@ -56,133 +54,66 @@ function toTimeStr(d) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-function addEvent(events, uid, title, start, end, allDay, today, windowEnd) {
-  if (allDay) {
-    const endDate = end || new Date(start.getTime() + 24 * 60 * 60 * 1000)
-    for (let d = new Date(start); d < endDate; d.setDate(d.getDate() + 1)) {
-      if (d < today || d >= windowEnd) continue
-      events.push({
-        id: `${uid}-${toDateStr(d)}`,
-        title,
-        date: toDateStr(d),
-        start_time: null,
-        end_time: null,
-        allDay: true,
-      })
-    }
-  } else {
-    const effectiveEnd = end || new Date(start.getTime() + 60 * 60 * 1000)
-
-    if (toDateStr(start) === toDateStr(effectiveEnd) || !end) {
-      if (start >= today && start < windowEnd) {
-        events.push({
-          id: `${uid}-${toDateStr(start)}`,
-          title,
-          date: toDateStr(start),
-          start_time: toTimeStr(start),
-          end_time: toTimeStr(effectiveEnd),
-          allDay: false,
-        })
-      }
-    } else {
-      for (let d = new Date(start); d < effectiveEnd; d.setDate(d.getDate() + 1)) {
-        if (d < today || d >= windowEnd) continue
-        const dayStart = toDateStr(d) === toDateStr(start) ? toTimeStr(start) : '00:00'
-        const dayEnd = toDateStr(d) === toDateStr(effectiveEnd) ? toTimeStr(effectiveEnd) : '23:59'
-        events.push({
-          id: `${uid}-${toDateStr(d)}`,
-          title,
-          date: toDateStr(d),
-          start_time: dayStart,
-          end_time: dayEnd,
-          allDay: false,
-        })
-      }
-    }
+/**
+ * Google Calendar's public iCal feeds export recurring events as individual
+ * VEVENTs with RECURRENCE-ID but no base RRULE. ical-expander drops these
+ * orphaned instances. Stripping the RECURRENCE-ID lines lets them be parsed
+ * as regular one-off events, which is correct for availability blocking.
+ */
+function preprocessIcs(icsText) {
+  if (!icsText.match(/^RRULE:/m)) {
+    return icsText.replace(/^RECURRENCE-ID[^\r\n]*[\r\n]+/gm, '')
   }
+  return icsText
 }
 
 function parseIcsEvents(rawText) {
-  const parsed = ical.parseICS(rawText)
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const cleaned = preprocessIcs(rawText)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
   const windowEnd = new Date(today)
   windowEnd.setDate(windowEnd.getDate() + WINDOW_DAYS)
 
-  const events = []
+  const expander = new IcalExpander({ ics: cleaned, maxIterations: 1000 })
+  const { events, occurrences } = expander.between(today, windowEnd)
 
-  // Collect exdates (cancelled occurrences) per UID
-  const exdates = {}
-  for (const [, item] of Object.entries(parsed)) {
-    if (item.type !== 'VEVENT' || !item.exdate) continue
-    const uid = item.uid
-    if (!exdates[uid]) exdates[uid] = new Set()
-    for (const [, exd] of Object.entries(item.exdate)) {
-      const d = exd instanceof Date ? exd : new Date(exd)
-      if (!isNaN(d.getTime())) exdates[uid].add(toDateStr(d))
+  const result = []
+
+  // One-off events (and pre-expanded recurrence instances after preprocessing)
+  for (const e of events) {
+    const start = e.startDate.toJSDate()
+    const end = e.endDate.toJSDate()
+    const allDay = e.startDate.isDate
+    const uid = e.uid || `evt-${start.getTime()}`
+
+    if (allDay) {
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        if (d < today || d >= windowEnd) continue
+        result.push({ id: `${uid}-${toDateStr(d)}`, title: e.summary || 'Busy', date: toDateStr(d), start_time: null, end_time: null, allDay: true })
+      }
+    } else {
+      result.push({ id: `${uid}-${toDateStr(start)}`, title: e.summary || 'Busy', date: toDateStr(start), start_time: toTimeStr(start), end_time: toTimeStr(end), allDay: false })
     }
   }
 
-  for (const [, item] of Object.entries(parsed)) {
-    if (item.type !== 'VEVENT') continue
-    if (item.status === 'CANCELLED') continue
-    if (item.transparency === 'TRANSPARENT') continue
+  // RRULE-expanded recurring occurrences
+  for (const o of occurrences) {
+    const start = o.startDate.toJSDate()
+    const end = o.endDate.toJSDate()
+    const allDay = o.item.startDate.isDate
+    const uid = o.item.uid || `occ-${start.getTime()}`
 
-    const start = item.start instanceof Date ? item.start : new Date(item.start)
-    const end = item.end instanceof Date ? item.end : (item.end ? new Date(item.end) : null)
-
-    if (isNaN(start.getTime())) continue
-
-    const allDay = item.start?.dateOnly === true ||
-      (item.datetype === 'date') ||
-      (start.getHours() === 0 && start.getMinutes() === 0 && end &&
-       end.getHours() === 0 && end.getMinutes() === 0 &&
-       (end - start) % (24 * 60 * 60 * 1000) === 0)
-
-    const title = item.summary || 'Busy'
-    const uid = item.uid || `evt-${start.getTime()}`
-    const duration = end ? end.getTime() - start.getTime() : (allDay ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000)
-    const uidExdates = exdates[item.uid] || new Set()
-
-    if (item.rrule) {
-      // RRULE-based recurring event — expand occurrences within window
-      const occurrences = item.rrule.between(today, windowEnd, true)
-      for (const occ of occurrences) {
-        if (uidExdates.has(toDateStr(occ))) continue
-        const occEnd = new Date(occ.getTime() + duration)
-        addEvent(events, `${uid}-r`, title, occ, occEnd, allDay, today, windowEnd)
+    if (allDay) {
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        if (d < today || d >= windowEnd) continue
+        result.push({ id: `${uid}-${toDateStr(d)}`, title: o.item.summary || 'Busy', date: toDateStr(d), start_time: null, end_time: null, allDay: true })
       }
-    }
-
-    if (item.recurrences) {
-      // Pre-expanded recurring instances (Google Calendar style)
-      // node-ical stores duplicate keys (date-only + datetime), dedupe by date string
-      const seen = new Set()
-      for (const [, rec] of Object.entries(item.recurrences)) {
-        if (rec.status === 'CANCELLED') continue
-        if (rec.transparency === 'TRANSPARENT') continue
-        const rStart = rec.start instanceof Date ? rec.start : new Date(rec.start)
-        if (isNaN(rStart.getTime())) continue
-        const dateKey = toDateStr(rStart)
-        if (seen.has(dateKey)) continue
-        seen.add(dateKey)
-        if (uidExdates.has(dateKey)) continue
-        const rEnd = rec.end instanceof Date ? rec.end : (rec.end ? new Date(rec.end) : null)
-        const rTitle = rec.summary || title
-        const rAllDay = rec.start?.dateOnly === true || rec.datetype === 'date'
-        addEvent(events, `${uid}-rec`, rTitle, rStart, rEnd, rAllDay, today, windowEnd)
-      }
-    }
-
-    if (!item.rrule && !item.recurrences) {
-      // One-off event
-      if (!uidExdates.has(toDateStr(start))) {
-        addEvent(events, uid, title, start, end, allDay, today, windowEnd)
-      }
+    } else {
+      result.push({ id: `${uid}-${toDateStr(start)}`, title: o.item.summary || 'Busy', date: toDateStr(start), start_time: toTimeStr(start), end_time: toTimeStr(end), allDay: false })
     }
   }
 
-  return events
+  return result
 }
 
 /**
@@ -281,7 +212,6 @@ export async function fetchExternalEvents(supabase, walkerId) {
   const allEvents = []
   const allErrors = []
 
-  // Fetch all imports in parallel
   const results = await Promise.all(
     imports.map((imp) => fetchAndParseSingle(supabase, imp))
   )
