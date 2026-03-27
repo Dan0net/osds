@@ -40,6 +40,7 @@ export default function AccountBookings() {
   const [availability, setAvailability] = useState([])
   const [blockedDates, setBlockedDates] = useState([])
   const [externalEvents, setExternalEvents] = useState([])
+  const [refreshingExternal, setRefreshingExternal] = useState(false)
 
   // Payment success/cancel banner from Stripe redirect
   useEffect(() => {
@@ -114,6 +115,13 @@ export default function AccountBookings() {
     }
 
     setLoading(false)
+  }
+
+  async function refreshExternalEvents() {
+    setRefreshingExternal(true)
+    const extRes = await apiFetch('get-external-events?refresh=true')
+    setExternalEvents(extRes.data?.events || [])
+    setRefreshingExternal(false)
   }
 
   function formatBooking(b) {
@@ -379,6 +387,21 @@ export default function AccountBookings() {
         </div>
       )}
 
+      <div className="flex items-center justify-between mb-2">
+        <div />
+        {isWalker && externalEvents.length > 0 && (
+          <button
+            onClick={refreshExternalEvents}
+            disabled={refreshingExternal}
+            className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-50"
+          >
+            <svg className={`w-3.5 h-3.5 ${refreshingExternal ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {refreshingExternal ? 'Refreshing...' : 'Refresh calendars'}
+          </button>
+        )}
+      </div>
       <BookingsCalendar incoming={incoming} mine={mine} external={externalEvents} availability={availability} blockedDates={blockedDates} />
 
       {/* Tabs */}

@@ -45,6 +45,18 @@ export async function handler(event) {
     }
   }
 
+  // Clear cache if refresh requested
+  const refresh = event.queryStringParameters?.refresh === 'true'
+  if (refresh) {
+    const { data: imports } = await adminClient
+      .from('ical_imports')
+      .select('id')
+      .eq('walker_id', walkerProfile.id)
+    if (imports?.length) {
+      await adminClient.from('ical_cache').delete().in('import_id', imports.map((i) => i.id))
+    }
+  }
+
   const { events, errors } = await fetchExternalEvents(adminClient, walkerProfile.id)
 
   return {
