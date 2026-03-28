@@ -57,7 +57,7 @@ export async function handler(event) {
   const serviceIds = [...new Set(slots.map((s) => s.serviceId))]
   const { data: services } = await supabase
     .from('services')
-    .select('id, price_cents, duration_minutes, service_type, active')
+    .select('id, name, price_cents, duration_minutes, service_type, active')
     .in('id', serviceIds)
     .eq('walker_id', walker_id)
 
