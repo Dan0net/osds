@@ -25,39 +25,45 @@ export function usePushSubscription() {
   }, [])
 
   async function subscribe() {
-    if (!supported) return null
-    const perm = await Notification.requestPermission()
-    setPermission(perm)
-    if (perm !== 'granted') return null
+    if (!supported) { console.warn('Push not supported'); return null }
+    try {
+      const perm = await Notification.requestPermission()
+      setPermission(perm)
+      if (perm !== 'granted') { console.warn('Push permission denied:', perm); return null }
 
-    const reg = await navigator.serviceWorker.ready
-    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
-    if (!vapidKey) {
-      console.error('VITE_VAPID_PUBLIC_KEY not set')
+      const reg = await navigator.serviceWorker.ready
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+      if (!vapidKey) {
+        console.error('VITE_VAPID_PUBLIC_KEY not set')
+        return null
+      }
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      })
+
+      setSubscription(sub)
+
+      // Save to server
+      const res = await apiFetch('save-push-subscription', {
+        method: 'POST',
+        body: JSON.stringify({
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))),
+            auth: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))),
+          },
+          device_type: /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop',
+        }),
+      })
+      if (res.error) console.error('Failed to save push subscription:', res.error)
+
+      return sub
+    } catch (err) {
+      console.error('Push subscribe failed:', err)
       return null
     }
-
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
-    })
-
-    setSubscription(sub)
-
-    // Save to server
-    await apiFetch('save-push-subscription', {
-      method: 'POST',
-      body: JSON.stringify({
-        endpoint: sub.endpoint,
-        keys: {
-          p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))),
-          auth: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))),
-        },
-        device_type: /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop',
-      }),
-    })
-
-    return sub
   }
 
   async function unsubscribe() {

@@ -71,7 +71,7 @@ export function emailTemplate(title, bodyParagraphs, ctaText, ctaUrl) {
 <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
   <div style="max-width:480px;margin:0 auto;padding:24px">
     <div style="text-align:center;padding:16px 0">
-      <a href="${siteUrl}"><img src="${siteUrl}/osds-logo-192.png" alt="One Stop Dog Shop" height="40" style="height:40px" /></a>
+      <a href="${siteUrl}"><img src="${siteUrl}/osds-logo-512.png" alt="One Stop Dog Shop" width="256" style="width:256px;height:auto" /></a>
     </div>
     <div style="background:#ffffff;border-radius:12px;padding:24px;border:1px solid #e5e7eb">
       <h2 style="margin:0 0 16px;font-size:18px;color:#111827">${title}</h2>
