@@ -5,6 +5,12 @@
  */
 export function resolveWalker(hostname, pathParam) {
   const parts = hostname.split('.')
+
+  // Never treat Netlify preview/branch deploys or localhost as walker subdomains
+  if (hostname.endsWith('.netlify.app') || hostname === 'localhost') {
+    return pathParam || null
+  }
+
   if (parts.length >= 3) {
     const sub = parts[0]
     if (sub !== 'www') return sub
