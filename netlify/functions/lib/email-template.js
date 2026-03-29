@@ -7,9 +7,11 @@
  * @param {string} [ctaText] - Button label
  * @param {string} [ctaUrl] - Button link
  * @param {string} [footerHtml] - Custom footer HTML (defaults to notification preferences link)
+ * @param {object} [options] - Optional overrides
+ * @param {string} [options.siteUrl] - Override site URL (e.g. '{{ .SiteURL }}' for Supabase templates)
  */
-export function emailTemplate(title, bodyParagraphs, ctaText, ctaUrl, footerHtml) {
-  const siteUrl = (typeof process !== 'undefined' && process.env?.SITE_URL) || 'https://onestopdog.shop'
+export function emailTemplate(title, bodyParagraphs, ctaText, ctaUrl, footerHtml, options = {}) {
+  const siteUrl = options.siteUrl || (typeof process !== 'undefined' && process.env?.SITE_URL) || 'https://onestopdog.shop'
   const ctaHtml = ctaText && ctaUrl
     ? `<div style="text-align:center;margin:24px 0"><a href="${ctaUrl}" style="background-color:#4f46e5;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">${ctaText}</a></div>`
     : ''
