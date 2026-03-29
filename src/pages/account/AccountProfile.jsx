@@ -14,6 +14,7 @@ export default function AccountProfile() {
     business_name: '',
     slug: '',
     bio: '',
+    postcode: '',
     theme_color: '#4f46e5',
   })
   const [saved, setSaved] = useState(false)
@@ -49,6 +50,7 @@ export default function AccountProfile() {
         business_name: walkerProfile.business_name || '',
         slug: walkerProfile.slug || '',
         bio: walkerProfile.bio || '',
+        postcode: walkerProfile.postcode || '',
         theme_color: walkerProfile.theme_color || '#4f46e5',
       }))
     }
@@ -70,14 +72,30 @@ export default function AccountProfile() {
       if (userErr) throw userErr
 
       if (walkerProfile) {
+        const wpUpdate = {
+          business_name: form.business_name,
+          slug: form.slug,
+          bio: form.bio,
+          postcode: form.postcode || null,
+          theme_color: form.theme_color,
+        }
+        // Geocode postcode if changed
+        if (form.postcode && form.postcode !== walkerProfile.postcode) {
+          try {
+            const geoRes = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(form.postcode.trim())}`)
+            const geoData = await geoRes.json()
+            if (geoData.status === 200 && geoData.result) {
+              wpUpdate.lat = geoData.result.latitude
+              wpUpdate.lng = geoData.result.longitude
+            }
+          } catch { /* geocoding failed — save postcode without coordinates */ }
+        } else if (!form.postcode) {
+          wpUpdate.lat = null
+          wpUpdate.lng = null
+        }
         const { error: wpErr } = await supabase
           .from('walker_profiles')
-          .update({
-            business_name: form.business_name,
-            slug: form.slug,
-            bio: form.bio,
-            theme_color: form.theme_color,
-          })
+          .update(wpUpdate)
           .eq('user_id', user.id)
         if (wpErr) throw wpErr
       }
@@ -203,7 +221,7 @@ export default function AccountProfile() {
                   placeholder="your-slug"
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">{form.slug}.onestopdog.shop</p>
+              <p className="text-xs text-gray-400 mt-1">{form.slug}.{import.meta.env.VITE_DOMAIN || 'onestopdog.shop'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Business name</label>
@@ -222,6 +240,17 @@ export default function AccountProfile() {
                 onChange={(e) => update('bio', e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Postcode</label>
+              <input
+                type="text"
+                value={form.postcode}
+                onChange={(e) => update('postcode', e.target.value.toUpperCase())}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                placeholder="SW1A 1AA"
+              />
+              <p className="text-xs text-gray-400 mt-1">Used so clients can find walkers near them.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Theme colour</label>

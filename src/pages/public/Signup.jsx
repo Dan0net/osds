@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Signup() {
@@ -11,7 +11,10 @@ export default function Signup() {
   const [confirmed, setConfirmed] = useState(false)
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
+  const [searchParams] = useSearchParams()
   const { signUp, resendVerification } = useAuth()
+  const returnTo = searchParams.get('returnTo')
+  const loginLink = returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : '/login'
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -66,7 +69,7 @@ export default function Signup() {
             {resending ? 'Sending…' : 'Resend confirmation email'}
           </button>
           <p className="text-sm text-gray-500 mt-6">
-            <Link to="/login" className="text-indigo-600 hover:underline">Back to login</Link>
+            <Link to={loginLink} className="text-indigo-600 hover:underline">Back to login</Link>
           </p>
         </div>
       </div>
@@ -128,7 +131,7 @@ export default function Signup() {
       </form>
       <p className="text-sm text-center text-gray-500 mt-4">
         Already have an account?{' '}
-        <Link to="/login" className="text-indigo-600 hover:underline">
+        <Link to={loginLink} className="text-indigo-600 hover:underline">
           Log in
         </Link>
       </p>

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Login() {
@@ -11,7 +11,14 @@ export default function Login() {
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { signIn, resendVerification } = useAuth()
+
+  // Capture returnTo from query params for post-login redirect
+  useEffect(() => {
+    const returnTo = searchParams.get('returnTo')
+    if (returnTo) sessionStorage.setItem('osds_returnTo', returnTo)
+  }, [searchParams])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -20,7 +27,9 @@ export default function Login() {
     setSubmitting(true)
     try {
       await signIn(email, password)
-      navigate('/account')
+      const returnTo = sessionStorage.getItem('osds_returnTo') || '/account'
+      sessionStorage.removeItem('osds_returnTo')
+      navigate(returnTo)
     } catch (err) {
       if (err.message?.toLowerCase().includes('email not confirmed')) {
         setNeedsConfirmation(true)
@@ -104,7 +113,7 @@ export default function Login() {
       </form>
       <p className="text-sm text-center text-gray-500 mt-4">
         Don't have an account?{' '}
-        <Link to="/signup" className="text-indigo-600 hover:underline">
+        <Link to={searchParams.get('returnTo') ? `/signup?returnTo=${encodeURIComponent(searchParams.get('returnTo'))}` : '/signup'} className="text-indigo-600 hover:underline">
           Sign up
         </Link>
       </p>

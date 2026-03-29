@@ -244,3 +244,9 @@ cp .env.example .env
 #          STRIPE_WEBHOOK_SECRET, RESEND_API_KEY
 npx netlify dev    # Starts Vite + Functions on localhost:8888
 ```
+
+### Auth emails in local dev
+
+When using the hosted Supabase project, auth emails (confirmation, password reset) are sent through production SMTP and branded "One Stop Dog Shop". The `emailRedirectTo` in AuthContext uses `window.location.origin` dynamically, so redirect URLs work on any host.
+
+For fully local auth testing without production emails, run `supabase start` which provides Inbucket at `http://localhost:54324` to capture emails locally.

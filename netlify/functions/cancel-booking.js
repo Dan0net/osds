@@ -174,16 +174,17 @@ export async function handler(event) {
   const { data: cancelSvc } = await adminSupabase.from('services').select('name').eq('id', bookings[0].service_id).single()
   const cancelSvcName = cancelSvc?.name || 'Booking'
   const cancelWhen = formatDateTime(bookings[0].booking_date, bookings[0].start_time)
+  const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
   notify(adminSupabase, otherPartyId, {
     type: 'booking_cancelled',
     title: 'Booking cancelled',
     body: `${cancelSvcName} on ${cancelWhen} has been cancelled`,
-    link: '/account/bookings',
+    link: `/account/bookings/${bookings[0].id}`,
     emailSubject: `Booking cancelled — ${cancelSvcName} on ${cancelWhen}`,
     emailHtml: emailTemplate('Booking cancelled', [
       `<strong>${cancelSvcName}</strong> on ${cancelWhen} has been cancelled.`,
       'Check your bookings page for details.',
-    ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
+    ], 'View bookings', `${siteUrl}/account/bookings/${bookings[0].id}`),
   })
 
   return {

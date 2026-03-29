@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { resolveWalker } from '../../lib/walker'
+import { useAuth } from '../../hooks/useAuth'
 import AvailabilityCalendar from '../../components/AvailabilityCalendar'
 
 function StarRating({ rating }) {
@@ -18,11 +19,13 @@ import { clientPriceCents } from '../../lib/utils'
 export default function WalkerPage() {
   const { walker: walkerParam } = useParams()
   const slug = walkerParam || resolveWalker(window.location.hostname)
+  const { user, profile, refreshProfile } = useAuth()
   const [walker, setWalker] = useState(null)
   const [services, setServices] = useState([])
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isFavourite, setIsFavourite] = useState(false)
 
   useEffect(() => {
     if (!slug) {
@@ -66,6 +69,29 @@ export default function WalkerPage() {
     load()
   }, [slug])
 
+  // Check if walker is in favourites
+  useEffect(() => {
+    if (walker && profile?.favourite_walkers) {
+      setIsFavourite(profile.favourite_walkers.includes(walker.id))
+    }
+  }, [walker?.id, profile?.favourite_walkers])
+
+  async function toggleFavourite() {
+    if (!user || !walker) return
+    const favs = profile?.favourite_walkers || []
+    const newFavs = isFavourite
+      ? favs.filter((id) => id !== walker.id)
+      : [...favs, walker.id]
+    setIsFavourite(!isFavourite)
+    await supabase.from('users').update({ favourite_walkers: newFavs }).eq('id', user.id)
+    refreshProfile()
+  }
+
+  // Compute rating summary
+  const avgRating = reviews.length > 0
+    ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
+    : null
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -87,11 +113,29 @@ export default function WalkerPage() {
     <div>
       {/* Hero */}
       <section className="bg-indigo-600 text-white py-8 md:py-10 px-4">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="w-16 h-16 bg-indigo-400 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold">
+        <div className="max-w-2xl mx-auto text-center relative">
+          {user && (
+            <button
+              onClick={toggleFavourite}
+              className="absolute top-0 right-0 text-2xl hover:scale-110 transition"
+              title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+            >
+              {isFavourite ? '❤️' : '🤍'}
+            </button>
+          )}
+          <div
+            className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold text-white"
+            style={{ backgroundColor: walker.theme_color || '#818cf8' }}
+          >
             {walker.business_name.charAt(0)}
           </div>
           <h1 className="text-2xl font-bold mb-1">{walker.business_name}</h1>
+          {avgRating && (
+            <div className="flex items-center justify-center gap-1.5 text-sm mb-1">
+              <span className="text-yellow-300">{'★'.repeat(Math.round(avgRating))}</span>
+              <span className="text-indigo-200">{avgRating} ({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
+            </div>
+          )}
           <p className="text-sm text-indigo-100 max-w-md mx-auto">{walker.bio}</p>
         </div>
       </section>
@@ -117,6 +161,9 @@ export default function WalkerPage() {
                     ? 'per night'
                     : `${service.duration_minutes} min`}
                 </p>
+                {service.description && (
+                  <p className="text-xs text-gray-400 mt-1">{service.description}</p>
+                )}
               </div>
             ))}
           </div>

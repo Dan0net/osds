@@ -11,13 +11,36 @@ export default function BookingFlow() {
   const location = useLocation()
   const { user } = useAuth()
 
-  const slots = location.state?.slots || []
-  const walkerId = location.state?.walkerId
+  // Restore booking intent from localStorage if location.state was lost (e.g. after auth redirect)
+  const stateSlots = location.state?.slots || []
+  const stateWalkerId = location.state?.walkerId
+  const [slots, setSlots] = useState(stateSlots)
+  const [walkerId, setWalkerId] = useState(stateWalkerId)
   const [pets, setPets] = useState([])
   const [selectedPetId, setSelectedPetId] = useState('')
   const [petNotes, setPetNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [showAddPet, setShowAddPet] = useState(false)
+  const [newPet, setNewPet] = useState({ name: '', breed: '' })
+  const [addingPet, setAddingPet] = useState(false)
+
+  useEffect(() => {
+    if (slots.length === 0) {
+      const saved = localStorage.getItem('osds_bookingIntent')
+      if (saved) {
+        try {
+          const intent = JSON.parse(saved)
+          // Only restore if less than 30 minutes old
+          if (intent.savedAt && Date.now() - intent.savedAt < 30 * 60 * 1000) {
+            setSlots(intent.slots || [])
+            setWalkerId(intent.walkerId || null)
+          }
+        } catch { /* ignore corrupt data */ }
+        localStorage.removeItem('osds_bookingIntent')
+      }
+    }
+  }, [])
 
   const totalCents = slots.reduce((sum, s) => sum + s.priceCents, 0)
   const selectedPet = pets.find((p) => p.id === selectedPetId)
@@ -158,8 +181,67 @@ export default function BookingFlow() {
                 {pet.name} — {pet.breed}{pet.weight ? `, ${pet.weight}` : ''}
               </option>
             ))}
-            {pets.length === 0 && <option value="">No pets added — add one in your account</option>}
+            {pets.length === 0 && <option value="">No pets added</option>}
           </select>
+          {!showAddPet ? (
+            <button
+              type="button"
+              onClick={() => setShowAddPet(true)}
+              className="text-xs text-indigo-600 hover:underline mt-1"
+            >
+              + Add a pet
+            </button>
+          ) : (
+            <div className="mt-2 bg-gray-50 rounded-lg p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={newPet.name}
+                  onChange={(e) => setNewPet((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Pet name"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                />
+                <input
+                  type="text"
+                  value={newPet.breed}
+                  onChange={(e) => setNewPet((p) => ({ ...p, breed: e.target.value }))}
+                  placeholder="Breed"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={addingPet || !newPet.name.trim()}
+                  onClick={async () => {
+                    setAddingPet(true)
+                    const { data } = await supabase
+                      .from('pets')
+                      .insert({ user_id: user.id, name: newPet.name.trim(), breed: newPet.breed.trim() })
+                      .select('*')
+                      .single()
+                    if (data) {
+                      setPets((prev) => [...prev, data])
+                      setSelectedPetId(data.id)
+                    }
+                    setNewPet({ name: '', breed: '' })
+                    setShowAddPet(false)
+                    setAddingPet(false)
+                  }}
+                  className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {addingPet ? 'Adding...' : 'Add'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddPet(false); setNewPet({ name: '', breed: '' }) }}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

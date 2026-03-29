@@ -35,6 +35,9 @@ create table public.walker_profiles (
   bio text default '',
   stripe_account_id text default null,
   theme_color text default '#4f46e5',
+  postcode text default null,
+  lat float8 default null,
+  lng float8 default null,
   is_default boolean default false,
   calendar_feed_token text default null,
   created_at timestamptz default now()
@@ -46,6 +49,7 @@ create table public.services (
   name text not null,
   price_cents integer not null default 0,
   duration_minutes integer not null default 30,
+  description text default '',
   service_type text not null default 'standard' check (service_type in ('standard', 'overnight')),
   active boolean default true,
   created_at timestamptz default now()

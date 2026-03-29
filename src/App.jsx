@@ -24,6 +24,7 @@ import AccountPayments from './pages/account/AccountPayments'
 import AccountInbox from './pages/account/AccountInbox'
 import AccountProfile from './pages/account/AccountProfile'
 import AccountSettings from './pages/account/AccountSettings'
+import BookingDetail from './pages/account/BookingDetail'
 import AccountNotifications from './pages/account/AccountNotifications'
 
 function WalkerRoutes({ walker }) {
@@ -56,6 +57,7 @@ function PlatformRoutes() {
         <Route element={<AccountLayout />}>
           <Route index element={<AccountDashboard />} />
           <Route path="bookings" element={<AccountBookings />} />
+          <Route path="bookings/:bookingId" element={<BookingDetail />} />
           <Route path="pets" element={<AccountPets />} />
           <Route path="payments" element={<AccountPayments />} />
           <Route path="inbox" element={<AccountInbox />} />

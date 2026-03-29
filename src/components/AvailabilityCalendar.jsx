@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { clientPriceCents } from '../lib/utils'
+import { useAuth } from '../hooks/useAuth'
 
 function getWeekDates(baseDate) {
   const d = new Date(baseDate)
@@ -20,6 +21,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedService, setSelectedService] = useState('')
@@ -28,6 +30,15 @@ export default function AvailabilityCalendar({ services, walkerId }) {
   const [weekSlots, setWeekSlots] = useState({}) // { date: [time, ...] }
   const [fullTimeGrid, setFullTimeGrid] = useState([]) // all possible times across the week
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+  const [mobileOffset, setMobileOffset] = useState(0)
+
+  // Track viewport width for responsive day count
+  useEffect(() => {
+    function handleResize() { setIsMobile(window.innerWidth < 640) }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const today = new Date()
   const baseDate = new Date(today)
@@ -222,6 +233,18 @@ export default function AvailabilityCalendar({ services, walkerId }) {
   }
 
   function handleBookNow() {
+    if (!user) {
+      // Save booking intent before redirecting to auth
+      localStorage.setItem('osds_bookingIntent', JSON.stringify({
+        walkerSlug: walkerParam || null,
+        walkerId,
+        slots: selectedSlots,
+        savedAt: Date.now(),
+      }))
+      const returnTo = `${prefix}/book`
+      navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`)
+      return
+    }
     navigate(`${prefix}/book`, { state: { slots: selectedSlots, walkerId } })
   }
 
@@ -271,7 +294,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
       {/* Week navigation */}
       <div className="flex items-center justify-between mb-2">
         <button
-          onClick={() => setWeekOffset((w) => w - 1)}
+          onClick={() => { setWeekOffset((w) => w - 1); setMobileOffset(0) }}
           disabled={!canGoPrev}
           className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-medium"
         >
@@ -283,7 +306,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
           {new Date(weekDates[6]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
         <button
-          onClick={() => setWeekOffset((w) => w + 1)}
+          onClick={() => { setWeekOffset((w) => w + 1); setMobileOffset(0) }}
           className="p-1.5 rounded-lg hover:bg-gray-100 text-xs font-medium"
         >
           Next →
@@ -292,24 +315,53 @@ export default function AvailabilityCalendar({ services, walkerId }) {
 
       {/* Calendar grid */}
       <div>
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
-          {weekDates.map((date) => {
-            const d = new Date(date)
-            const isToday = date === today.toISOString().split('T')[0]
-            return (
-              <div
-                key={date}
-                className={`text-center py-1 sm:py-1.5 rounded text-[10px] sm:text-xs ${
-                  isToday ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-100 font-medium text-gray-700'
-                }`}
-              >
-                <div>{d.toLocaleDateString('en-GB', { weekday: 'narrow' })}</div>
-                <div className="text-sm sm:text-base font-bold">{d.getDate()}</div>
+        {/* Day headers with mobile sliding window */}
+        {(() => {
+          const visibleCount = isMobile ? 3 : 7
+          const visibleDates = isMobile ? weekDates.slice(mobileOffset, mobileOffset + 3) : weekDates
+          const gridCols = isMobile ? 'grid-cols-3' : 'grid-cols-7'
+          const canSlideLeft = isMobile && mobileOffset > 0
+          const canSlideRight = isMobile && mobileOffset < 4
+
+          return (
+            <>
+              {/* Mobile slide controls */}
+              {isMobile && (
+                <div className="flex items-center justify-between mb-1">
+                  <button
+                    onClick={() => setMobileOffset((o) => Math.max(0, o - 1))}
+                    disabled={!canSlideLeft}
+                    className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-30 p-1"
+                  >
+                    ← Earlier
+                  </button>
+                  <button
+                    onClick={() => setMobileOffset((o) => Math.min(4, o + 1))}
+                    disabled={!canSlideRight}
+                    className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-30 p-1"
+                  >
+                    Later →
+                  </button>
+                </div>
+              )}
+
+              <div className={`grid ${gridCols} gap-0.5 sm:gap-1 mb-0.5 sm:mb-1`}>
+                {visibleDates.map((date) => {
+                  const d = new Date(date)
+                  const isToday = date === today.toISOString().split('T')[0]
+                  return (
+                    <div
+                      key={date}
+                      className={`text-center py-1 sm:py-1.5 rounded text-[10px] sm:text-xs ${
+                        isToday ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-100 font-medium text-gray-700'
+                      }`}
+                    >
+                      <div>{d.toLocaleDateString('en-GB', { weekday: isMobile ? 'short' : 'narrow' })}</div>
+                      <div className="text-sm sm:text-base font-bold">{d.getDate()}</div>
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
-        </div>
 
         {/* Time slots grid */}
         {loadingSlots ? (
@@ -319,9 +371,9 @@ export default function AvailabilityCalendar({ services, walkerId }) {
         ) : allTimes.length === 0 ? (
           <p className="text-gray-400 text-center py-6 text-sm">No availability this week</p>
         ) : (
-          <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+          <div className={`grid ${gridCols} gap-0.5 sm:gap-1`}>
               {allTimes.map((time) =>
-                weekDates.map((date) => {
+                visibleDates.map((date) => {
                   const available = isAvailable(date, time)
                   const selected = isSelected(date, time)
                   const past = isPast(date)
@@ -361,6 +413,9 @@ export default function AvailabilityCalendar({ services, walkerId }) {
               )}
             </div>
           )}
+            </>
+          )
+        })()}
       </div>
 
       {/* Footer */}

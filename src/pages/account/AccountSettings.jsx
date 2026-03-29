@@ -66,7 +66,7 @@ export default function AccountSettings() {
   const [importError, setImportError] = useState(null)
   const [importValidating, setImportValidating] = useState(false)
   const feedUrl = walkerProfile
-    ? `https://onestopdog.shop/cal/${walkerProfile.id}/${walkerProfile.calendar_feed_token || 'not-set'}.ics`
+    ? `https://${import.meta.env.VITE_DOMAIN || 'onestopdog.shop'}/cal/${walkerProfile.id}/${walkerProfile.calendar_feed_token || 'not-set'}.ics`
     : ''
   const [copied, setCopied] = useState(false)
 
@@ -129,11 +129,11 @@ export default function AccountSettings() {
   // --- Services ---
   function startAddSvc() {
     setEditingSvc('new')
-    setSvcForm({ name: '', price_cents: '', duration_minutes: '', service_type: 'standard' })
+    setSvcForm({ name: '', price_cents: '', duration_minutes: '', service_type: 'standard', description: '' })
   }
   function startEditSvc(svc) {
     setEditingSvc(svc.id)
-    setSvcForm({ name: svc.name, price_cents: String(svc.price_cents / 100), duration_minutes: String(svc.duration_minutes), service_type: svc.service_type || 'standard' })
+    setSvcForm({ name: svc.name, price_cents: String(svc.price_cents / 100), duration_minutes: String(svc.duration_minutes), service_type: svc.service_type || 'standard', description: svc.description || '' })
   }
   async function saveSvc() {
     setSvcLoading(true)
@@ -142,6 +142,7 @@ export default function AccountSettings() {
       price_cents: Math.round(parseFloat(svcForm.price_cents) * 100),
       duration_minutes: parseInt(svcForm.duration_minutes),
       service_type: svcForm.service_type,
+      description: svcForm.description || '',
     }
     if (editingSvc === 'new') {
       await supabase.from('services').insert({ ...data, walker_id: walkerProfile.id })
@@ -316,6 +317,12 @@ export default function AccountSettings() {
                     <input type="number" value={svcForm.duration_minutes} onChange={(e) => setSvcForm({ ...svcForm, duration_minutes: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
                   </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400">(optional)</span></label>
+                  <textarea rows={2} value={svcForm.description} onChange={(e) => setSvcForm({ ...svcForm, description: e.target.value })}
+                    placeholder="What's included in this service?"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
                 </div>
                 <div className="flex gap-2 mt-3">
                   <button onClick={saveSvc} disabled={svcLoading} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">{svcLoading ? 'Saving...' : 'Save'}</button>

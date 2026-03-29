@@ -5,14 +5,17 @@ import { useAuth } from '../../hooks/useAuth'
 import { apiFetch, createCheckout } from '../../lib/api'
 
 export default function AccountDashboard() {
-  const { user, walkerProfile: wp } = useAuth()
+  const { user, profile, walkerProfile: wp } = useAuth()
   const walkerSlug = wp?.slug
+  const domain = import.meta.env.VITE_DOMAIN || 'onestopdog.shop'
 
   const [clientBookings, setClientBookings] = useState([])
   const [walkerBookings, setWalkerBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [favouriteWalkers, setFavouriteWalkers] = useState([])
+  const [bookingIntent, setBookingIntent] = useState(null)
 
   const [walkerPaymentsTotal, setWalkerPaymentsTotal] = useState(0)
   const [awaitingPayments, setAwaitingPayments] = useState([])
@@ -35,6 +38,28 @@ export default function AccountDashboard() {
         .eq('status', 'awaiting_payment')
         .order('created_at', { ascending: false })
       setAwaitingPayments(awp || [])
+
+      // Load favourite walkers
+      if (profile?.favourite_walkers?.length > 0) {
+        const { data: favs } = await supabase
+          .from('walker_profiles')
+          .select('id, slug, business_name, theme_color')
+          .in('id', profile.favourite_walkers)
+        setFavouriteWalkers(favs || [])
+      }
+
+      // Check for unfinished booking intent
+      const savedIntent = localStorage.getItem('osds_bookingIntent')
+      if (savedIntent) {
+        try {
+          const intent = JSON.parse(savedIntent)
+          if (intent.savedAt && Date.now() - intent.savedAt < 30 * 60 * 1000) {
+            setBookingIntent(intent)
+          } else {
+            localStorage.removeItem('osds_bookingIntent')
+          }
+        } catch { localStorage.removeItem('osds_bookingIntent') }
+      }
 
       if (wp) {
         const { data: wb } = await supabase
@@ -232,13 +257,73 @@ export default function AccountDashboard() {
               <div className="bg-white border border-gray-200 rounded-lg p-3 min-w-0">
                 <p className="text-xs text-gray-500">Walker page</p>
                 <a href={`/w/${walkerSlug}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-indigo-600 hover:underline mt-0.5 inline-block break-all">
-                  {walkerSlug}.onestopdog.shop
+                  {walkerSlug}.{domain}
                 </a>
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* Resume booking banner */}
+      {bookingIntent && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <div className="text-sm">
+            <p className="font-medium text-indigo-900">You have an unfinished booking</p>
+            <p className="text-indigo-700 text-xs mt-0.5">
+              {bookingIntent.slots?.length || 0} slot{bookingIntent.slots?.length !== 1 ? 's' : ''} selected
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link
+              to={bookingIntent.walkerSlug ? `/w/${bookingIntent.walkerSlug}/book` : '/'}
+              className="bg-indigo-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-indigo-700"
+            >
+              Resume
+            </Link>
+            <button
+              onClick={() => { localStorage.removeItem('osds_bookingIntent'); setBookingIntent(null) }}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Favourite walkers */}
+      {favouriteWalkers.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">Your walkers</h2>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {favouriteWalkers.map((w) => (
+              <Link
+                key={w.id}
+                to={`/w/${w.slug}`}
+                className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-2.5 shrink-0 hover:shadow-sm transition"
+              >
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                  style={{ backgroundColor: w.theme_color || '#4f46e5' }}
+                >
+                  {w.business_name?.charAt(0)}
+                </div>
+                <span className="text-sm font-medium">{w.business_name}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state for new clients with no bookings */}
+      {!wp && clientBookings.length === 0 && awaitingPayments.length === 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center mb-8">
+          <p className="text-gray-600 mb-3">Welcome! Find a local dog walker to get started.</p>
+          <Link to="/" className="bg-indigo-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 text-sm inline-block">
+            Find a walker
+          </Link>
+        </div>
+      )}
 
       {/* Incoming requests — above upcoming */}
       {wp && pendingRequests.length > 0 && (
@@ -422,6 +507,34 @@ export default function AccountDashboard() {
                   </span>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Walker setup checklist */}
+      {wp && walkerBookings.length === 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-8">
+          <h2 className="font-semibold mb-3">Get your page live</h2>
+          <div className="space-y-2 text-sm">
+            {[
+              { done: !!wp.business_name, label: 'Set up your profile', link: '/account/profile' },
+              { done: false, label: 'Add your services', link: '/account/settings' },
+              { done: !!wp.postcode, label: 'Add your postcode', link: '/account/profile' },
+              { done: !!wp.stripe_account_id, label: 'Connect Stripe', link: '/account/profile' },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                to={item.link}
+                className="flex items-center gap-2 hover:bg-gray-50 rounded p-1.5 -mx-1.5"
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${
+                  item.done ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {item.done ? '✓' : '·'}
+                </span>
+                <span className={item.done ? 'text-gray-400 line-through' : 'text-gray-700'}>{item.label}</span>
+              </Link>
             ))}
           </div>
         </div>

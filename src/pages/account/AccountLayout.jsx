@@ -17,7 +17,7 @@ const NAV_ITEMS = [
 ]
 
 export default function AccountLayout() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, walkerProfile, signOut } = useAuth()
   const navigate = useNavigate()
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -61,14 +61,20 @@ export default function AccountLayout() {
       />
 
       <nav className="bg-white border-b">
-        <div className="max-w-5xl mx-auto px-4 grid grid-cols-4 sm:flex sm:gap-1">
-          {NAV_ITEMS.map((item) => (
+        <div className="max-w-5xl mx-auto px-4 grid grid-cols-3 sm:flex sm:gap-1">
+          {NAV_ITEMS.filter((item) => {
+            // Hide Settings for non-walkers
+            if (item.to === '/account/settings' && !walkerProfile) return false
+            // Hide standalone Notifications — merged into Inbox
+            if (item.to === '/account/notifications') return false
+            return true
+          }).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `px-1 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 text-center ${
+                `px-1 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 text-center ${
                   isActive
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'

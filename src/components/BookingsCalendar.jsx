@@ -70,7 +70,7 @@ function jsDayToDbDay(jsDay) {
 }
 
 export default function BookingsCalendar({ incoming = [], mine = [], external = [], availability = [], blockedDates = [] }) {
-  const [view, setView] = useState('month')
+  const [view, setView] = useState(() => window.innerWidth < 640 ? 'day' : 'month')
   const [current, setCurrent] = useState(new Date())
 
   // Normalize all events into a flat list with type + date string
@@ -164,6 +164,8 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
     const next = new Date(current)
     if (view === 'month') {
       next.setMonth(next.getMonth() + dir)
+    } else if (view === 'day') {
+      next.setDate(next.getDate() + dir)
     } else {
       next.setDate(next.getDate() + dir * 7)
     }
@@ -225,7 +227,7 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
 
     return (
       <div className="overflow-x-auto">
-        <div className="min-w-[640px]">
+        <div>
           {/* Day headers */}
           <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] border-b border-gray-200">
             <div />
@@ -296,6 +298,71 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
     )
   }
 
+  // --- Day View ---
+  function renderDay() {
+    const ds = toDateStr(current)
+    const isToday = ds === todayStr
+    const hours = Array.from({ length: 13 }, (_, i) => i + 7)
+    const isBlocked = blockedSet.has(ds)
+
+    return (
+      <div>
+        {/* Day header */}
+        <div className="text-center py-2 border-b border-gray-200">
+          <span className="text-xs text-gray-500">
+            {current.toLocaleDateString('en-GB', { weekday: 'long' })}
+          </span>
+          <br />
+          <span className={`text-sm font-semibold inline-flex items-center justify-center w-7 h-7 rounded-full ${
+            isToday ? 'bg-indigo-600 text-white' : 'text-gray-900'
+          }`}>
+            {current.getDate()}
+          </span>
+          {isBlocked && <span className="text-xs text-red-400 font-medium ml-2">Blocked</span>}
+        </div>
+
+        {/* Time grid — single column */}
+        <div>
+          {hours.map((hour) => {
+            const hourMin = hour * 60
+            const cellAvail = hasAvailability && isAvailable(ds, current.getDay(), hourMin)
+            return (
+              <div key={hour} className="flex border-t border-gray-100">
+                <div className="w-14 text-right pr-2 text-xs text-gray-400 h-12 flex items-start justify-end -mt-2 shrink-0">
+                  {`${String(hour).padStart(2, '0')}:00`}
+                </div>
+                <div className={`flex-1 h-12 relative ${cellAvail ? 'bg-emerald-50' : ''}`}>
+                  {(eventsByDate[ds] || [])
+                    .filter((ev) => {
+                      const st = ev.start_time || '00:00'
+                      return parseInt(st.split(':')[0]) === hour
+                    })
+                    .map((ev, j) => {
+                      const style = getStyle(ev)
+                      const startMin = timeToMinutes(ev.start_time || '00:00')
+                      const endMin = ev.end_time ? timeToMinutes(ev.end_time) : startMin + 30
+                      const duration = Math.max(endMin - startMin, 15)
+                      const topOffset = (startMin - hour * 60) * (48 / 60)
+                      const height = Math.min(duration * (48 / 60), 48 * 4)
+                      return (
+                        <div
+                          key={j}
+                          className={`absolute left-0.5 right-0.5 rounded text-xs leading-tight px-2 py-0.5 overflow-hidden border ${style.bg} ${style.text} ${style.border}`}
+                          style={{ top: `${topOffset}px`, height: `${height}px`, zIndex: 10 + j }}
+                        >
+                          {ev.label}
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg mb-6">
       {/* Toolbar */}
@@ -311,6 +378,8 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
           <h3 className="text-sm font-semibold text-gray-900 ml-2">
             {view === 'month'
               ? formatMonth(current)
+              : view === 'day'
+              ? current.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
               : (() => {
                   const days = getWeekDays(current)
                   const first = days[0]
@@ -324,24 +393,21 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
           </h3>
         </div>
         <div className="flex gap-1">
-          <button
-            onClick={() => setView('month')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg ${view === 'month' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-          >
-            Month
-          </button>
-          <button
-            onClick={() => setView('week')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg ${view === 'week' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-          >
-            Week
-          </button>
+          {['day', 'week', 'month'].map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize ${view === v ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              {v}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Calendar body */}
       <div className="p-2">
-        {view === 'month' ? renderMonth() : renderWeek()}
+        {view === 'month' ? renderMonth() : view === 'day' ? renderDay() : renderWeek()}
       </div>
 
       {/* Legend */}
