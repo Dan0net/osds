@@ -16,16 +16,25 @@
 import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { config } from 'dotenv'
+
+config()
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 
 const projectRef = process.env.SUPABASE_PROJECT_REF
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN
+const resendApiKey = process.env.RESEND_API_KEY
 
 if (!projectRef || !accessToken) {
   console.error('Missing required env vars: SUPABASE_PROJECT_REF, SUPABASE_ACCESS_TOKEN')
   console.error('Get your access token at: https://supabase.com/dashboard/account/tokens')
+  process.exit(1)
+}
+
+if (!resendApiKey) {
+  console.error('Missing required env var: RESEND_API_KEY')
   process.exit(1)
 }
 
@@ -34,6 +43,12 @@ function readTemplate(name) {
 }
 
 const payload = {
+  smtp_host: 'smtp.resend.com',
+  smtp_port: '465',
+  smtp_user: 'resend',
+  smtp_pass: resendApiKey,
+  smtp_sender_name: 'One Stop Dog Shop',
+  smtp_admin_email: 'hello@onestopdog.shop',
   mailer_templates_confirmation_content: readTemplate('confirmation.html'),
   mailer_subjects_confirmation: 'Confirm your email — One Stop Dog Shop',
   mailer_templates_recovery_content: readTemplate('recovery.html'),
@@ -47,7 +62,7 @@ const payload = {
 const url = `https://api.supabase.com/v1/projects/${projectRef}/config/auth`
 
 const res = await fetch(url, {
-  method: 'PUT',
+  method: 'PATCH',
   headers: {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${accessToken}`,
