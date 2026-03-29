@@ -211,7 +211,7 @@ export default function AccountDashboard() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+        <h1 className="text-2xl mb-6">Dashboard</h1>
         <div className="flex justify-center py-8">
           <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -231,7 +231,7 @@ export default function AccountDashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <h1 className="text-2xl mb-6">Dashboard</h1>
 
       {/* Stats row */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-8">
@@ -294,7 +294,7 @@ export default function AccountDashboard() {
       {/* Favourite walkers */}
       {favouriteWalkers.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Your walkers</h2>
+          <h2 className="text-lg mb-3">Your walkers</h2>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {favouriteWalkers.map((w) => (
               <Link
@@ -329,7 +329,7 @@ export default function AccountDashboard() {
       {wp && pendingRequests.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Incoming requests</h2>
+            <h2 className="text-lg">Incoming requests</h2>
             <Link to="/account/bookings" className="text-sm text-indigo-600 hover:underline">
               View all
             </Link>
@@ -415,7 +415,7 @@ export default function AccountDashboard() {
       {awaitingPayments.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Awaiting payment</h2>
+            <h2 className="text-lg">Awaiting payment</h2>
             <Link to="/account/payments" className="text-sm text-indigo-600 hover:underline">
               View all
             </Link>
@@ -449,7 +449,7 @@ export default function AccountDashboard() {
       {(upcomingAsClient.length > 0 || upcomingAsWalker.length > 0) && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Upcoming bookings</h2>
+            <h2 className="text-lg">Upcoming bookings</h2>
             <Link to="/account/bookings" className="text-sm text-indigo-600 hover:underline">
               View all
             </Link>
@@ -515,7 +515,7 @@ export default function AccountDashboard() {
       {/* Walker setup checklist */}
       {wp && walkerBookings.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-8">
-          <h2 className="font-semibold mb-3">Get your page live</h2>
+          <h2 className="mb-3">Get your page live</h2>
           <div className="space-y-2 text-sm">
             {[
               { done: !!wp.business_name, label: 'Set up your profile', link: '/account/profile' },
@@ -542,7 +542,7 @@ export default function AccountDashboard() {
 
       {/* Recent activity */}
       <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
+        <h2 className="text-lg mb-3">Recent activity</h2>
         <div className="bg-white border border-gray-200 rounded-lg divide-y">
           {[...walkerBookings, ...clientBookings]
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))

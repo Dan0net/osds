@@ -134,7 +134,7 @@ export default function BookingDetail() {
         {/* Header */}
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-xl font-bold">{booking.services?.name || 'Booking'}</h1>
+            <h1 className="text-xl">{booking.services?.name || 'Booking'}</h1>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[booking.status] || 'bg-gray-100 text-gray-600'}`}>
               {booking.status}
             </span>

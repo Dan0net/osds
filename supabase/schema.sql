@@ -35,6 +35,7 @@ create table public.walker_profiles (
   bio text default '',
   stripe_account_id text default null,
   theme_color text default '#4f46e5',
+  cover_url text default null,
   postcode text default null,
   lat float8 default null,
   lng float8 default null,
@@ -197,6 +198,13 @@ create policy "Walker can read booking clients" on public.users
       select 1 from public.bookings b
       join public.walker_profiles wp on wp.id = b.walker_id
       where b.client_id = users.id and wp.user_id = auth.uid()
+    )
+  );
+
+create policy "Anyone can read review authors" on public.users
+  for select using (
+    exists (
+      select 1 from public.reviews r where r.client_id = users.id
     )
   );
 

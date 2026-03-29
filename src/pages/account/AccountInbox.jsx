@@ -93,7 +93,7 @@ export default function AccountInbox() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Inbox</h1>
+        <h1 className="text-2xl">Inbox</h1>
         {tab === 'messages' && unreadCount > 0 && (
           <button onClick={markAllRead} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
             Mark all read

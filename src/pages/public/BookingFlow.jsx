@@ -108,7 +108,7 @@ export default function BookingFlow() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Review Your Booking</h1>
+      <h1 className="text-2xl mb-6">Review Your Booking</h1>
 
       {/* Selected slots */}
       <div className="bg-white border border-gray-200 rounded-lg divide-y mb-6">

@@ -146,12 +146,12 @@ export default function AccountProfile() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Profile</h1>
+      <h1 className="text-2xl mb-6">Profile</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* User info */}
         <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-          <h2 className="font-semibold">Personal info</h2>
+          <h2 className="">Personal info</h2>
 
           {/* Avatar */}
           <div className="flex items-center gap-4">
@@ -208,7 +208,7 @@ export default function AccountProfile() {
         {/* Walker profile (conditional) */}
         {walkerProfile ? (
           <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-            <h2 className="font-semibold">Walker profile</h2>
+            <h2 className="">Walker profile</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Page URL (slug)</label>
               <div className="flex items-center gap-1">
@@ -328,7 +328,7 @@ export default function AccountProfile() {
           </div>
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h2 className="font-semibold mb-2">Become a Walker</h2>
+            <h2 className="mb-2">Become a Walker</h2>
             <p className="text-sm text-gray-500 mb-3">Create a walker profile to offer services and accept bookings.</p>
             <button
               type="button"

@@ -47,7 +47,7 @@ export async function handler(event) {
   // Fetch all walkers with coordinates
   const { data: walkers, error: wErr } = await supabase
     .from('walker_profiles')
-    .select('id, slug, business_name, bio, theme_color, postcode, lat, lng')
+    .select('id, slug, business_name, bio, theme_color, postcode, lat, lng, users(avatar_url)')
     .not('lat', 'is', null)
     .not('lng', 'is', null)
 
@@ -119,6 +119,7 @@ export async function handler(event) {
       business_name: w.business_name,
       bio: w.bio,
       theme_color: w.theme_color,
+      avatar_url: w.users?.avatar_url || null,
       postcode: w.postcode,
       distance_miles: w.distance_miles,
       avg_rating: avgRating,

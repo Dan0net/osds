@@ -15,7 +15,7 @@ export default function Confirmation() {
         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">
           ✓
         </div>
-        <h1 className="text-2xl font-bold mb-2">Payment successful!</h1>
+        <h1 className="text-2xl mb-2">Payment successful!</h1>
         <p className="text-gray-600 mb-8">
           Your booking is now confirmed. You'll receive a confirmation email shortly.
         </p>
@@ -42,7 +42,7 @@ export default function Confirmation() {
       <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">
         ✓
       </div>
-      <h1 className="text-2xl font-bold mb-2">Booking request submitted!</h1>
+      <h1 className="text-2xl mb-2">Booking request submitted!</h1>
       <p className="text-gray-600 mb-8">
         Your walker will review your request and get back to you soon. You'll
         receive an email once it's approved with a link to pay.

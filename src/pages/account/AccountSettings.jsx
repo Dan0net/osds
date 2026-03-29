@@ -271,7 +271,7 @@ export default function AccountSettings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+      <h1 className="text-2xl mb-6">Settings</h1>
 
       {/* Walker settings */}
       {isWalker && (
@@ -279,7 +279,7 @@ export default function AccountSettings() {
           {/* Services */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Services</h2>
+              <h2 className="text-lg">Services</h2>
               <button onClick={startAddSvc} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">
                 Add service
               </button>
@@ -357,7 +357,7 @@ export default function AccountSettings() {
 
           {/* Availability */}
           <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">Availability</h2>
+            <h2 className="text-lg mb-4">Availability</h2>
 
             <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
               <h3 className="font-medium mb-3">Weekly hours</h3>
@@ -413,7 +413,7 @@ export default function AccountSettings() {
 
           {/* Calendar sync */}
           <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">Calendar sync</h2>
+            <h2 className="text-lg mb-4">Calendar sync</h2>
 
             <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
               <h3 className="font-medium mb-2">Import calendars</h3>
@@ -475,7 +475,7 @@ export default function AccountSettings() {
       {/* Become a Walker CTA */}
       {!isWalker && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 text-center">
-          <h2 className="text-lg font-semibold mb-2">Want to offer dog walking services?</h2>
+          <h2 className="text-lg mb-2">Want to offer dog walking services?</h2>
           <p className="text-sm text-gray-600 mb-4">Create a walker page and start accepting bookings.</p>
           <button
             onClick={handleBecomeWalker}

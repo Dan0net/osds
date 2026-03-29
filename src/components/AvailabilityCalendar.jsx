@@ -16,7 +16,7 @@ function formatTime(time) {
   return time
 }
 
-export default function AvailabilityCalendar({ services, walkerId }) {
+export default function AvailabilityCalendar({ services, walkerId, initialServiceId }) {
   const walkerServices = services || []
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
@@ -24,7 +24,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
   const { user } = useAuth()
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedService, setSelectedService] = useState('')
+  const [selectedService, setSelectedService] = useState(initialServiceId || '')
   const [selectedSlots, setSelectedSlots] = useState([]) // [{date, time, service}]
   const [overnightStart, setOvernightStart] = useState(null) // {date, time} — first click for overnight
   const [weekSlots, setWeekSlots] = useState({}) // { date: [time, ...] }
@@ -39,6 +39,15 @@ export default function AvailabilityCalendar({ services, walkerId }) {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Sync with parent-controlled service selection
+  useEffect(() => {
+    if (initialServiceId && initialServiceId !== selectedService) {
+      setSelectedService(initialServiceId)
+      setSelectedSlots([])
+      setOvernightStart(null)
+    }
+  }, [initialServiceId])
 
   const today = new Date()
   const baseDate = new Date(today)
@@ -271,7 +280,8 @@ export default function AvailabilityCalendar({ services, walkerId }) {
         </div>
       )}
 
-      {/* Service filter */}
+      {/* Service filter — hidden when parent controls selection */}
+      {!initialServiceId && (
       <div className="mb-3">
         <select
           value={selectedService}
@@ -290,6 +300,7 @@ export default function AvailabilityCalendar({ services, walkerId }) {
           ))}
         </select>
       </div>
+      )}
 
       {/* Week navigation */}
       <div className="flex items-center justify-between mb-2">

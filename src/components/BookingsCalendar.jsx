@@ -375,7 +375,7 @@ export default function BookingsCalendar({ incoming = [], mine = [], external = 
           <button onClick={() => navigate(1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-600" aria-label="Next">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
-          <h3 className="text-sm font-semibold text-gray-900 ml-2">
+          <h3 className="text-sm text-gray-900 ml-2">
             {view === 'month'
               ? formatMonth(current)
               : view === 'day'

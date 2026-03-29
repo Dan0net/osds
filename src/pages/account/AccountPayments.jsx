@@ -60,7 +60,7 @@ export default function AccountPayments() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Payments</h1>
+        <h1 className="text-2xl mb-6">Payments</h1>
         <div className="flex justify-center py-8">
           <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -70,7 +70,7 @@ export default function AccountPayments() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Payments</h1>
+      <h1 className="text-2xl mb-6">Payments</h1>
 
       {payments.length === 0 ? (
         <p className="text-gray-400 text-center py-8">No payments yet.</p>

@@ -352,7 +352,7 @@ export default function AccountBookings() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Bookings</h1>
+        <h1 className="text-2xl mb-6">Bookings</h1>
         <div className="flex justify-center py-8">
           <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -363,7 +363,7 @@ export default function AccountBookings() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Bookings</h1>
+        <h1 className="text-2xl">Bookings</h1>
         {isWalker && (
           <button
             onClick={() => setCreateBookingModal(true)}
@@ -727,7 +727,7 @@ export default function AccountBookings() {
       {rescheduleModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm">
-            <h3 className="font-semibold mb-4">Reschedule booking</h3>
+            <h3 className="mb-4">Reschedule booking</h3>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">New date</label>
@@ -758,7 +758,7 @@ export default function AccountBookings() {
       {createBookingModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="font-semibold mb-4">Create booking for client</h3>
+            <h3 className="mb-4">Create booking for client</h3>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
