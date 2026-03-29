@@ -5,21 +5,21 @@ import { supabase } from '../../lib/supabase'
 import AppHeader from '../../components/AppHeader'
 import InstallPrompt from '../../components/InstallPrompt'
 
-const NAV_ITEMS = [
-  { to: '/account', label: 'Dashboard', end: true },
-  { to: '/account/bookings', label: 'Bookings' },
-  { to: '/account/pets', label: 'Pets' },
-  { to: '/account/payments', label: 'Payments' },
-  { to: '/account/inbox', label: 'Inbox' },
-  { to: '/account/notifications', label: 'Notifications' },
-  { to: '/account/profile', label: 'Profile' },
-  { to: '/account/settings', label: 'Settings' },
-]
-
 export default function AccountLayout() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, walkerProfile, signOut } = useAuth()
   const navigate = useNavigate()
   const [unreadCount, setUnreadCount] = useState(0)
+  const isWalker = !!walkerProfile
+
+  const navItems = [
+    { to: '/account', label: 'Dashboard', end: true },
+    { to: '/account/bookings', label: 'Bookings' },
+    ...(!isWalker ? [{ to: '/account/pets', label: 'Pets' }] : []),
+    { to: '/account/payments', label: 'Payments' },
+    { to: '/account/inbox', label: 'Inbox' },
+    ...(isWalker ? [{ to: '/account/walker-page', label: 'Walker Page' }] : []),
+    { to: '/account/profile', label: 'Profile' },
+  ]
 
   function refreshUnread() {
     if (!user) return
@@ -33,8 +33,6 @@ export default function AccountLayout() {
 
   useEffect(() => {
     refreshUnread()
-
-    // Listen for reads from Inbox
     window.addEventListener('notifications-read', refreshUnread)
     return () => window.removeEventListener('notifications-read', refreshUnread)
   }, [user?.id])
@@ -62,7 +60,7 @@ export default function AccountLayout() {
 
       <nav className="bg-white border-b">
         <div className="max-w-5xl mx-auto px-4 grid grid-cols-4 sm:flex sm:gap-1">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

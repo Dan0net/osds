@@ -79,12 +79,12 @@ export async function handler(event) {
           type: 'payment_confirmed',
           title: 'Payment received',
           body: `${clientName} paid ${amount} for ${svcName}${when ? ` on ${when}` : ''}`,
-          link: '/account/payments',
+          link: `/account/payments?payment=${paymentId}`,
           emailSubject: `Payment received — ${amount} from ${clientName}`,
           emailHtml: emailTemplate('Payment received', [
             `<strong>${clientName}</strong> has paid <strong>${amount}</strong> for <strong>${svcName}</strong>${when ? ` on ${when}` : ''}.`,
             'The booking is now confirmed.',
-          ], 'View payments', 'https://onestopdog.shop/account/payments'),
+          ], 'View payments', `https://onestopdog.shop/account/payments?payment=${paymentId}`),
         })
       }
     }

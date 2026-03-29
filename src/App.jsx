@@ -12,6 +12,7 @@ function ScrollToTop() {
 import Layout from './components/Layout'
 import PlatformLanding from './pages/public/PlatformLanding'
 import WalkerPage from './pages/public/WalkerPage'
+import WalkerDirectory from './pages/public/WalkerDirectory'
 import BookingFlow from './pages/public/BookingFlow'
 import Confirmation from './pages/public/Confirmation'
 import Login from './pages/public/Login'
@@ -23,8 +24,8 @@ import AccountPets from './pages/account/AccountPets'
 import AccountPayments from './pages/account/AccountPayments'
 import AccountInbox from './pages/account/AccountInbox'
 import AccountProfile from './pages/account/AccountProfile'
-import AccountSettings from './pages/account/AccountSettings'
-import AccountNotifications from './pages/account/AccountNotifications'
+import AccountWalkerPage from './pages/account/AccountWalkerPage'
+import Onboarding from './pages/account/Onboarding'
 
 function WalkerRoutes({ walker }) {
   return (
@@ -45,6 +46,7 @@ function PlatformRoutes() {
         <Route index element={<PlatformLanding />} />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
+        <Route path="walkers" element={<WalkerDirectory />} />
 
         {/* Path-based walker fallback for local dev */}
         <Route path="w/:walker" element={<WalkerPage />} />
@@ -60,9 +62,9 @@ function PlatformRoutes() {
           <Route path="payments" element={<AccountPayments />} />
           <Route path="inbox" element={<AccountInbox />} />
           <Route path="profile" element={<AccountProfile />} />
-          <Route path="notifications" element={<AccountNotifications />} />
-          <Route path="settings" element={<AccountSettings />} />
+          <Route path="walker-page" element={<AccountWalkerPage />} />
         </Route>
+        <Route path="onboarding" element={<Onboarding />} />
       </Route>
     </Routes>
   )

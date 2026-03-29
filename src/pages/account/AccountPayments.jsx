@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { stripeDashboardLink, createCheckout } from '../../lib/api'
@@ -16,6 +17,24 @@ export default function AccountPayments() {
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [highlightId, setHighlightId] = useState(() => {
+    const p = new URLSearchParams(window.location.search).get('payment')
+    return p || null
+  })
+  const highlightRef = useCallback((node) => {
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => setHighlightId(null), 3000)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (highlightId) {
+      searchParams.delete('payment')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -77,7 +96,8 @@ export default function AccountPayments() {
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg divide-y">
           {payments.map((p) => (
-            <div key={p.id} className="p-4 flex items-center justify-between">
+            <div key={p.id} ref={highlightId === p.id ? highlightRef : undefined}
+              className={`p-4 flex items-center justify-between transition-all duration-500 ${highlightId === p.id ? 'bg-indigo-50 ring-2 ring-indigo-300' : ''}`}>
               <div>
                 <p className="text-sm font-medium">{p.counterpart}</p>
                 <p className="text-xs text-gray-400">

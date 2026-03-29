@@ -1,8 +1,13 @@
 import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Signup() {
+  const [searchParams] = useSearchParams()
+  const location = useLocation()
+  const returnTo = location.state?.returnTo
+  const initialRole = searchParams.get('role') || ''
+  const [role, setRole] = useState(initialRole)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const passwordRef = useRef(null)
@@ -11,14 +16,19 @@ export default function Signup() {
   const [confirmed, setConfirmed] = useState(false)
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
+  const navigate = useNavigate()
   const { signUp, resendVerification } = useAuth()
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!role) {
+      setError('Please select whether you are a pet owner or dog walker')
+      return
+    }
     setError(null)
     setSubmitting(true)
     try {
-      await signUp(email, passwordRef.current.value, name)
+      await signUp(email, passwordRef.current.value, name, role)
       setConfirmed(true)
     } catch (err) {
       setError(err.message)
@@ -76,6 +86,43 @@ export default function Signup() {
   return (
     <div className="max-w-md mx-auto px-4 py-16">
       <h1 className="text-2xl font-bold mb-6 text-center">Create an account</h1>
+
+      {/* Role selection */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-3 text-center">I am a...</label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setRole('owner')}
+            className={`border-2 rounded-xl p-4 text-center transition-all ${
+              role === 'owner'
+                ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <span className="text-2xl block mb-1">🐕</span>
+            <span className={`font-semibold text-sm ${role === 'owner' ? 'text-indigo-700' : 'text-gray-700'}`}>
+              Pet Owner
+            </span>
+            <p className="text-xs text-gray-500 mt-1">Find and book walkers</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('walker')}
+            className={`border-2 rounded-xl p-4 text-center transition-all ${
+              role === 'walker'
+                ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <span className="text-2xl block mb-1">🚶</span>
+            <span className={`font-semibold text-sm ${role === 'walker' ? 'text-indigo-700' : 'text-gray-700'}`}>
+              Dog Walker
+            </span>
+            <p className="text-xs text-gray-500 mt-1">Offer services and get paid</p>
+          </button>
+        </div>
+      </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { resolveWalker } from '../../lib/walker'
 import AvailabilityCalendar from '../../components/AvailabilityCalendar'
@@ -17,6 +17,8 @@ import { clientPriceCents } from '../../lib/utils'
 
 export default function WalkerPage() {
   const { walker: walkerParam } = useParams()
+  const [searchParams] = useSearchParams()
+  const prefillServiceId = searchParams.get('service') || null
   const slug = walkerParam || resolveWalker(window.location.hostname)
   const [walker, setWalker] = useState(null)
   const [services, setServices] = useState([])
@@ -127,7 +129,7 @@ export default function WalkerPage() {
       <section className="py-6 md:py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-lg font-bold mb-3">Book a slot</h2>
-          <AvailabilityCalendar services={services} walkerId={walker.id} />
+          <AvailabilityCalendar services={services} walkerId={walker.id} defaultServiceId={prefillServiceId} />
         </div>
       </section>
 

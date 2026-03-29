@@ -178,12 +178,12 @@ export async function handler(event) {
     type: 'booking_cancelled',
     title: 'Booking cancelled',
     body: `${cancelSvcName} on ${cancelWhen} has been cancelled`,
-    link: '/account/bookings',
+    link: `/account/bookings?payment=${pId}`,
     emailSubject: `Booking cancelled — ${cancelSvcName} on ${cancelWhen}`,
     emailHtml: emailTemplate('Booking cancelled', [
       `<strong>${cancelSvcName}</strong> on ${cancelWhen} has been cancelled.`,
       'Check your bookings page for details.',
-    ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
+    ], 'View bookings', `https://onestopdog.shop/account/bookings?payment=${pId}`),
   })
 
   return {

@@ -75,12 +75,12 @@ export async function handler(event) {
       type: 'booking_approved',
       title: 'Booking approved',
       body: `${walkerName} approved your booking — pay now to confirm`,
-      link: '/account/bookings',
+      link: `/account/bookings?payment=${payment_id}`,
       emailSubject: `Your booking with ${walkerName} has been approved`,
       emailHtml: emailTemplate('Booking approved', [
         `Great news! <strong>${walkerName}</strong> has approved your booking.`,
         'You can now proceed to pay from your bookings page.',
-      ], 'Pay now', 'https://onestopdog.shop/account/bookings'),
+      ], 'Pay now', `https://onestopdog.shop/account/bookings?payment=${payment_id}`),
     })
 
     return {
@@ -151,12 +151,12 @@ export async function handler(event) {
     type: 'booking_approved',
     title: 'Booking approved',
     body: `${wName} approved your ${svcName} on ${when}`,
-    link: '/account/bookings',
+    link: `/account/bookings?payment=${updated.payment_id}`,
     emailSubject: `Your booking with ${wName} has been approved`,
     emailHtml: emailTemplate('Booking approved', [
       `Great news! <strong>${wName}</strong> has approved your <strong>${svcName}</strong> on ${when}.`,
       'You can now proceed to pay from your bookings page.',
-    ], 'Pay now', 'https://onestopdog.shop/account/bookings'),
+    ], 'Pay now', `https://onestopdog.shop/account/bookings?payment=${updated.payment_id}`),
   })
 
   return {

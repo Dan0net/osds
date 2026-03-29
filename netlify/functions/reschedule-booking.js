@@ -127,13 +127,13 @@ export async function handler(event) {
     type: 'booking_rescheduled',
     title: 'Booking rescheduled',
     body: `${walkerName} moved your ${svcName} from ${oldWhen} to ${newWhen}`,
-    link: '/account/bookings',
+    link: `/account/bookings?booking=${booking_id}`,
     emailSubject: `${walkerName} rescheduled your booking`,
     emailHtml: emailTemplate('Booking rescheduled', [
       `<strong>${walkerName}</strong> has moved your <strong>${svcName}</strong>.`,
       `<strong>From:</strong> ${oldWhen}`,
       `<strong>To:</strong> ${newWhen}`,
-    ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
+    ], 'View bookings', `https://onestopdog.shop/account/bookings?booking=${booking_id}`),
   })
 
   return {

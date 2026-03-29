@@ -11,10 +11,50 @@ export default function BookingFlow() {
   const location = useLocation()
   const { user } = useAuth()
 
-  const slots = location.state?.slots || []
-  const walkerId = location.state?.walkerId
+  // Restore from sessionStorage if returning from auth redirect
+  const stateSlots = location.state?.slots
+  const stateWalkerId = location.state?.walkerId
+  const [slots, setSlots] = useState([])
+  const [walkerId, setWalkerId] = useState(null)
   const [pets, setPets] = useState([])
   const [selectedPetId, setSelectedPetId] = useState('')
+  const [showAddPet, setShowAddPet] = useState(false)
+  const [newPetForm, setNewPetForm] = useState({ name: '', breed: '', weight: '', age: '', notes: '' })
+  const [savingPet, setSavingPet] = useState(false)
+
+  useEffect(() => {
+    if (stateSlots && stateSlots.length > 0) {
+      setSlots(stateSlots)
+      setWalkerId(stateWalkerId)
+      sessionStorage.setItem('pendingBooking', JSON.stringify({ slots: stateSlots, walkerId: stateWalkerId }))
+    } else {
+      const saved = sessionStorage.getItem('pendingBooking')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          setSlots(parsed.slots || [])
+          setWalkerId(parsed.walkerId || null)
+        } catch { /* ignore */ }
+      }
+    }
+  }, [])
+
+  // Clean up sessionStorage after successful submission
+  function clearPendingBooking() {
+    sessionStorage.removeItem('pendingBooking')
+  }
+
+  async function handleAddPet() {
+    if (!newPetForm.name.trim()) return
+    setSavingPet(true)
+    const { data, error } = await supabase.from('pets').insert({ user_id: user.id, ...newPetForm }).select().single()
+    setSavingPet(false)
+    if (error) return
+    setPets((prev) => [...prev, data])
+    setSelectedPetId(data.id)
+    setShowAddPet(false)
+    setNewPetForm({ name: '', breed: '', weight: '', age: '', notes: '' })
+  }
   const [petNotes, setPetNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -64,6 +104,7 @@ export default function BookingFlow() {
       return
     }
 
+    clearPendingBooking()
     navigate(`${prefix}/confirmation`, {
       state: { slots, pet: selectedPet, petNotes, totalCents, bookingIds: result.data?.bookingIds },
     })
@@ -148,18 +189,65 @@ export default function BookingFlow() {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Select pet
           </label>
-          <select
-            value={selectedPetId}
-            onChange={(e) => setSelectedPetId(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
-          >
-            {pets.map((pet) => (
-              <option key={pet.id} value={pet.id}>
-                {pet.name} — {pet.breed}{pet.weight ? `, ${pet.weight}` : ''}
-              </option>
-            ))}
-            {pets.length === 0 && <option value="">No pets added — add one in your account</option>}
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={selectedPetId}
+              onChange={(e) => setSelectedPetId(e.target.value)}
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+            >
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  {pet.name} — {pet.breed}{pet.weight ? `, ${pet.weight}` : ''}
+                </option>
+              ))}
+              {pets.length === 0 && <option value="">No pets added yet</option>}
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowAddPet(!showAddPet)}
+              className="border border-gray-300 text-gray-600 text-sm font-medium px-3 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap"
+            >
+              + Add pet
+            </button>
+          </div>
+          {showAddPet && (
+            <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                  <input type="text" value={newPetForm.name} onChange={(e) => setNewPetForm({ ...newPetForm, name: e.target.value })}
+                    placeholder="e.g. Buddy"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Breed</label>
+                  <input type="text" value={newPetForm.breed} onChange={(e) => setNewPetForm({ ...newPetForm, breed: e.target.value })}
+                    placeholder="e.g. Labrador"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Weight</label>
+                  <input type="text" value={newPetForm.weight} onChange={(e) => setNewPetForm({ ...newPetForm, weight: e.target.value })}
+                    placeholder="e.g. 25kg"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Age</label>
+                  <input type="text" value={newPetForm.age} onChange={(e) => setNewPetForm({ ...newPetForm, age: e.target.value })}
+                    placeholder="e.g. 3 years"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={handleAddPet} disabled={savingPet || !newPetForm.name.trim()}
+                  className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  {savingPet ? 'Saving...' : 'Save pet'}
+                </button>
+                <button type="button" onClick={() => setShowAddPet(false)}
+                  className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

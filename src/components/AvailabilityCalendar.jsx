@@ -15,14 +15,14 @@ function formatTime(time) {
   return time
 }
 
-export default function AvailabilityCalendar({ services, walkerId }) {
+export default function AvailabilityCalendar({ services, walkerId, defaultServiceId }) {
   const walkerServices = services || []
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
   const navigate = useNavigate()
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedService, setSelectedService] = useState('')
+  const [selectedService, setSelectedService] = useState(defaultServiceId || '')
   const [selectedSlots, setSelectedSlots] = useState([]) // [{date, time, service}]
   const [overnightStart, setOvernightStart] = useState(null) // {date, time} — first click for overnight
   const [weekSlots, setWeekSlots] = useState({}) // { date: [time, ...] }
