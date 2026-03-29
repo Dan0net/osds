@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Signup() {
@@ -8,8 +8,10 @@ export default function Signup() {
   const passwordRef = useRef(null)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const navigate = useNavigate()
-  const { signUp } = useAuth()
+  const [confirmed, setConfirmed] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resent, setResent] = useState(false)
+  const { signUp, resendVerification } = useAuth()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -17,12 +19,58 @@ export default function Signup() {
     setSubmitting(true)
     try {
       await signUp(email, passwordRef.current.value, name)
-      navigate('/account')
+      setConfirmed(true)
     } catch (err) {
       setError(err.message)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function handleResend() {
+    setResending(true)
+    setResent(false)
+    try {
+      await resendVerification(email)
+      setResent(true)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setResending(false)
+    }
+  }
+
+  if (confirmed) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center">
+        <div className="bg-white border border-gray-200 rounded-xl p-8">
+          <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Check your email</h1>
+          <p className="text-gray-500 mb-6">
+            We've sent a confirmation link to <span className="font-medium text-gray-700">{email}</span>. Click the link to activate your account.
+          </p>
+          {resent && (
+            <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4">
+              Confirmation email resent.
+            </div>
+          )}
+          <button
+            onClick={handleResend}
+            disabled={resending}
+            className="text-sm text-indigo-600 hover:underline disabled:opacity-50"
+          >
+            {resending ? 'Sending…' : 'Resend confirmation email'}
+          </button>
+          <p className="text-sm text-gray-500 mt-6">
+            <Link to="/login" className="text-indigo-600 hover:underline">Back to login</Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

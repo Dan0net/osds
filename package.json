@@ -9,7 +9,9 @@
     "dev:vite": "vite --host",
     "generate-icons": "node scripts/generate-icons.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:emails": "node scripts/deploy-email-templates.js",
+    "generate:emails": "node scripts/generate-auth-emails.js"
   },
   "keywords": [],
   "author": "",
