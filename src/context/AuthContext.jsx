@@ -56,12 +56,12 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function signUp(email, password, name) {
+  async function signUp(email, password, name, role) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name },
+        data: { name, user_type: role || 'owner' },
         emailRedirectTo: `${window.location.origin}/account`,
       },
     })

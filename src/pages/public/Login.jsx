@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Login() {
@@ -11,6 +11,8 @@ export default function Login() {
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = location.state?.returnTo
   const { signIn, resendVerification } = useAuth()
 
   async function handleSubmit(e) {
@@ -20,7 +22,7 @@ export default function Login() {
     setSubmitting(true)
     try {
       await signIn(email, password)
-      navigate('/account')
+      navigate(returnTo || '/account')
     } catch (err) {
       if (err.message?.toLowerCase().includes('email not confirmed')) {
         setNeedsConfirmation(true)

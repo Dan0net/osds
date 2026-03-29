@@ -240,6 +240,38 @@ export default function AccountDashboard() {
         )}
       </div>
 
+      {/* Your Walkers — quick rebook from recent bookings */}
+      {(() => {
+        const walkerMap = new Map()
+        for (const b of clientBookings) {
+          if (b.walker_profiles?.slug && !walkerMap.has(b.walker_profiles.slug)) {
+            walkerMap.set(b.walker_profiles.slug, {
+              slug: b.walker_profiles.slug,
+              name: b.walker_profiles.business_name,
+            })
+          }
+        }
+        const recentWalkers = [...walkerMap.values()].slice(0, 4)
+        if (recentWalkers.length === 0) return null
+        return (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold mb-3">Your walkers</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {recentWalkers.map((w) => (
+                <a key={w.slug} href={`/w/${w.slug}`}
+                  className="bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:shadow-sm transition-all text-center">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold mx-auto mb-2">
+                    {w.name.charAt(0).toUpperCase()}
+                  </div>
+                  <p className="text-sm font-medium text-gray-800 truncate">{w.name}</p>
+                  <p className="text-xs text-indigo-600 mt-1">Book →</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Incoming requests — above upcoming */}
       {wp && pendingRequests.length > 0 && (
         <div className="mb-8">

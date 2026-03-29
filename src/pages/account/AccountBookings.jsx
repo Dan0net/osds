@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -42,17 +42,38 @@ export default function AccountBookings() {
   const [externalEvents, setExternalEvents] = useState([])
   const [refreshingExternal, setRefreshingExternal] = useState(false)
 
+  // Deep-link highlighting from notification clicks
+  const [highlightId, setHighlightId] = useState(null)
+  const highlightRef = useCallback((node) => {
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Clear highlight after animation
+      setTimeout(() => setHighlightId(null), 3000)
+    }
+  }, [])
+
   // Payment success/cancel banner from Stripe redirect
   useEffect(() => {
-    const paymentStatus = searchParams.get('payment')
-    if (paymentStatus === 'success') {
+    const paymentParam = searchParams.get('payment')
+    const bookingParam = searchParams.get('booking')
+    if (paymentParam === 'success') {
       setPaymentBanner('success')
       searchParams.delete('payment')
       searchParams.delete('session_id')
       setSearchParams(searchParams, { replace: true })
-    } else if (paymentStatus === 'cancelled') {
+    } else if (paymentParam === 'cancelled') {
       setPaymentBanner('cancelled')
       searchParams.delete('payment')
+      setSearchParams(searchParams, { replace: true })
+    } else if (paymentParam) {
+      // Deep-link from notification — highlight this payment group
+      setHighlightId(paymentParam)
+      searchParams.delete('payment')
+      setSearchParams(searchParams, { replace: true })
+    }
+    if (bookingParam) {
+      setHighlightId(bookingParam)
+      searchParams.delete('booking')
       setSearchParams(searchParams, { replace: true })
     }
   }, [])
@@ -443,8 +464,11 @@ export default function AccountBookings() {
             const allGroupSelected = requestedInGroup.length > 0 && requestedInGroup.every((b) => selectedIds.has(b.id))
             const selectedCents = selectedInGroup.reduce((sum, b) => sum + b.price_cents, 0)
 
+            const isHighlighted = highlightId && (highlightId === paymentId || group.some((b) => b.id === highlightId))
+
             return (
-              <div key={key} className="bg-white border border-gray-200 rounded-lg p-4">
+              <div key={key} ref={isHighlighted ? highlightRef : undefined}
+                className={`bg-white border rounded-lg p-4 transition-all duration-500 ${isHighlighted ? 'border-indigo-500 ring-2 ring-indigo-300 bg-indigo-50' : 'border-gray-200'}`}>
                 {/* Group header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
@@ -661,8 +685,11 @@ export default function AccountBookings() {
       {tab === 'mine' && (
         <>
           <div className="space-y-3 mb-10">
-            {mine.map((b) => (
-              <div key={b.id} className="bg-white border border-gray-200 rounded-lg p-4">
+            {mine.map((b) => {
+              const isMineHighlighted = highlightId && (highlightId === b.payment_id || highlightId === b.id)
+              return (
+              <div key={b.id} ref={isMineHighlighted ? highlightRef : undefined}
+                className={`bg-white border rounded-lg p-4 transition-all duration-500 ${isMineHighlighted ? 'border-indigo-500 ring-2 ring-indigo-300 bg-indigo-50' : 'border-gray-200'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <div>
                     <span className="font-semibold">{b.service_name}</span>
@@ -691,6 +718,14 @@ export default function AccountBookings() {
                       {actionLoading === `pay-${b.payment_id}` ? 'Redirecting…' : 'Pay now'}
                     </button>
                   )}
+                  {b.status === 'confirmed' && b.walker_slug && (
+                    <a
+                      href={`/w/${b.walker_slug}?service=${b.service_id}&pet=${b.pet_id || ''}`}
+                      className="border border-indigo-300 text-indigo-600 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-50"
+                    >
+                      Book again
+                    </a>
+                  )}
                   {['requested', 'approved', 'pending', 'confirmed'].includes(b.status) && (
                     cancelConfirm === b.id ? (
                       <div className="flex items-center gap-2">
@@ -715,7 +750,8 @@ export default function AccountBookings() {
                   )}
                 </div>
               </div>
-            ))}
+              )
+            })}
             {mine.length === 0 && (
               <p className="text-gray-400 text-center py-8">No bookings yet.</p>
             )}

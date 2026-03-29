@@ -11,6 +11,8 @@ create table public.users (
   email text not null default '',
   phone text default '',
   avatar_url text default '',
+  user_type text not null default 'owner' check (user_type in ('owner', 'walker')),
+  onboarding_completed boolean not null default false,
   favourite_walkers uuid[] default '{}',
   notification_preferences jsonb not null default '{"email_new_request":true,"email_approval":true,"email_cancellation":true,"email_reminders":true,"push_new_request":true,"push_approval":true,"push_cancellation":true,"push_reminders":false}',
   created_at timestamptz default now()
@@ -33,6 +35,8 @@ create table public.walker_profiles (
   slug text unique not null,
   business_name text not null default '',
   bio text default '',
+  city text default '',
+  postcode text default '',
   stripe_account_id text default null,
   theme_color text default '#4f46e5',
   is_default boolean default false,
@@ -150,11 +154,12 @@ create table public.ical_cache (
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.users (id, name, email)
+  insert into public.users (id, name, email, user_type)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', ''),
-    coalesce(new.email, '')
+    coalesce(new.email, ''),
+    coalesce(new.raw_user_meta_data->>'user_type', 'owner')
   );
   return new;
 end;

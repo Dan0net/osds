@@ -212,24 +212,24 @@ export async function handler(event) {
       type: 'booking_confirmed',
       title: 'Booking confirmed',
       body: `${wp.business_name} booked ${serviceNames} for you on ${when}`,
-      link: '/account/bookings',
+      link: `/account/bookings?payment=${payment.id}`,
       emailSubject: `Booking confirmed with ${wp.business_name}`,
       emailHtml: emailTemplate('Booking confirmed', [
         `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${when}.`,
         'Your booking is confirmed.',
-      ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
+      ], 'View bookings', `https://onestopdog.shop/account/bookings?payment=${payment.id}`),
     })
   } else {
     notify(adminSupabase, client_id, {
       type: 'booking_payment_link',
       title: 'Payment requested',
       body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,
-      link: '/account/bookings',
+      link: `/account/bookings?payment=${payment.id}`,
       emailSubject: `Payment requested from ${wp.business_name}`,
       emailHtml: emailTemplate('Payment requested', [
         `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${when}.`,
         'Please complete payment to confirm your booking.',
-      ], 'Pay now', 'https://onestopdog.shop/account/bookings'),
+      ], 'Pay now', `https://onestopdog.shop/account/bookings?payment=${payment.id}`),
     })
   }
 
