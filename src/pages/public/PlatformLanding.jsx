@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import { clientPriceCents } from '../../lib/utils'
 
 export default function PlatformLanding() {
@@ -12,44 +11,14 @@ export default function PlatformLanding() {
   const [featuredWalkers, setFeaturedWalkers] = useState([])
   const [locating, setLocating] = useState(false)
 
-  // Load featured walkers with reviews on mount
+  // Load featured walkers with reviews on mount (CDN-cached)
   useEffect(() => {
     async function loadFeatured() {
-      const { data: walkers } = await supabase
-        .from('walker_profiles')
-        .select('id, slug, business_name, bio, theme_color, postcode, users(avatar_url)')
-        .not('lat', 'is', null)
-        .limit(10)
-
-      if (!walkers || walkers.length === 0) return
-
-      const ids = walkers.map((w) => w.id)
-      const [{ data: services }, { data: reviews }] = await Promise.all([
-        supabase.from('services').select('walker_id, name, price_cents, service_type').in('walker_id', ids).eq('active', true),
-        supabase.from('reviews').select('walker_id, rating, comment, created_at, users(name)').in('walker_id', ids).order('created_at', { ascending: false }),
-      ])
-
-      const svcMap = {}
-      const revMap = {}
-      for (const s of (services || [])) {
-        if (!svcMap[s.walker_id]) svcMap[s.walker_id] = []
-        svcMap[s.walker_id].push(s)
-      }
-      for (const r of (reviews || [])) {
-        if (!revMap[r.walker_id]) revMap[r.walker_id] = []
-        revMap[r.walker_id].push(r)
-      }
-
-      setFeaturedWalkers(walkers.map((w) => {
-        const wRevs = revMap[w.id] || []
-        return {
-          ...w,
-          services: (svcMap[w.id] || []).slice(0, 3),
-          reviews: wRevs.slice(0, 2),
-          avg_rating: wRevs.length > 0 ? Math.round((wRevs.reduce((s, r) => s + r.rating, 0) / wRevs.length) * 10) / 10 : null,
-          review_count: wRevs.length,
-        }
-      }))
+      try {
+        const res = await fetch('/.netlify/functions/featured-walkers')
+        const { data } = await res.json()
+        if (data?.length > 0) setFeaturedWalkers(data)
+      } catch { /* silent */ }
     }
     loadFeatured()
   }, [])

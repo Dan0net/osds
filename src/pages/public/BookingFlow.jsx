@@ -87,6 +87,8 @@ export default function BookingFlow() {
       return
     }
 
+    if (walkerId) sessionStorage.removeItem(`osds_selectedSlots_${walkerId}`)
+    localStorage.removeItem('osds_bookingIntent')
     navigate(`${prefix}/confirmation`, {
       state: { slots, pet: selectedPet, petNotes, totalCents, bookingIds: result.data?.bookingIds },
     })
