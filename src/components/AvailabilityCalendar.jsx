@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { clientPriceCents } from '../lib/utils'
-import { useAuth } from '../hooks/useAuth'
 
 function getWeekDates(baseDate) {
   const d = new Date(baseDate)
@@ -54,8 +53,6 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
   const navigate = useNavigate()
-  const { user } = useAuth()
-
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedService, setSelectedService] = useState(initialServiceId || '')
   const slotsKey = `osds_selectedSlots_${walkerId}`
@@ -270,11 +267,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   }, [dragging, dragCell])
 
   function handleBookNow() {
-    if (!user) {
-      localStorage.setItem('osds_bookingIntent', JSON.stringify({ walkerSlug: walkerParam || null, walkerId, slots: selectedSlots, savedAt: Date.now() }))
-      navigate(`/login?returnTo=${encodeURIComponent(prefix + '/book')}`)
-      return
-    }
+    // Always go to review page — it handles login prompt at submit time
+    localStorage.setItem('osds_bookingIntent', JSON.stringify({ walkerSlug: walkerParam || null, walkerId, slots: selectedSlots, savedAt: Date.now() }))
     navigate(`${prefix}/book`, { state: { slots: selectedSlots, walkerId } })
   }
 
