@@ -142,7 +142,7 @@ export default function WalkerPage() {
           <div className="absolute inset-0" style={{ backgroundColor: walker.theme_color || '#4f46e5' }} />
         )}
 
-        <div className="relative max-w-2xl mx-auto text-center py-10 md:py-14 px-4">
+        <div className="relative max-w-3xl mx-auto text-center py-12 md:py-20 px-4">
           {user && (
             <button
               onClick={toggleFavourite}
@@ -159,7 +159,7 @@ export default function WalkerPage() {
               walker.business_name.charAt(0)
             )}
           </div>
-          <h1 className="text-2xl mb-1">{walker.business_name}</h1>
+          <h1 className="text-3xl md:text-4xl mb-1">{walker.business_name}</h1>
           {avgRating && (
             <div className="flex items-center justify-center gap-1.5 text-sm mb-1">
               <span className="text-yellow-300">{'★'.repeat(Math.round(avgRating))}</span>
@@ -171,10 +171,10 @@ export default function WalkerPage() {
       </section>
 
       {/* Services — selectable cards */}
-      <section className="py-6 md:py-8 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-lg mb-3">Select a service</h2>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+      <section className="py-8 md:py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-xl mb-4">Select a service</h2>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {services.filter((s) => s.active).map((service) => {
               const isSelected = selectedServiceId === service.id
               return (
@@ -210,9 +210,9 @@ export default function WalkerPage() {
 
       {/* Availability Calendar — shown only when a service is selected */}
       {selectedServiceId && (
-        <section className="py-6 md:py-8 px-4">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-lg mb-3">Book a slot</h2>
+        <section className="py-8 md:py-12 px-4">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-xl mb-4">Book a slot</h2>
             <AvailabilityCalendar services={services} walkerId={walker.id} initialServiceId={selectedServiceId} />
           </div>
         </section>
@@ -220,10 +220,10 @@ export default function WalkerPage() {
 
       {/* Reviews — 3 column carousel */}
       {reviews.length > 0 && (
-      <section className="bg-gray-100 py-6 md:py-8 px-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg">Reviews</h2>
+      <section className="bg-gray-100 py-8 md:py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl">Reviews</h2>
             {reviews.length > 3 && (
               <div className="flex gap-1.5">
                 <button
