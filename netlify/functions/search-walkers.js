@@ -47,9 +47,10 @@ export async function handler(event) {
   // Fetch all walkers with coordinates
   const { data: walkers, error: wErr } = await supabase
     .from('walker_profiles')
-    .select('id, slug, business_name, bio, theme_color, postcode, lat, lng, users(avatar_url)')
+    .select('id, slug, business_name, bio, theme_color, postcode, lat, lng, cover_url, users(avatar_url)')
     .not('lat', 'is', null)
     .not('lng', 'is', null)
+    .not('setup_completed_at', 'is', null)
 
   if (wErr) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Failed to fetch walkers' }) }
@@ -120,6 +121,7 @@ export async function handler(event) {
       bio: w.bio,
       theme_color: w.theme_color,
       avatar_url: w.users?.avatar_url || null,
+      cover_url: w.cover_url || null,
       postcode: w.postcode,
       distance_miles: w.distance_miles,
       avg_rating: avgRating,

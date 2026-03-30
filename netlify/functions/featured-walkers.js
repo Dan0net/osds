@@ -8,8 +8,9 @@ const supabase = createClient(
 export async function handler() {
   const { data: walkers, error: wErr } = await supabase
     .from('walker_profiles')
-    .select('id, slug, business_name, bio, theme_color, postcode, users(avatar_url)')
+    .select('id, slug, business_name, bio, theme_color, postcode, cover_url, users(avatar_url)')
     .not('lat', 'is', null)
+    .not('setup_completed_at', 'is', null)
     .limit(10)
 
   if (wErr || !walkers || walkers.length === 0) {

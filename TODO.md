@@ -12,6 +12,7 @@
 - inline popup + email code at booking time
 
 # Walker signup
+- ensure stripe is connected properly, not just Onboarding incomplete, before marking setup as complete and finishing setup wizard
 - subdomain walker landing pages (cloudflare)
 - page name on signup
 - get notifications setup

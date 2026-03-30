@@ -80,36 +80,36 @@ UPDATE public.users SET phone = '07700900003', avatar_url = 'https://i.pravatar.
 -- WALKER PROFILES (5 walkers across East London)
 -- ============================================================
 
-INSERT INTO public.walker_profiles (id, user_id, slug, business_name, bio, postcode, lat, lng, stripe_account_id, theme_color, cover_url, calendar_feed_token) VALUES
+INSERT INTO public.walker_profiles (id, user_id, slug, business_name, bio, postcode, lat, lng, stripe_account_id, theme_color, cover_url, calendar_feed_token, setup_completed_at) VALUES
   ('ab000001-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111',
    'sarah-mitchell', 'Sarah''s Happy Hounds', 'Hi! I''ve been walking dogs in Hackney for 5 years. I cover London Fields, Victoria Park, and the Marshes. All breeds and sizes welcome — I specialise in anxious rescue dogs.',
-   'E8 3SB', 51.5416, -0.0566, 'acct_test_sarah', '#4f46e5',
+   'E8 3SB', 51.5416, -0.0566, 'acct_1TGpMNCsQ0XiMZsI', '#4f46e5',
    'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800&h=400&fit=crop',
-   encode(gen_random_bytes(16), 'hex')),
+   encode(gen_random_bytes(16), 'hex'), now()),
 
   ('ab000002-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222',
    'james-okonkwo', 'Paws & Explore', 'Qualified dog behaviourist and walker based in Bethnal Green. I keep group sizes small (max 3 dogs) so every pup gets proper attention. DBS checked and fully insured.',
-   'E2 0QN', 51.5271, -0.0556, 'acct_test_james', '#059669',
+   'E2 0QN', 51.5271, -0.0556, 'acct_1TGpMNCsQ0XiMZsI', '#059669',
    'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&h=400&fit=crop',
-   encode(gen_random_bytes(16), 'hex')),
+   encode(gen_random_bytes(16), 'hex'), now()),
 
   ('ab000003-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333',
    'priya-sharma', 'Priya''s Pet Care', 'Veterinary nurse by training, dog walker by passion! Based near Mile End Park. I offer walks, home visits, and overnight stays. Your dog will be treated like family.',
-   'E3 4QS', 51.5245, -0.0340, 'acct_test_priya', '#dc2626',
+   'E3 4QS', 51.5245, -0.0340, 'acct_1TGpMNCsQ0XiMZsI', '#dc2626',
    'https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=800&h=400&fit=crop',
-   encode(gen_random_bytes(16), 'hex')),
+   encode(gen_random_bytes(16), 'hex'), now()),
 
   ('ab000004-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444',
    'dan-cooper', 'Cooper Canine Co', 'Ex-PT turned dog walker. I run high-energy walks around the Olympic Park and Lea Valley. Perfect for active breeds that need more than a stroll. Also do puppy socialisation groups.',
-   'E20 1EJ', 51.5387, -0.0166, 'acct_test_dan', '#f59e0b',
+   'E20 1EJ', 51.5387, -0.0166, 'acct_1TGpMNCsQ0XiMZsI', '#f59e0b',
    'https://images.unsplash.com/photo-1558788353-f76d92427f16?w=800&h=400&fit=crop',
-   encode(gen_random_bytes(16), 'hex')),
+   encode(gen_random_bytes(16), 'hex'), now()),
 
   ('ab000005-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555',
    'meg-taylor', 'Bow Wow Walks', 'Local Bow resident with two dogs of my own. I offer solo walks for nervous dogs and small group walks along the Regent''s Canal towpath. Flexible hours including early mornings.',
-   'E3 2SE', 51.5290, -0.0196, 'acct_test_meg', '#8b5cf6',
+   'E3 2SE', 51.5290, -0.0196, 'acct_1TGpMNCsQ0XiMZsI', '#8b5cf6',
    'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&h=400&fit=crop',
-   encode(gen_random_bytes(16), 'hex'));
+   encode(gen_random_bytes(16), 'hex'), now());
 
 -- ============================================================
 -- SERVICES

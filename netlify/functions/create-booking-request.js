@@ -37,15 +37,19 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'walker_id and slots are required' }) }
   }
 
-  // Verify walker exists
+  // Verify walker exists and has completed setup
   const { data: walker, error: walkerError } = await supabase
     .from('walker_profiles')
-    .select('id, user_id')
+    .select('id, user_id, setup_completed_at')
     .eq('id', walker_id)
     .single()
 
   if (walkerError || !walker) {
     return { statusCode: 404, body: JSON.stringify({ error: 'Walker not found' }) }
+  }
+
+  if (!walker.setup_completed_at) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'This walker has not finished setting up their account yet' }) }
   }
 
   // Cannot book yourself
