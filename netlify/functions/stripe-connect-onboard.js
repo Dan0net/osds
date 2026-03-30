@@ -64,10 +64,12 @@ export async function handler(event) {
 
   // Create an account link for onboarding
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
+  const body = JSON.parse(event.body || '{}')
+  const returnPath = body.return_path || '/account/profile'
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
-    refresh_url: `${siteUrl}/account/profile?stripe=refresh`,
-    return_url: `${siteUrl}/account/profile?stripe=complete`,
+    refresh_url: `${siteUrl}${returnPath}?stripe=refresh`,
+    return_url: `${siteUrl}${returnPath}?stripe=complete`,
     type: 'account_onboarding',
   })
 

@@ -57,6 +57,15 @@ export default function AccountBookings() {
     }
   }, [])
 
+  // Auto-open create booking modal from ?action=create
+  useEffect(() => {
+    if (searchParams.get('action') === 'create' && isWalker) {
+      setCreateBookingModal(true)
+      searchParams.delete('action')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [isWalker])
+
   useEffect(() => {
     if (user) loadBookings()
   }, [user?.id, walkerProfile?.id])

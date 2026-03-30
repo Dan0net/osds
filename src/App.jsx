@@ -12,6 +12,7 @@ function ScrollToTop() {
 import Layout from './components/Layout'
 import PlatformLanding from './pages/public/PlatformLanding'
 import WalkerPage from './pages/public/WalkerPage'
+import ServiceBooking from './pages/public/ServiceBooking'
 import BookingFlow from './pages/public/BookingFlow'
 import Confirmation from './pages/public/Confirmation'
 import Login from './pages/public/Login'
@@ -24,6 +25,7 @@ import AccountPayments from './pages/account/AccountPayments'
 import AccountInbox from './pages/account/AccountInbox'
 import AccountProfile from './pages/account/AccountProfile'
 import AccountSettings from './pages/account/AccountSettings'
+import WalkerSetupWizard from './pages/account/WalkerSetupWizard'
 import BookingDetail from './pages/account/BookingDetail'
 import AccountNotifications from './pages/account/AccountNotifications'
 
@@ -32,6 +34,7 @@ function WalkerRoutes({ walker }) {
     <Routes>
       <Route element={<Layout walker={walker} />}>
         <Route index element={<WalkerPage />} />
+        <Route path="book/:serviceId" element={<ServiceBooking />} />
         <Route path="book" element={<BookingFlow />} />
         <Route path="confirmation" element={<Confirmation />} />
       </Route>
@@ -49,6 +52,7 @@ function PlatformRoutes() {
 
         {/* Path-based walker fallback for local dev */}
         <Route path="w/:walker" element={<WalkerPage />} />
+        <Route path="w/:walker/book/:serviceId" element={<ServiceBooking />} />
         <Route path="w/:walker/book" element={<BookingFlow />} />
         <Route path="w/:walker/confirmation" element={<Confirmation />} />
       </Route>
@@ -64,6 +68,7 @@ function PlatformRoutes() {
           <Route path="profile" element={<AccountProfile />} />
           <Route path="notifications" element={<AccountNotifications />} />
           <Route path="settings" element={<AccountSettings />} />
+          <Route path="setup" element={<WalkerSetupWizard />} />
         </Route>
       </Route>
     </Routes>

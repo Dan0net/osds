@@ -16,8 +16,8 @@ export async function apiFetch(fn, options = {}) {
 }
 
 // Stripe Connect
-export const stripeConnectOnboard = () =>
-  apiFetch('stripe-connect-onboard', { method: 'POST' })
+export const stripeConnectOnboard = (params = {}) =>
+  apiFetch('stripe-connect-onboard', { method: 'POST', body: JSON.stringify(params) })
 
 export const stripeConnectCallback = () =>
   apiFetch('stripe-connect-callback', { method: 'POST' })

@@ -54,6 +54,16 @@ INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, e
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), 'aaaa0003-0000-0000-0000-000000000000', 'aaaa0003-0000-0000-0000-000000000000', '{"sub":"aaaa0003-0000-0000-0000-000000000000","email":"marcus@test.com"}'::jsonb, 'email', now(), now(), now());
 
+-- Fix GoTrue NULL string scan errors: set all nullable text columns to empty string
+UPDATE auth.users SET
+  email_change = coalesce(email_change, ''),
+  phone_change = coalesce(phone_change, ''),
+  email_change_token_new = coalesce(email_change_token_new, ''),
+  email_change_token_current = coalesce(email_change_token_current, ''),
+  reauthentication_token = coalesce(reauthentication_token, ''),
+  phone_change_token = coalesce(phone_change_token, ''),
+  recovery_token = coalesce(recovery_token, '');
+
 -- handle_new_user() trigger creates public.users rows automatically.
 -- Fill in avatars for walkers:
 UPDATE public.users SET avatar_url = 'https://i.pravatar.cc/300?u=sarah@test.com' WHERE id = '11111111-1111-1111-1111-111111111111';

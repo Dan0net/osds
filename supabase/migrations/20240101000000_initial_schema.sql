@@ -11,8 +11,12 @@ create table public.users (
   email text not null default '',
   phone text default '',
   avatar_url text default '',
+  postcode text default null,
+  lat float8 default null,
+  lng float8 default null,
   favourite_walkers uuid[] default '{}',
   notification_preferences jsonb not null default '{"email_new_request":true,"email_approval":true,"email_cancellation":true,"email_reminders":true,"push_new_request":true,"push_approval":true,"push_cancellation":true,"push_reminders":false}',
+  setup_completed_at timestamptz default null,
   created_at timestamptz default now()
 );
 
@@ -41,6 +45,7 @@ create table public.walker_profiles (
   lng float8 default null,
   is_default boolean default false,
   calendar_feed_token text default null,
+  setup_completed_at timestamptz default null,
   created_at timestamptz default now()
 );
 
@@ -154,13 +159,39 @@ create table public.ical_cache (
 
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  _name text;
+  _slug text;
 begin
-  insert into public.users (id, name, email)
+  _name := coalesce(new.raw_user_meta_data->>'name', '');
+
+  insert into public.users (id, name, email, postcode)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'name', ''),
-    coalesce(new.email, '')
+    _name,
+    coalesce(new.email, ''),
+    nullif(trim(coalesce(new.raw_user_meta_data->>'postcode', '')), '')
   );
+
+  if new.raw_user_meta_data->>'role' = 'walker' then
+    _slug := lower(regexp_replace(regexp_replace(_name, '[^a-zA-Z0-9]+', '-', 'g'), '^-|-$', '', 'g'));
+    if _slug = '' then
+      _slug := 'walker-' || substr(encode(gen_random_bytes(4), 'hex'), 1, 8);
+    end if;
+    if exists (select 1 from public.walker_profiles where slug = _slug) then
+      _slug := _slug || '-' || substr(encode(gen_random_bytes(3), 'hex'), 1, 6);
+    end if;
+
+    insert into public.walker_profiles (user_id, slug, business_name, postcode, calendar_feed_token)
+    values (
+      new.id,
+      _slug,
+      _name || '''s Dog Walking',
+      nullif(trim(coalesce(new.raw_user_meta_data->>'postcode', '')), ''),
+      encode(gen_random_bytes(16), 'hex')
+    );
+  end if;
+
   return new;
 end;
 $$ language plpgsql security definer set search_path = '';

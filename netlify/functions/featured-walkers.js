@@ -24,16 +24,28 @@ export async function handler() {
   }
 
   const ids = walkers.map((w) => w.id)
-  const { data: reviews } = await supabase
-    .from('reviews')
-    .select('walker_id, rating, comment, created_at, users(name)')
-    .in('walker_id', ids)
-    .order('created_at', { ascending: false })
+  const [{ data: reviews }, { data: services }] = await Promise.all([
+    supabase
+      .from('reviews')
+      .select('walker_id, rating, comment, created_at, users(name)')
+      .in('walker_id', ids)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('services')
+      .select('walker_id, name, price_cents, service_type')
+      .in('walker_id', ids)
+      .eq('active', true),
+  ])
 
   const revMap = {}
   for (const r of (reviews || [])) {
     if (!revMap[r.walker_id]) revMap[r.walker_id] = []
     revMap[r.walker_id].push(r)
+  }
+  const svcMap = {}
+  for (const s of (services || [])) {
+    if (!svcMap[s.walker_id]) svcMap[s.walker_id] = []
+    svcMap[s.walker_id].push(s)
   }
 
   const data = walkers.map((w) => {
@@ -45,6 +57,7 @@ export async function handler() {
       reviews: wRevs.slice(0, 2),
       avg_rating: wRevs.length > 0 ? Math.round((wRevs.reduce((s, r) => s + r.rating, 0) / wRevs.length) * 10) / 10 : null,
       review_count: wRevs.length,
+      services: (svcMap[w.id] || []).map((s) => ({ name: s.name, price_cents: s.price_cents, service_type: s.service_type })),
     }
   })
 

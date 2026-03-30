@@ -1,11 +1,25 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch, createCheckout } from '../../lib/api'
+import OwnerSetupWizard from '../../components/OwnerSetupWizard'
 
 export default function AccountDashboard() {
   const { user, profile, walkerProfile: wp } = useAuth()
+  const navigate = useNavigate()
+
+  // Owner wizard: use ref so it stays mounted even after completeSetup refreshes profile
+  const [ownerWizardActive] = useState(() => !!(profile && !wp && !profile.setup_completed_at))
+
+  // Walker wizard redirect
+  useEffect(() => {
+    if (wp && !wp.setup_completed_at) {
+      navigate('/account/setup', { replace: true })
+    }
+  }, [wp?.setup_completed_at])
+
+  if (ownerWizardActive) return <OwnerSetupWizard />
   const walkerSlug = wp?.slug
   const domain = import.meta.env.VITE_DOMAIN || 'onestopdog.shop'
 
@@ -512,8 +526,34 @@ export default function AccountDashboard() {
         </div>
       )}
 
-      {/* Walker setup checklist */}
-      {wp && walkerBookings.length === 0 && (
+      {/* Post-wizard walker CTAs */}
+      {wp && wp.setup_completed_at && walkerBookings.length === 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-2">Your page is live!</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Share your page with clients or create a booking to get started.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <a
+              href={`/w/${walkerSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700"
+            >
+              View your live page
+            </a>
+            <Link
+              to="/account/bookings?action=create"
+              className="border border-indigo-600 text-indigo-600 text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-50"
+            >
+              Create booking for a client
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Walker setup checklist (fallback for walkers without setup_completed_at) */}
+      {wp && !wp.setup_completed_at && walkerBookings.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-8">
           <h2 className="mb-3">Get your page live</h2>
           <div className="space-y-2 text-sm">

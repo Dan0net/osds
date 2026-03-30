@@ -31,8 +31,8 @@ export default function BookingFlow() {
       if (saved) {
         try {
           const intent = JSON.parse(saved)
-          // Only restore if less than 30 minutes old
-          if (intent.savedAt && Date.now() - intent.savedAt < 30 * 60 * 1000) {
+          // Only restore if less than 24 hours old
+          if (intent.savedAt && Date.now() - intent.savedAt < 24 * 60 * 60 * 1000) {
             setSlots(intent.slots || [])
             setWalkerId(intent.walkerId || null)
           }

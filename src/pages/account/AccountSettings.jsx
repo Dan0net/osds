@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
@@ -7,6 +8,7 @@ import { clientPriceCents } from '../../lib/utils'
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export default function AccountSettings() {
+  const navigate = useNavigate()
   const { user, walkerProfile, refreshProfile } = useAuth()
   const isWalker = !!walkerProfile
 
@@ -53,6 +55,7 @@ export default function AccountSettings() {
         })
       if (wpErr) throw wpErr
       await refreshProfile()
+      navigate('/account/setup')
     } catch (err) {
       alert(err.message)
     } finally {

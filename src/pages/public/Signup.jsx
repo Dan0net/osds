@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 export default function Signup() {
   const [searchParams] = useSearchParams()
   const initialRole = searchParams.get('role') === 'walker' ? 'walker' : 'owner'
-  const initialPostcode = searchParams.get('postcode') || ''
+  const initialPostcode = searchParams.get('postcode') || sessionStorage.getItem('osds_postcode') || ''
 
   const [role, setRole] = useState(initialRole)
   const [name, setName] = useState('')
@@ -30,7 +30,9 @@ export default function Signup() {
     setError(null)
     setSubmitting(true)
     try {
-      await signUp(email, passwordRef.current.value, name, postcode.trim(), role)
+      // Extract walker slug from booking returnTo (e.g. /w/ellie/book)
+      const bookingMatch = returnTo?.match(/\/w\/([^/]+)\/book/)
+      await signUp(email, passwordRef.current.value, name, postcode.trim(), role, bookingMatch?.[1] || null)
       setConfirmed(true)
     } catch (err) {
       setError(err.message)
@@ -100,7 +102,7 @@ export default function Signup() {
               : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
           }`}
         >
-          🐶 Dog owner
+          🐾 Pet owner
         </button>
         <button
           type="button"
@@ -172,7 +174,7 @@ export default function Signup() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+          className="cursor-pointer w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
         >
           {submitting ? 'Creating account…' : 'Create account'}
         </button>

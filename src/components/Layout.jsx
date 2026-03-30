@@ -16,6 +16,9 @@ export default function Layout({ walker }) {
               </Link>
             ) : (
               <>
+                <Link to="/signup?role=walker" className="text-gray-600 hover:text-gray-900">
+                  Become a walker
+                </Link>
                 <Link to="/login" className="text-gray-600 hover:text-indigo-600">
                   Log in
                 </Link>

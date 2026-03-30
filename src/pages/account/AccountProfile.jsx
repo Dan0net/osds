@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { stripeConnectOnboard, stripeConnectCallback, stripeDashboardLink } from '../../lib/api'
+import ImageUpload from '../../components/ImageUpload'
 
 export default function AccountProfile() {
   const { user, profile, walkerProfile, refreshProfile } = useAuth()
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -132,6 +134,7 @@ export default function AccountProfile() {
         })
       if (wpErr) throw wpErr
       await refreshProfile()
+      navigate('/account/setup')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -155,23 +158,13 @@ export default function AccountProfile() {
 
           {/* Avatar */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-bold overflow-hidden shrink-0">
-              {form.avatar_url ? (
-                <img src={form.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                form.name.charAt(0).toUpperCase()
-              )}
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
-              <input
-                type="url"
-                value={form.avatar_url}
-                onChange={(e) => update('avatar_url', e.target.value)}
-                placeholder="https://example.com/photo.jpg"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-            </div>
+            <ImageUpload
+              bucket="avatars"
+              currentUrl={form.avatar_url}
+              onUpload={(url) => update('avatar_url', url)}
+              aspect="circle"
+            />
+            <p className="text-xs text-gray-400">Click or drag to upload a profile photo</p>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
