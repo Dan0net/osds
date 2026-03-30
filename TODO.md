@@ -8,9 +8,13 @@
 - emojis
 - better text descriptions
 
+# Owner signup
+- inline popup + email code at booking time
+
 # Walker signup
 - subdomain walker landing pages (cloudflare)
 - page name on signup
+- get notifications setup
 
 # Signup
 - social signup
@@ -33,6 +37,7 @@
 
 # Payment
 - stripe auto fill email?
+- embed stripe payment?
 
 # Tax
 - automate tax returns

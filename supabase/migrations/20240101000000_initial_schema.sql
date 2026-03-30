@@ -176,10 +176,10 @@ begin
   if new.raw_user_meta_data->>'role' = 'walker' then
     _slug := lower(regexp_replace(regexp_replace(_name, '[^a-zA-Z0-9]+', '-', 'g'), '^-|-$', '', 'g'));
     if _slug = '' then
-      _slug := 'walker-' || substr(encode(gen_random_bytes(4), 'hex'), 1, 8);
+      _slug := 'walker-' || substr(encode(extensions.gen_random_bytes(4), 'hex'), 1, 8);
     end if;
     if exists (select 1 from public.walker_profiles where slug = _slug) then
-      _slug := _slug || '-' || substr(encode(gen_random_bytes(3), 'hex'), 1, 6);
+      _slug := _slug || '-' || substr(encode(extensions.gen_random_bytes(3), 'hex'), 1, 6);
     end if;
 
     insert into public.walker_profiles (user_id, slug, business_name, postcode, calendar_feed_token)
@@ -188,7 +188,7 @@ begin
       _slug,
       _name || '''s Dog Walking',
       nullif(trim(coalesce(new.raw_user_meta_data->>'postcode', '')), ''),
-      encode(gen_random_bytes(16), 'hex')
+      encode(extensions.gen_random_bytes(16), 'hex')
     );
   end if;
 
