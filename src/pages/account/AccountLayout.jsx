@@ -49,13 +49,19 @@ export default function AccountLayout() {
       <AppHeader
         right={
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{profile?.name || 'Account'}</span>
             <button
               onClick={handleSignOut}
-              className="text-sm text-gray-400 hover:text-gray-600"
+              className="cursor-pointer text-sm text-gray-400 hover:text-gray-600"
             >
               Log out
             </button>
+            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold overflow-hidden">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                (profile?.name?.charAt(0) || user?.email?.charAt(0) || '?').toUpperCase()
+              )}
+            </div>
           </div>
         }
       />

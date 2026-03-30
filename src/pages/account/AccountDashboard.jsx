@@ -9,8 +9,10 @@ export default function AccountDashboard() {
   const { user, profile, walkerProfile: wp } = useAuth()
   const navigate = useNavigate()
 
-  // Owner wizard: use ref so it stays mounted even after completeSetup refreshes profile
-  const [ownerWizardActive] = useState(() => !!(profile && !wp && !profile.setup_completed_at))
+  // Owner wizard: show if owner hasn't completed setup.
+  // Initial check on mount — once dismissed, stays dismissed for this page lifecycle.
+  const needsSetup = profile && !wp && !profile.setup_completed_at
+  const [wizardDismissed, setWizardDismissed] = useState(false)
 
   // Walker wizard redirect
   useEffect(() => {
@@ -19,7 +21,6 @@ export default function AccountDashboard() {
     }
   }, [wp?.setup_completed_at])
 
-  if (ownerWizardActive) return <OwnerSetupWizard />
   const walkerSlug = wp?.slug
   const domain = import.meta.env.VITE_DOMAIN || 'onestopdog.shop'
 
@@ -62,17 +63,22 @@ export default function AccountDashboard() {
         setFavouriteWalkers(favs || [])
       }
 
-      // Check for unfinished booking intent
+      // Check for unfinished booking intent — only show if no recent requested bookings
+      const hasRecentRequest = (cb || []).some((b) => b.status === 'requested')
       const savedIntent = localStorage.getItem('osds_bookingIntent')
       if (savedIntent) {
-        try {
-          const intent = JSON.parse(savedIntent)
-          if (intent.savedAt && Date.now() - intent.savedAt < 30 * 60 * 1000) {
-            setBookingIntent(intent)
-          } else {
-            localStorage.removeItem('osds_bookingIntent')
-          }
-        } catch { localStorage.removeItem('osds_bookingIntent') }
+        if (hasRecentRequest) {
+          localStorage.removeItem('osds_bookingIntent')
+        } else {
+          try {
+            const intent = JSON.parse(savedIntent)
+            if (intent.savedAt && Date.now() - intent.savedAt < 24 * 60 * 60 * 1000) {
+              setBookingIntent(intent)
+            } else {
+              localStorage.removeItem('osds_bookingIntent')
+            }
+          } catch { localStorage.removeItem('osds_bookingIntent') }
+        }
       }
 
       if (wp) {
@@ -122,6 +128,10 @@ export default function AccountDashboard() {
   useEffect(() => {
     setSelectedIds(new Set(pendingRequests.map((b) => b.id)))
   }, [walkerBookings])
+
+  // Owner wizard — must be after all hooks
+  if (needsSetup && !wizardDismissed) return <OwnerSetupWizard onComplete={() => setWizardDismissed(true)} />
+
   const totalRevenueCents = walkerPaymentsTotal
 
   function getServiceName(b) {

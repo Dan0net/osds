@@ -21,7 +21,7 @@ function StepIndicator({ current, total }) {
   )
 }
 
-export default function OwnerSetupWizard() {
+export default function OwnerSetupWizard({ onComplete }) {
   const { user, profile, completeSetup } = useAuth()
   const [step, setStep] = useState(-1) // -1 = welcome
   const [loading, setLoading] = useState(true)
@@ -183,7 +183,7 @@ export default function OwnerSetupWizard() {
       localStorage.removeItem('osds_bookingIntent')
       setBookingResult(res)
       setDone(true)
-      await completeSetup('owner')
+      await finishSetup()
       setStep(3)
     } catch (err) {
       setError(err.message)
@@ -201,13 +201,18 @@ export default function OwnerSetupWizard() {
       const data = await res.json()
       setNearbyWalkers(data.data || [])
     } catch { setNearbyWalkers([]) }
-    await completeSetup('owner')
+    await finishSetup()
     setSearchingWalkers(false)
   }
 
-  async function handleSkip() {
+  async function finishSetup() {
     setDone(true)
     await completeSetup('owner')
+    onComplete?.()
+  }
+
+  async function handleSkip() {
+    await finishSetup()
   }
 
   function addPetRow() {
@@ -657,7 +662,7 @@ export default function OwnerSetupWizard() {
                 </Link>
               )}
               <button
-                onClick={async () => { setDone(true); await completeSetup('owner') }}
+                onClick={async () => { setDone(true); await finishSetup() }}
                 className="cursor-pointer w-full border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg hover:bg-gray-50"
               >
                 Skip to dashboard

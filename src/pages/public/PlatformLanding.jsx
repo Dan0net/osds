@@ -223,9 +223,9 @@ export default function PlatformLanding() {
 
         {/* Loading skeleton */}
         {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-8">
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="animate-pulse">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 sm:gap-x-5 sm:gap-y-8 sm:overflow-visible sm:snap-none sm:pb-0">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="animate-pulse min-w-[45%] snap-start sm:min-w-0">
                 <div className="aspect-[4/3] rounded-xl bg-gray-200 mb-3" />
                 <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
                 <div className="h-3 bg-gray-100 rounded w-1/2" />
@@ -234,11 +234,13 @@ export default function PlatformLanding() {
           </div>
         )}
 
-        {/* Walker grid */}
+        {/* Walker grid — 6 cols desktop, horizontal scroll on mobile */}
         {!loading && walkers.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-8">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 sm:gap-x-5 sm:gap-y-8 sm:overflow-visible sm:snap-none sm:pb-0 scrollbar-hide">
             {walkers.map((walker) => (
-              <WalkerCard key={walker.id} walker={walker} showDistance={hasSearched} />
+              <div key={walker.id} className="min-w-[45%] snap-start sm:min-w-0">
+                <WalkerCard walker={walker} showDistance={hasSearched} />
+              </div>
             ))}
           </div>
         )}

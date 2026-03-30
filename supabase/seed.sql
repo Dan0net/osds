@@ -65,15 +65,15 @@ UPDATE auth.users SET
   recovery_token = coalesce(recovery_token, '');
 
 -- handle_new_user() trigger creates public.users rows automatically.
--- Fill in avatars for walkers:
-UPDATE public.users SET avatar_url = 'https://i.pravatar.cc/300?u=sarah@test.com' WHERE id = '11111111-1111-1111-1111-111111111111';
-UPDATE public.users SET avatar_url = 'https://i.pravatar.cc/300?u=james@test.com' WHERE id = '22222222-2222-2222-2222-222222222222';
-UPDATE public.users SET avatar_url = 'https://i.pravatar.cc/300?u=priya@test.com' WHERE id = '33333333-3333-3333-3333-333333333333';
-UPDATE public.users SET avatar_url = 'https://i.pravatar.cc/300?u=dan@test.com' WHERE id = '44444444-4444-4444-4444-444444444444';
-UPDATE public.users SET avatar_url = 'https://i.pravatar.cc/300?u=meg@test.com' WHERE id = '55555555-5555-5555-5555-555555555555';
+-- Fill in avatars for walkers (people with dogs — Unsplash):
+UPDATE public.users SET avatar_url = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop&crop=face' WHERE id = '11111111-1111-1111-1111-111111111111';
+UPDATE public.users SET avatar_url = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&h=300&fit=crop&crop=face' WHERE id = '22222222-2222-2222-2222-222222222222';
+UPDATE public.users SET avatar_url = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&crop=face' WHERE id = '33333333-3333-3333-3333-333333333333';
+UPDATE public.users SET avatar_url = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=face' WHERE id = '44444444-4444-4444-4444-444444444444';
+UPDATE public.users SET avatar_url = 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&h=300&fit=crop&crop=face' WHERE id = '55555555-5555-5555-5555-555555555555';
 -- Fill in phone + avatars for clients:
-UPDATE public.users SET phone = '07700900001', avatar_url = 'https://i.pravatar.cc/300?u=tom@test.com' WHERE id = 'aaaa0001-0000-0000-0000-000000000000';
-UPDATE public.users SET phone = '07700900002', avatar_url = 'https://i.pravatar.cc/300?u=anya@test.com' WHERE id = 'aaaa0002-0000-0000-0000-000000000000';
+UPDATE public.users SET phone = '07700900001', avatar_url = 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop&crop=face' WHERE id = 'aaaa0001-0000-0000-0000-000000000000';
+UPDATE public.users SET phone = '07700900002', avatar_url = 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&h=300&fit=crop&crop=face' WHERE id = 'aaaa0002-0000-0000-0000-000000000000';
 UPDATE public.users SET phone = '07700900003', avatar_url = 'https://i.pravatar.cc/300?u=marcus@test.com' WHERE id = 'aaaa0003-0000-0000-0000-000000000000';
 
 -- ============================================================

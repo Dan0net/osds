@@ -11,8 +11,14 @@ export default function Layout({ walker }) {
         right={
           <nav className="flex items-center gap-3 text-sm">
             {user ? (
-              <Link to="/account" className="text-gray-600 hover:text-indigo-600">
-                {profile?.name || user.email}
+              <Link to="/account" className="block rounded-full hover:ring-2 hover:ring-indigo-200 transition">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold overflow-hidden">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    (profile?.name?.charAt(0) || user.email?.charAt(0) || '?').toUpperCase()
+                  )}
+                </div>
               </Link>
             ) : (
               <>
