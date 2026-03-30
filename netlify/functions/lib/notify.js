@@ -62,7 +62,10 @@ export { emailTemplate } from './email-template.js'
  * Send an email via Resend. Best-effort — never throws.
  */
 async function sendEmail(to, subject, html) {
-  if (!resend) return
+  if (!resend) {
+    console.log(`[DEV EMAIL] To: ${to} | Subject: ${subject}`)
+    return
+  }
   try {
     await resend.emails.send({
       from: 'One Stop Dog Shop <notifications@onestopdog.shop>',

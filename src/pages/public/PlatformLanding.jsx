@@ -222,8 +222,8 @@ export default function PlatformLanding() {
                           className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-white overflow-hidden"
                           style={{ backgroundColor: walker.theme_color || '#4f46e5' }}
                         >
-                          {walker.users?.avatar_url ? (
-                            <img src={walker.users.avatar_url} alt={walker.business_name} className="w-full h-full object-cover" />
+                          {walker.avatar_url ? (
+                            <img src={walker.avatar_url} alt={walker.business_name} className="w-full h-full object-cover" />
                           ) : (
                             walker.business_name?.charAt(0)
                           )}

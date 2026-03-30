@@ -38,8 +38,10 @@ export async function handler() {
 
   const data = walkers.map((w) => {
     const wRevs = revMap[w.id] || []
+    const { users, ...rest } = w
     return {
-      ...w,
+      ...rest,
+      avatar_url: users?.avatar_url || null,
       reviews: wRevs.slice(0, 2),
       avg_rating: wRevs.length > 0 ? Math.round((wRevs.reduce((s, r) => s + r.rating, 0) / wRevs.length) * 10) / 10 : null,
       review_count: wRevs.length,

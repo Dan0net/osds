@@ -5,11 +5,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "stripe listen --forward-to localhost:8888/.netlify/functions/stripe-webhook & netlify dev",
+    "dev": "npx supabase start && stripe listen --forward-to localhost:8888/.netlify/functions/stripe-webhook & netlify dev",
     "dev:vite": "vite --host",
-    "generate-icons": "node scripts/generate-icons.mjs",
+    "db:reset": "npx supabase db reset",
+    "db:stop": "npx supabase stop",
     "build": "vite build",
     "preview": "vite preview",
+    "generate-icons": "node scripts/generate-icons.mjs",
     "deploy:emails": "node scripts/deploy-email-templates.js",
     "generate:emails": "node scripts/generate-auth-emails.js"
   },

@@ -237,16 +237,76 @@ Single auth model — Supabase Auth (email/password). One account, one login. RL
 
 ## Local Development
 
+Prerequisites: Docker, Node 18+, Stripe CLI.
+
 ```bash
 git clone <repo> && cd osds && npm install
-cp .env.example .env
-# Fill in: SUPABASE_URL, SUPABASE_ANON_KEY, STRIPE_SECRET_KEY,
-#          STRIPE_WEBHOOK_SECRET, RESEND_API_KEY
-npx netlify dev    # Starts Vite + Functions on localhost:8888
+npm run dev        # starts local Supabase + Stripe listener + Netlify dev
 ```
 
-### Auth emails in local dev
+This runs three things:
+- **Local Supabase** (Postgres, Auth, Studio) via Docker
+- **Stripe CLI** listener forwarding webhooks to `localhost:8888`
+- **Netlify Dev** serving Vite frontend + serverless functions on `localhost:8888`
 
-When using the hosted Supabase project, auth emails (confirmation, password reset) are sent through production SMTP and branded "One Stop Dog Shop". The `emailRedirectTo` in AuthContext uses `window.location.origin` dynamically, so redirect URLs work on any host.
+### Local URLs
 
-For fully local auth testing without production emails, run `supabase start` which provides Inbucket at `http://localhost:54324` to capture emails locally.
+| Service | URL |
+|---------|-----|
+| App | http://localhost:8888 |
+| Supabase Studio (browse/edit DB) | http://localhost:54323 |
+| Inbucket (auth emails) | http://localhost:54324 |
+
+### Test Accounts
+
+All seeded users have password **`password123`** and are pre-confirmed.
+
+**Walkers:**
+
+| Email | Name | Area |
+|-------|------|------|
+| sarah@test.com | Sarah Mitchell | Hackney E8 |
+| james@test.com | James Okonkwo | Bethnal Green E2 |
+| priya@test.com | Priya Sharma | Mile End E3 |
+| dan@test.com | Dan Cooper | Stratford E20 |
+| meg@test.com | Meg Taylor | Bow E3 |
+
+**Clients:**
+
+| Email | Name | Pets |
+|-------|------|------|
+| tom@test.com | Tom Henderson | Buddy (Lab), Luna (Cockapoo) |
+| anya@test.com | Anya Petrov | Ziggy (Whippet) |
+| marcus@test.com | Marcus Williams | Bear (GSD), Pickle (JRT) |
+
+### Testing Flows
+
+**Sign in:** Use any test account above at `localhost:8888/login`.
+
+**Sign up (fresh):** Register with any email at `localhost:8888/signup`. Open Inbucket at `localhost:54324` to see the confirmation email and click the link. No real email needed.
+
+**Booking flow:** Sign in as a client (e.g. `tom@test.com`), visit a walker page (e.g. `/w/sarah-mitchell`), select a service and time slot, submit a booking request. Sign in as the walker to approve it.
+
+**Walker onboarding:** Sign in as any user, go to `/account/profile`, click "Become a Walker". Stripe Connect onboarding uses test mode.
+
+**Notification emails:** With `RESEND_API_KEY` empty in `.env`, transactional emails (booking requests, approvals, etc.) log to the terminal instead of sending.
+
+**Reset everything:** `npm run db:reset` re-runs schema + migrations + seed data in seconds.
+
+**Stop Supabase:** `npm run db:stop`.
+
+### Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start full local dev environment |
+| `npm run db:reset` | Reset DB to clean state with seed data |
+| `npm run db:stop` | Stop local Supabase containers |
+| `npm run build` | Production build to `dist/` |
+| `npm run deploy:emails` | Deploy auth email templates to hosted Supabase |
+
+### Production Environment
+
+Production env vars (hosted Supabase, Resend API key, live Stripe keys) are set in the **Netlify dashboard**, not in `.env`. The `.env` file is local dev only and gitignored.
+
+DB migrations are applied to production with `npx supabase db push`.
