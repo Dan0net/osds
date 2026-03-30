@@ -3,25 +3,34 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function Signup() {
+  const [searchParams] = useSearchParams()
+  const initialRole = searchParams.get('role') === 'walker' ? 'walker' : 'owner'
+  const initialPostcode = searchParams.get('postcode') || ''
+
+  const [role, setRole] = useState(initialRole)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [postcode, setPostcode] = useState(initialPostcode)
   const passwordRef = useRef(null)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
-  const [searchParams] = useSearchParams()
   const { signUp, resendVerification } = useAuth()
   const returnTo = searchParams.get('returnTo')
   const loginLink = returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : '/login'
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!postcode.trim()) {
+      setError('Postcode is required.')
+      return
+    }
     setError(null)
     setSubmitting(true)
     try {
-      await signUp(email, passwordRef.current.value, name)
+      await signUp(email, passwordRef.current.value, name, postcode.trim(), role)
       setConfirmed(true)
     } catch (err) {
       setError(err.message)
@@ -80,6 +89,32 @@ export default function Signup() {
     <div className="max-w-md mx-auto px-4 py-16">
       <h1 className="text-2xl mb-6 text-center">Create an account</h1>
 
+      {/* Role toggle */}
+      <div className="flex gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => setRole('owner')}
+          className={`flex-1 cursor-pointer py-3 text-sm font-semibold rounded-lg border-2 transition ${
+            role === 'owner'
+              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+              : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
+          }`}
+        >
+          🐶 Dog owner
+        </button>
+        <button
+          type="button"
+          onClick={() => setRole('walker')}
+          className={`flex-1 cursor-pointer py-3 text-sm font-semibold rounded-lg border-2 transition ${
+            role === 'walker'
+              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+              : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
+          }`}
+        >
+          🦮 Dog walker
+        </button>
+      </div>
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
           {error}
@@ -108,6 +143,19 @@ export default function Signup() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="you@example.com"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Postcode</label>
+          <input
+            type="text"
+            name="postcode"
+            autoComplete="postal-code"
+            required
+            value={postcode}
+            onChange={(e) => setPostcode(e.target.value.toUpperCase())}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            placeholder="SW1A 1AA"
           />
         </div>
         <div>

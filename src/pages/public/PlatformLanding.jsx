@@ -71,10 +71,10 @@ export default function PlatformLanding() {
       {/* Hero */}
       <section className="relative text-white py-16 md:py-28 px-4 overflow-hidden">
         <div className="absolute inset-0">
-          <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=1400&h=600&fit=crop" alt="" className="w-full h-full object-cover brightness-[0.35]" />
+          <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=1400&h=600&fit=crop" alt="" className="w-full h-full object-cover brightness-[0.85]" />
         </div>
         <div className="relative max-w-3xl mx-auto text-center">
-          <h1 className="font-display font-normal text-3xl md:text-4xl mb-4 drop-shadow-lg">
+          <h1 className="font-display font-normal text-3xl md:text-4xl mb-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             Find a trusted local dog walker
           </h1>
           <p className="text-base md:text-xl text-white/90 mb-8">
@@ -117,7 +117,7 @@ export default function PlatformLanding() {
               </button>
             </div>
             <Link
-              to="/signup"
+              to={`/signup?role=walker${postcode.trim() ? `&postcode=${encodeURIComponent(postcode.trim())}` : ''}`}
               className="inline-block mt-3 border border-white/40 text-white font-semibold px-4 py-2.5 rounded-lg hover:bg-white/10 text-sm transition whitespace-nowrap"
             >
               I'm a walker
@@ -291,7 +291,7 @@ export default function PlatformLanding() {
             </div>
             <div className="text-center mt-10">
               <Link
-                to="/signup"
+                to={`/signup?role=walker${postcode.trim() ? `&postcode=${encodeURIComponent(postcode.trim())}` : ''}`}
                 className="inline-block bg-indigo-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-indigo-700 transition text-sm"
               >
                 Create your page — it's free

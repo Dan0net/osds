@@ -136,7 +136,7 @@ export default function WalkerPage() {
         {walker.cover_url ? (
           <div className="absolute inset-0">
             <img src={walker.cover_url} alt="" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/70" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/15" />
           </div>
         ) : (
           <div className="absolute inset-0" style={{ backgroundColor: walker.theme_color || '#4f46e5' }} />
@@ -159,7 +159,7 @@ export default function WalkerPage() {
               walker.business_name.charAt(0)
             )}
           </div>
-          <h1 className="font-display font-normal text-3xl md:text-4xl mb-1">{walker.business_name}</h1>
+          <h1 className="font-display font-normal text-3xl md:text-4xl mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{walker.business_name}</h1>
           {avgRating && (
             <div className="flex items-center justify-center gap-1.5 text-sm mb-1">
               <span className="text-yellow-300">{'★'.repeat(Math.round(avgRating))}</span>
