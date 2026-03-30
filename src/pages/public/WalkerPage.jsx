@@ -159,7 +159,7 @@ export default function WalkerPage() {
               walker.business_name.charAt(0)
             )}
           </div>
-          <h1 className="text-3xl md:text-4xl mb-1">{walker.business_name}</h1>
+          <h1 className="font-display font-normal text-3xl md:text-4xl mb-1">{walker.business_name}</h1>
           {avgRating && (
             <div className="flex items-center justify-center gap-1.5 text-sm mb-1">
               <span className="text-yellow-300">{'★'.repeat(Math.round(avgRating))}</span>

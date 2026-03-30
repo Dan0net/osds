@@ -74,7 +74,7 @@ export default function PlatformLanding() {
           <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=1400&h=600&fit=crop" alt="" className="w-full h-full object-cover brightness-[0.35]" />
         </div>
         <div className="relative max-w-3xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl mb-4 drop-shadow-lg">
+          <h1 className="font-display font-normal text-3xl md:text-4xl mb-4 drop-shadow-lg">
             Find a trusted local dog walker
           </h1>
           <p className="text-base md:text-xl text-white/90 mb-8">
