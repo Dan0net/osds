@@ -1,7 +1,7 @@
 # UI
 - fast book with regular walkers for clients
 - welcome email with nearby walkers
-
+- account ui is terrible
 
 # Notifications
 - take user to booking request / payment directly
@@ -10,6 +10,7 @@
 
 # Owner signup
 - inline popup + email code at booking time
+- get notifications setup
 
 # Walker signup
 - ensure stripe is connected properly, not just Onboarding incomplete, before marking setup as complete and finishing setup wizard

@@ -1,7 +1,7 @@
 import dns from 'dns/promises'
 import IcalExpander from 'ical-expander'
 
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
 const FETCH_TIMEOUT_MS = 10_000
 const MAX_BODY_BYTES = 1_000_000 // 1MB
 const WINDOW_DAYS = 30
@@ -156,25 +156,12 @@ export async function fetchIcalUrl(url) {
   return { rawText }
 }
 
-async function fetchAndParseSingle(supabase, importRow) {
-  // Check cache
-  const { data: cached } = await supabase
-    .from('ical_cache')
-    .select('events_json, fetched_at')
-    .eq('import_id', importRow.id)
-    .single()
-
-  if (cached && (Date.now() - new Date(cached.fetched_at).getTime()) < CACHE_TTL_MS) {
-    return { events: cached.events_json, error: null }
-  }
-
-  // Fetch and validate
+async function refreshCacheSingle(supabase, importRow) {
   const { rawText, error: fetchError } = await fetchIcalUrl(importRow.url)
   if (fetchError) {
     return { events: [], error: `${importRow.label}: ${fetchError}` }
   }
 
-  // Parse
   let events
   try {
     events = parseIcsEvents(rawText)
@@ -182,7 +169,6 @@ async function fetchAndParseSingle(supabase, importRow) {
     return { events: [], error: `${importRow.label}: Failed to parse calendar data` }
   }
 
-  // Upsert cache
   await supabase
     .from('ical_cache')
     .upsert({
@@ -195,11 +181,34 @@ async function fetchAndParseSingle(supabase, importRow) {
   return { events, error: null }
 }
 
+async function fetchAndParseSingle(supabase, importRow, { allowStale = false } = {}) {
+  const { data: cached } = await supabase
+    .from('ical_cache')
+    .select('events_json, fetched_at')
+    .eq('import_id', importRow.id)
+    .single()
+
+  const isFresh = cached && (Date.now() - new Date(cached.fetched_at).getTime()) < CACHE_TTL_MS
+
+  if (isFresh) {
+    return { events: cached.events_json, error: null }
+  }
+
+  // Stale cache available — return it immediately and refresh in background
+  if (allowStale && cached) {
+    refreshCacheSingle(supabase, importRow).catch(() => {})
+    return { events: cached.events_json, error: null }
+  }
+
+  // No cache or not in stale-ok mode — fetch synchronously
+  return refreshCacheSingle(supabase, importRow)
+}
+
 /**
  * Fetch and merge external calendar events for a walker from all their imports.
  * Returns { events: [...], errors: [...] }
  */
-export async function fetchExternalEvents(supabase, walkerId) {
+export async function fetchExternalEvents(supabase, walkerId, { allowStale = false } = {}) {
   const { data: imports } = await supabase
     .from('ical_imports')
     .select('*')
@@ -213,7 +222,7 @@ export async function fetchExternalEvents(supabase, walkerId) {
   const allErrors = []
 
   const results = await Promise.all(
-    imports.map((imp) => fetchAndParseSingle(supabase, imp))
+    imports.map((imp) => fetchAndParseSingle(supabase, imp, { allowStale }))
   )
 
   for (const { events, error } of results) {

@@ -1,64 +1,38 @@
 import { createClient } from '@supabase/supabase-js'
 import { fetchExternalEvents } from './lib/ical-import.js'
 
-// Use service role to bypass RLS — this function runs server-side only
-// and returns only computed slot times, never raw booking data
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 )
 
-export async function handler(event) {
-  if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) }
+function getDayOfWeek(dateStr) {
+  const jsDay = new Date(dateStr + 'T00:00:00').getDay()
+  return jsDay === 0 ? 7 : jsDay // Mon=1...Sun=7
+}
+
+function generateDates(startDate, endDate) {
+  const dates = []
+  const d = new Date(startDate + 'T00:00:00')
+  const end = new Date(endDate + 'T00:00:00')
+  while (d <= end) {
+    dates.push(d.toISOString().split('T')[0])
+    d.setDate(d.getDate() + 1)
+  }
+  return dates
+}
+
+function computeSlotsForDate(date, { duration, isOvernight, blockedSet, availByDay, standardBookings, overnightBookings, externalEvents }) {
+  if (blockedSet.has(date)) {
+    return { slots: [], allSlots: [], blocked: true }
   }
 
-  const params = event.queryStringParameters || {}
-  const { walker_id, date, duration_minutes, service_type } = params
-  const duration = parseInt(duration_minutes) || 30
-  const isOvernight = service_type === 'overnight'
-
-  if (!walker_id || !date) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'walker_id and date are required' }) }
+  const dayOfWeek = getDayOfWeek(date)
+  const window = availByDay[dayOfWeek]
+  if (!window) {
+    return { slots: [], allSlots: [], noAvailability: true }
   }
 
-  // Get day of week — schema uses Mon=1...Sun=7 (written by AccountSettings)
-  const dateObj = new Date(date + 'T00:00:00')
-  const jsDay = dateObj.getDay() // 0=Sun
-  const dayOfWeek = jsDay === 0 ? 7 : jsDay
-
-  // Check if date is blocked
-  const { data: blocked } = await supabase
-    .from('blocked_dates')
-    .select('id')
-    .eq('walker_id', walker_id)
-    .eq('date', date)
-    .limit(1)
-
-  if (blocked && blocked.length > 0) {
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { slots: [], blocked: true } }),
-    }
-  }
-
-  // Get availability for this day of week
-  const { data: avail } = await supabase
-    .from('availability')
-    .select('*')
-    .eq('walker_id', walker_id)
-    .eq('day_of_week', dayOfWeek)
-
-  if (!avail || avail.length === 0) {
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { slots: [], noAvailability: true } }),
-    }
-  }
-
-  const window = avail[0]
   const [startH, startM] = window.start_time.split(':').map(Number)
   const [endH, endM] = window.end_time.split(':').map(Number)
   let startMinutes = startH * 60 + startM
@@ -77,45 +51,18 @@ export async function handler(event) {
     allSlots.push(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`)
   }
 
-  // Fetch existing bookings that could affect availability on this date
-  // Only confirmed-path bookings block availability
-  const blockingStatuses = ['approved', 'hold', 'confirmed']
-
-  // Standard bookings on this date
-  const { data: standardBookings } = await supabase
-    .from('bookings')
-    .select('*, services(duration_minutes, service_type)')
-    .eq('walker_id', walker_id)
-    .eq('booking_date', date)
-    .in('status', blockingStatuses)
-
-  // Overnight bookings that may span this date (end_date differs from booking_date)
-  const { data: overnightBookings } = await supabase
-    .from('bookings')
-    .select('*')
-    .eq('walker_id', walker_id)
-    .in('status', blockingStatuses)
-    .not('end_date', 'is', null)
-    .lte('booking_date', date)
-    .gte('end_date', date)
-
-  // Build a map of slot -> count of bookings using that slot
+  // Build slot usage from standard bookings on this date
   const slotUsage = {}
-
-  // Process standard bookings
-  for (const booking of (standardBookings || [])) {
-    if (booking.end_date && booking.end_date !== booking.booking_date) continue // skip overnights handled below
+  const dateStandard = standardBookings.filter((b) => b.booking_date === date)
+  for (const booking of dateStandard) {
+    if (booking.end_date && booking.end_date !== booking.booking_date) continue
     const [bStartH, bStartM] = booking.start_time.split(':').map(Number)
     const bStartMin = bStartH * 60 + bStartM
-
-    // Determine duration from end_time
     let bDuration = 30
     if (booking.end_time) {
       const [bEndH, bEndM] = booking.end_time.split(':').map(Number)
       bDuration = (bEndH * 60 + bEndM) - bStartMin
     }
-
-    // Mark all 30-min grid slots that this booking covers
     for (let m = bStartMin; m < bStartMin + bDuration; m += 30) {
       const slotTime = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
       slotUsage[slotTime] = (slotUsage[slotTime] || 0) + 1
@@ -124,13 +71,11 @@ export async function handler(event) {
 
   // Process overnight bookings that span this date
   const overnightBlocked = new Set()
-  const overnightBookingsList = overnightBookings || []
-  for (const booking of overnightBookingsList) {
-    // Skip if end_date equals booking_date — not a real overnight, handled above as standard
+  for (const booking of overnightBookings) {
     if (booking.end_date === booking.booking_date) continue
+    if (!(date >= booking.booking_date && date <= booking.end_date)) continue
 
     const reopenedSlots = booking.reopened_slots || []
-
     for (const slot of allSlots) {
       const [h, m] = slot.split(':').map(Number)
       const slotMin = h * 60 + m
@@ -147,22 +92,19 @@ export async function handler(event) {
       }
 
       if (inRange) {
-        // Check if reopened
         const reopened = reopenedSlots.some((s) => s.date === date && s.time === slot)
         if (reopened && !isOvernight && duration < 180) {
-          continue // slot available for short non-overnight services
+          continue
         }
         overnightBlocked.add(slot)
       }
     }
   }
 
-  // Subtract external calendar events (iCal imports)
-  const { events: externalEvents } = await fetchExternalEvents(supabase, walker_id)
+  // External calendar events
   for (const ext of externalEvents) {
     if (ext.date !== date) continue
     if (ext.allDay) {
-      // All-day event blocks the entire availability window
       for (let m = startMinutes; m < endMinutes; m += 30) {
         const slotTime = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
         slotUsage[slotTime] = (slotUsage[slotTime] || 0) + 1
@@ -179,27 +121,74 @@ export async function handler(event) {
     }
   }
 
-  // Filter available slots: check capacity and overnight blocking
-  const availableSlots = allSlots.filter((slot) => {
+  // Filter available slots
+  const slots = allSlots.filter((slot) => {
     if (overnightBlocked.has(slot)) return false
-
-    // For multi-slot bookings, check all slots this booking would cover
     const [h, m] = slot.split(':').map(Number)
     const startMin = h * 60 + m
     for (let checkM = startMin; checkM < startMin + duration; checkM += 30) {
       const checkSlot = `${String(Math.floor(checkM / 60)).padStart(2, '0')}:${String(checkM % 60).padStart(2, '0')}`
       const usage = slotUsage[checkSlot] || 0
-      // Default capacity is 1 — slot is blocked if usage >= 1
-      // For group services with capacity > 1, this would need per-slot capacity tracking
       if (usage >= 1) return false
     }
-
     return true
   })
+
+  return { slots, allSlots }
+}
+
+export async function handler(event) {
+  if (event.httpMethod !== 'GET') {
+    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) }
+  }
+
+  const params = event.queryStringParameters || {}
+  const { walker_id, start_date, end_date, duration_minutes, service_type } = params
+  const duration = parseInt(duration_minutes) || 30
+  const isOvernight = service_type === 'overnight'
+
+  if (!walker_id || !start_date || !end_date) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'walker_id, start_date, and end_date are required' }) }
+  }
+
+  const dates = generateDates(start_date, end_date)
+  if (dates.length > 35) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Date range too large (max 35 days)' }) }
+  }
+
+  const uniqueDays = [...new Set(dates.map(getDayOfWeek))]
+  const blockingStatuses = ['approved', 'hold', 'confirmed']
+
+  // All queries in parallel
+  const [blockedResult, availResult, standardResult, overnightResult, externalResult] = await Promise.all([
+    supabase.from('blocked_dates').select('id, date').eq('walker_id', walker_id).gte('date', start_date).lte('date', end_date),
+    supabase.from('availability').select('*').eq('walker_id', walker_id).in('day_of_week', uniqueDays),
+    supabase.from('bookings').select('*, services(duration_minutes, service_type)').eq('walker_id', walker_id).gte('booking_date', start_date).lte('booking_date', end_date).in('status', blockingStatuses),
+    supabase.from('bookings').select('*').eq('walker_id', walker_id).in('status', blockingStatuses).not('end_date', 'is', null).lte('booking_date', end_date).gte('end_date', start_date),
+    fetchExternalEvents(supabase, walker_id, { allowStale: true }),
+  ])
+
+  const blockedSet = new Set((blockedResult.data || []).map((b) => b.date))
+  const availByDay = {}
+  for (const a of (availResult.data || [])) {
+    availByDay[a.day_of_week] = a
+  }
+  const standardBookings = standardResult.data || []
+  const overnightBookings = overnightResult.data || []
+  const externalEvents = externalResult.events || []
+
+  // Compute slots for each date
+  const result = {}
+  for (const date of dates) {
+    result[date] = computeSlotsForDate(date, {
+      duration, isOvernight, blockedSet, availByDay,
+      standardBookings, overnightBookings, externalEvents,
+    })
+  }
 
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: { slots: availableSlots, allSlots } }),
+    body: JSON.stringify({ data: result }),
   }
 }

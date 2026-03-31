@@ -78,8 +78,8 @@ export default function AccountBookings() {
   async function loadBookings() {
     setLoading(true)
 
-    // Load my bookings as a client
-    const { data: clientBookings } = await supabase
+    // Run all queries in parallel
+    const clientBookingsPromise = supabase
       .from('bookings')
       .select(`
         *,
@@ -91,36 +91,29 @@ export default function AccountBookings() {
       .eq('client_id', user.id)
       .order('booking_date', { ascending: false })
 
-    setMine((clientBookings || []).map(formatBooking))
+    const walkerPromises = walkerProfile
+      ? [
+          supabase.from('bookings').select(`
+            *,
+            services(*),
+            pets(*),
+            users!bookings_client_id_fkey(name)
+          `).eq('walker_id', walkerProfile.id).order('booking_date', { ascending: false }),
+          supabase.from('availability').select('*').eq('walker_id', walkerProfile.id),
+          supabase.from('blocked_dates').select('*').eq('walker_id', walkerProfile.id),
+          apiFetch('get-external-events'),
+        ]
+      : []
 
-    // Load incoming bookings as walker
+    const [clientResult, ...walkerResults] = await Promise.all([clientBookingsPromise, ...walkerPromises])
+
+    setMine((clientResult.data || []).map(formatBooking))
+
     if (walkerProfile) {
-      const { data: walkerBookings } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          services(*),
-          pets(*),
-          users!bookings_client_id_fkey(name)
-        `)
-        .eq('walker_id', walkerProfile.id)
-        .order('booking_date', { ascending: false })
-
-      setIncoming((walkerBookings || []).map(formatBooking))
-    }
-
-    // Load availability + blocked dates + external events for calendar shading
-    if (walkerProfile) {
-      const [{ data: availData }, { data: blockData }] = await Promise.all([
-        supabase.from('availability').select('*').eq('walker_id', walkerProfile.id),
-        supabase.from('blocked_dates').select('*').eq('walker_id', walkerProfile.id),
-      ])
-      setAvailability(availData || [])
-      setBlockedDates(blockData || [])
-
-      // Fetch external calendar events
-      const extRes = await apiFetch('get-external-events')
-      setExternalEvents(extRes.data?.events || [])
+      setIncoming((walkerResults[0].data || []).map(formatBooking))
+      setAvailability(walkerResults[1].data || [])
+      setBlockedDates(walkerResults[2].data || [])
+      setExternalEvents(walkerResults[3].data?.events || [])
     }
 
     setLoading(false)

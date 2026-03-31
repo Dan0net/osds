@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { clientPriceCents } from '../lib/utils'
 
@@ -9,6 +9,10 @@ function getWeekDates(baseDate) {
     date.setDate(d.getDate() + i)
     return date.toISOString().split('T')[0]
   })
+}
+
+function toDateStr(d) {
+  return d.toISOString().split('T')[0]
 }
 
 function timeStr(min) {
@@ -62,8 +66,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
       return saved ? JSON.parse(saved) : []
     } catch { return [] }
   })
-  const [weekSlots, setWeekSlots] = useState({})
-  const [fullTimeGrid, setFullTimeGrid] = useState([])
+  // weekSlots and fullTimeGrid are derived via useMemo below
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
   const [mobileOffset, setMobileOffset] = useState(0)
@@ -100,29 +103,87 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const DROP_MIN = 18 * 60
   const PICK_MIN = 10 * 60
 
-  // --- Fetch availability ---
-  const weekKey = weekDates.join(',')
+  // --- Pre-fetch 28 days of availability ---
+  const [allSlotData, setAllSlotData] = useState({}) // { [date]: { slots, allSlots } }
+  const [fetchedRange, setFetchedRange] = useState(null) // { start, end }
+
+  const fetchRange = useCallback(async (startDate, endDate, signal) => {
+    const params = new URLSearchParams({
+      walker_id: walkerId,
+      start_date: startDate,
+      end_date: endDate,
+      duration_minutes: String(duration),
+      service_type: service?.service_type || 'standard',
+    })
+    try {
+      const res = await fetch(`/.netlify/functions/get-availability?${params}`, { signal })
+      const json = await res.json()
+      return json.data || {}
+    } catch {
+      return {}
+    }
+  }, [walkerId, duration, service?.service_type])
+
+  // Fetch 28 days on mount and when service changes
   useEffect(() => {
     if (!walkerId) return
-    let cancelled = false
+    const controller = new AbortController()
     setLoadingSlots(true)
-    Promise.all(weekDates.map(async (date) => {
-      const params = new URLSearchParams({ walker_id: walkerId, date, duration_minutes: '30', service_type: 'standard' })
-      try {
-        const res = await fetch(`/.netlify/functions/get-availability?${params}`)
-        const json = await res.json()
-        return { date, slots: json.data?.slots || [], all: json.data?.allSlots || json.data?.slots || [] }
-      } catch { return { date, slots: [], all: [] } }
-    })).then((results) => {
-      if (cancelled) return
-      const slotMap = {}, times = new Set()
-      for (const r of results) { slotMap[r.date] = r.slots; r.all.forEach((t) => times.add(t)) }
-      setWeekSlots(slotMap)
-      setFullTimeGrid(Array.from(times).sort())
+
+    const start = new Date()
+    const end = new Date()
+    end.setDate(start.getDate() + 27)
+    const startStr = toDateStr(start)
+    const endStr = toDateStr(end)
+
+    fetchRange(startStr, endStr, controller.signal).then((data) => {
+      if (controller.signal.aborted) return
+      setAllSlotData(data)
+      setFetchedRange({ start: startStr, end: endStr })
       setLoadingSlots(false)
     })
-    return () => { cancelled = true }
-  }, [walkerId, weekKey])
+    return () => controller.abort()
+  }, [walkerId, fetchRange])
+
+  // If the user navigates beyond the pre-fetched range, fetch more
+  useEffect(() => {
+    if (!walkerId || !fetchedRange) return
+    const needsStart = weekDates[0]
+    const needsEnd = weekDates[6]
+    if (needsStart >= fetchedRange.start && needsEnd <= fetchedRange.end) return
+
+    const controller = new AbortController()
+    setLoadingSlots(true)
+
+    // Fetch a new 28-day window starting from the current week
+    const end = new Date(needsStart + 'T00:00:00')
+    end.setDate(end.getDate() + 27)
+    const endStr = toDateStr(end)
+
+    fetchRange(needsStart, endStr, controller.signal).then((data) => {
+      if (controller.signal.aborted) return
+      setAllSlotData((prev) => ({ ...prev, ...data }))
+      setFetchedRange((prev) => ({
+        start: needsStart < prev.start ? needsStart : prev.start,
+        end: endStr > prev.end ? endStr : prev.end,
+      }))
+      setLoadingSlots(false)
+    })
+    return () => controller.abort()
+  }, [walkerId, weekDates[0], weekDates[6], fetchedRange, fetchRange])
+
+  // Derive weekSlots and fullTimeGrid synchronously from pre-fetched data
+  const { weekSlots, fullTimeGrid } = useMemo(() => {
+    const slotMap = {}
+    const times = new Set()
+    for (const date of weekDates) {
+      const day = allSlotData[date]
+      slotMap[date] = day?.slots || []
+      const allTimes = day?.allSlots || day?.slots || []
+      allTimes.forEach((t) => times.add(t))
+    }
+    return { weekSlots: slotMap, fullTimeGrid: Array.from(times).sort() }
+  }, [weekDates.join(','), allSlotData])
 
   // --- Derived values ---
   const baseStartH = fullTimeGrid.length > 0 ? Math.max(7, parseInt(fullTimeGrid[0])) : 7
