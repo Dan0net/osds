@@ -94,6 +94,18 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  async function requestPasswordReset(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    if (error) throw error
+  }
+
+  async function updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
+  }
+
   async function refreshProfile() {
     if (user) {
       await Promise.all([
@@ -142,6 +154,8 @@ export function AuthProvider({ children }) {
         signIn,
         signOut,
         resendVerification,
+        requestPasswordReset,
+        updatePassword,
         refreshProfile,
         completeSetup,
       }}

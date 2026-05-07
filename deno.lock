@@ -15,13 +15,20 @@
         "npm:@tailwindcss/vite@^4.2.1",
         "npm:@vitejs/plugin-react@^5.1.4",
         "npm:date-fns@^4.1.0",
+        "npm:dotenv@^17.3.1",
+        "npm:ical-expander@^3.2.0",
+        "npm:ics@^3.11.0",
+        "npm:lucide-react@^1.7.0",
         "npm:netlify-cli@^24.4.0",
         "npm:react-dom@^19.2.4",
         "npm:react-router-dom@^7.13.1",
         "npm:react@^19.2.4",
+        "npm:resend@^6.4.2",
         "npm:stripe@^20.4.1",
+        "npm:supabase@^2.84.4",
         "npm:tailwindcss@^4.2.1",
-        "npm:vite@^7.3.1"
+        "npm:vite@^7.3.1",
+        "npm:web-push@^3.6.7"
       ]
     }
   }

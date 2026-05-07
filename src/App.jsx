@@ -17,6 +17,8 @@ import BookingFlow from './pages/public/BookingFlow'
 import Confirmation from './pages/public/Confirmation'
 import Login from './pages/public/Login'
 import Signup from './pages/public/Signup'
+import ForgotPassword from './pages/public/ForgotPassword'
+import ResetPassword from './pages/public/ResetPassword'
 import AccountLayout from './pages/account/AccountLayout'
 import AccountDashboard from './pages/account/AccountDashboard'
 import AccountBookings from './pages/account/AccountBookings'
@@ -49,6 +51,8 @@ function PlatformRoutes() {
         <Route index element={<PlatformLanding />} />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="reset-password" element={<ResetPassword />} />
 
         {/* Path-based walker fallback for local dev */}
         <Route path="w/:walker" element={<WalkerPage />} />
