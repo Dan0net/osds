@@ -11,7 +11,7 @@ const STATUS_COLORS = {
   partially_refunded: 'bg-orange-100 text-orange-700',
 }
 
-export default function AccountPayments() {
+export default function AccountMoney() {
   const { user, walkerProfile: wp } = useAuth()
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)

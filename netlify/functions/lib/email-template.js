@@ -18,7 +18,7 @@ export function emailTemplate(title, bodyParagraphs, ctaText, ctaUrl, footerHtml
 
   const footer = footerHtml !== undefined
     ? footerHtml
-    : `<p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px"><a href="${siteUrl}/account/notifications" style="color:#9ca3af;text-decoration:underline">Manage your notification preferences</a></p>`
+    : `<p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:16px"><a href="${siteUrl}/account/messages?tab=preferences" style="color:#9ca3af;text-decoration:underline">Manage your notification preferences</a></p>`
 
   return `<!DOCTYPE html>
 <html>

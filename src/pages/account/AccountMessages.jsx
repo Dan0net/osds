@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { usePushSubscription } from '../../hooks/usePushSubscription'
 
-export default function AccountInbox() {
+export default function AccountMessages() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()

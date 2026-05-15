@@ -51,3 +51,10 @@ export const walkerCreateBooking = (params) =>
     method: 'POST',
     body: JSON.stringify(params),
   })
+
+// Invite a customer (Supabase invite + profile backfill)
+export const inviteCustomer = (params) =>
+  apiFetch('invite-customer', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })

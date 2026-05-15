@@ -153,7 +153,7 @@ export async function notify(supabase, userId, event) {
       await sendPushToUser(supabase, userId, {
         title: event.title,
         body: event.body || '',
-        url: event.link || '/account/inbox',
+        url: event.link || '/account/messages',
       })
     }
   } catch (err) {

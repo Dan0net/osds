@@ -40,7 +40,7 @@ export async function handler(event) {
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: sub.keys },
-        JSON.stringify({ title, body: pushBody || '', url: url || '/account/inbox' }),
+        JSON.stringify({ title, body: pushBody || '', url: url || '/account/messages' }),
       )
       sent++
     } catch (err) {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { resolveWalker } from './lib/walker'
 import { AuthProvider } from './context/AuthContext'
@@ -20,15 +20,19 @@ import Signup from './pages/public/Signup'
 import ForgotPassword from './pages/public/ForgotPassword'
 import ResetPassword from './pages/public/ResetPassword'
 import AccountLayout from './pages/account/AccountLayout'
-import AccountDashboard from './pages/account/AccountDashboard'
 import AccountBookings from './pages/account/AccountBookings'
 import AccountPets from './pages/account/AccountPets'
-import AccountPayments from './pages/account/AccountPayments'
-import AccountInbox from './pages/account/AccountInbox'
+import AccountMoney from './pages/account/AccountMoney'
+import AccountMessages from './pages/account/AccountMessages'
 import AccountProfile from './pages/account/AccountProfile'
-import AccountSettings from './pages/account/AccountSettings'
+import AccountSettingsLayout from './pages/account/AccountSettingsLayout'
+import AccountAvailability from './pages/account/AccountAvailability'
+import AccountCalendarSync from './pages/account/AccountCalendarSync'
+import AccountServices from './pages/account/AccountServices'
+import ServiceDetail from './pages/account/ServiceDetail'
+import AccountCustomers from './pages/account/AccountCustomers'
+import CustomerDetail from './pages/account/CustomerDetail'
 import BookingDetail from './pages/account/BookingDetail'
-import AccountNotifications from './pages/account/AccountNotifications'
 
 function WalkerRoutes({ walker }) {
   return (
@@ -62,15 +66,25 @@ function PlatformRoutes() {
 
       <Route path="account" element={<ProtectedRoute />}>
         <Route element={<AccountLayout />}>
-          <Route index element={<AccountDashboard />} />
+          <Route index element={<Navigate to="/account/bookings" replace />} />
           <Route path="bookings" element={<AccountBookings />} />
           <Route path="bookings/:bookingId" element={<BookingDetail />} />
           <Route path="pets" element={<AccountPets />} />
-          <Route path="payments" element={<AccountPayments />} />
-          <Route path="inbox" element={<AccountInbox />} />
+          <Route path="money" element={<AccountMoney />} />
+          <Route path="payments" element={<Navigate to="/account/money" replace />} />
+          <Route path="messages" element={<AccountMessages />} />
+          <Route path="inbox" element={<Navigate to="/account/messages" replace />} />
+          <Route path="notifications" element={<Navigate to="/account/messages?tab=preferences" replace />} />
+          <Route path="services" element={<AccountServices />} />
+          <Route path="services/:serviceId" element={<ServiceDetail />} />
+          <Route path="customers" element={<AccountCustomers />} />
+          <Route path="customers/:clientId" element={<CustomerDetail />} />
           <Route path="profile" element={<AccountProfile />} />
-          <Route path="notifications" element={<AccountNotifications />} />
-          <Route path="settings" element={<AccountSettings />} />
+          <Route path="settings" element={<AccountSettingsLayout />}>
+            <Route index element={<Navigate to="availability" replace />} />
+            <Route path="availability" element={<AccountAvailability />} />
+            <Route path="calendar-sync" element={<AccountCalendarSync />} />
+          </Route>
         </Route>
       </Route>
     </Routes>

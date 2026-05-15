@@ -75,7 +75,7 @@ export async function handler(event) {
       const svcName = paidBookings?.services?.name || 'booking'
       const when = paidBookings ? formatDateTime(paidBookings.booking_date, paidBookings.start_time) : ''
       if (walkerProfile) {
-        const bookingLink = paidBookings?.id ? `/account/bookings/${paidBookings.id}` : '/account/payments'
+        const bookingLink = paidBookings?.id ? `/account/bookings/${paidBookings.id}` : '/account/money'
         const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
         notify(supabase, walkerProfile.user_id, {
           type: 'payment_confirmed',
