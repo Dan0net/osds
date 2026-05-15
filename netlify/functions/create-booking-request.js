@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatSlots } from './lib/notify.js'
+import { slotNetCents } from './lib/pricing.js'
 
 const OSDS_FEE_RATE = 0.05
 const STRIPE_PERCENT_RATE = 0.034
@@ -61,7 +62,7 @@ export async function handler(event) {
   const serviceIds = [...new Set(slots.map((s) => s.serviceId))]
   const { data: services } = await supabase
     .from('services')
-    .select('id, name, price_cents, duration_minutes, service_type, active')
+    .select('id, name, price_cents, duration_minutes, service_type, active, holiday_rate_cents, extra_pet_rate_cents, blocks_slot')
     .in('id', serviceIds)
     .eq('walker_id', walker_id)
 
@@ -143,14 +144,19 @@ export async function handler(event) {
     }
   }
 
-  // Create payment row upfront to group bookings
+  // Create payment row upfront to group bookings. Public flow doesn't expose
+  // holiday rate, so isHoliday is always false here.
   const netTotalCents = slots.reduce((sum, slot) => {
     const svc = serviceMap[slot.serviceId]
-    if (slot.isOvernight && slot.endDate) {
-      const nights = Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
-      return sum + svc.price_cents * nights
-    }
-    return sum + svc.price_cents
+    const nights = slot.isOvernight && slot.endDate
+      ? Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
+      : 1
+    return sum + slotNetCents(svc, {
+      petCount: 1,
+      isHoliday: false,
+      isOvernight: !!slot.isOvernight,
+      nights,
+    })
   }, 0)
   const grossTotalCents = grossUp(netTotalCents)
 
@@ -186,6 +192,7 @@ export async function handler(event) {
       end_date: slot.endDate || null,
       capacity: 1,
       status: 'requested',
+      blocks_slot: svc.blocks_slot,
     }
 
     if (slot.isOvernight) {

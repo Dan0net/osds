@@ -7,7 +7,6 @@ import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
 import { colorForBooking } from '../../lib/eventColor'
 import { loadWalkerCustomers } from '../../lib/customers'
-import Modal from '../../components/Modal'
 import BookingForm from '../../components/account/BookingForm'
 import MonthCalendar from '../../components/account/MonthCalendar'
 import DayDetail from '../../components/account/DayDetail'
@@ -39,8 +38,6 @@ export default function AccountBookings() {
   const [view, setView] = useState(readStoredView)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => new Date())
-  const [bookingFormValid, setBookingFormValid] = useState(false)
-  const [bookingSubmitting, setBookingSubmitting] = useState(false)
   // Mobile drawer is open by default showing today's events; on desktop the
   // sidebar is always visible and this flag is ignored.
   const [sheetOpen, setSheetOpen] = useState(true)
@@ -271,22 +268,11 @@ export default function AccountBookings() {
         </div>
       )}
 
-      <Modal
+      <BookingForm
         open={createBookingModal}
         onClose={() => setCreateBookingModal(false)}
-        title="New booking"
-        formId="booking-form"
-        saveLabel="Create"
-        saveDisabled={!bookingFormValid}
-        saveLoading={bookingSubmitting}
-      >
-        <BookingForm
-          formId="booking-form"
-          onValidityChange={setBookingFormValid}
-          onSubmittingChange={setBookingSubmitting}
-          onCreated={() => { setCreateBookingModal(false); loadBookings() }}
-        />
-      </Modal>
+        onCreated={() => { setCreateBookingModal(false); loadBookings() }}
+      />
     </div>
   )
 }

@@ -63,7 +63,8 @@ function computeSlotsForDate(date, { duration, isOvernight, blockedSet, availByD
       const [bEndH, bEndM] = booking.end_time.split(':').map(Number)
       bDuration = (bEndH * 60 + bEndM) - bStartMin
     }
-    for (let m = bStartMin; m < bStartMin + bDuration; m += 30) {
+    const buffer = booking.services?.buffer_after_minutes || 0
+    for (let m = bStartMin; m < bStartMin + bDuration + buffer; m += 30) {
       const slotTime = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
       slotUsage[slotTime] = (slotUsage[slotTime] || 0) + 1
     }
@@ -163,8 +164,8 @@ export async function handler(event) {
   const [blockedResult, availResult, standardResult, overnightResult, externalResult] = await Promise.all([
     supabase.from('blocked_dates').select('id, date').eq('walker_id', walker_id).gte('date', start_date).lte('date', end_date),
     supabase.from('availability').select('*').eq('walker_id', walker_id).in('day_of_week', uniqueDays),
-    supabase.from('bookings').select('*, services(duration_minutes, service_type)').eq('walker_id', walker_id).gte('booking_date', start_date).lte('booking_date', end_date).in('status', blockingStatuses),
-    supabase.from('bookings').select('*').eq('walker_id', walker_id).in('status', blockingStatuses).not('end_date', 'is', null).lte('booking_date', end_date).gte('end_date', start_date),
+    supabase.from('bookings').select('*, services(duration_minutes, service_type, buffer_after_minutes)').eq('walker_id', walker_id).eq('blocks_slot', true).gte('booking_date', start_date).lte('booking_date', end_date).in('status', blockingStatuses),
+    supabase.from('bookings').select('*').eq('walker_id', walker_id).eq('blocks_slot', true).in('status', blockingStatuses).not('end_date', 'is', null).lte('booking_date', end_date).gte('end_date', start_date),
     fetchExternalEvents(supabase, walker_id, { allowStale: true }),
   ])
 

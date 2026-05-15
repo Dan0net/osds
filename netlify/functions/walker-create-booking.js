@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatSlots } from './lib/notify.js'
+import { slotNetCents } from './lib/pricing.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const OSDS_FEE_RATE = 0.05
@@ -82,7 +83,7 @@ export async function handler(event) {
   const serviceIds = [...new Set(slots.map((s) => s.serviceId))]
   const { data: services } = await adminSupabase
     .from('services')
-    .select('id, price_cents, duration_minutes, service_type, name, active')
+    .select('id, price_cents, duration_minutes, service_type, name, active, holiday_rate_cents, extra_pet_rate_cents, blocks_slot')
     .in('id', serviceIds)
     .eq('walker_id', wp.id)
 
@@ -98,15 +99,23 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'One or more services not found' }) }
   }
 
-  // Calculate total from server-side prices (net = walker's price)
-  const netTotalCents = slots.reduce((sum, slot) => {
+  const petCount = finalPetIds.length || 1
+
+  function netForSlot(slot) {
     const svc = serviceMap[slot.serviceId]
-    if (slot.isOvernight && slot.endDate) {
-      const nights = Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
-      return sum + svc.price_cents * nights
-    }
-    return sum + svc.price_cents
-  }, 0)
+    const nights = slot.isOvernight && slot.endDate
+      ? Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
+      : 1
+    return slotNetCents(svc, {
+      petCount,
+      isHoliday: !!slot.isHoliday,
+      isOvernight: !!slot.isOvernight,
+      nights,
+    })
+  }
+
+  // Calculate total from server-side prices (net = walker's price)
+  const netTotalCents = slots.reduce((sum, slot) => sum + netForSlot(slot), 0)
 
   const grossTotalCents = grossUp(netTotalCents)
   const platformFeeCents = grossTotalCents - netTotalCents
@@ -150,6 +159,8 @@ export async function handler(event) {
       end_date: slot.endDate || null,
       capacity: 1,
       status: bookingStatus,
+      is_holiday: !!slot.isHoliday,
+      blocks_slot: svc.blocks_slot,
     }
 
     const { data: booking, error: bkErr } = await adminSupabase
@@ -170,18 +181,25 @@ export async function handler(event) {
     const lineItems = slots.map((slot) => {
       const svc = serviceMap[slot.serviceId]
       const isOvernight = slot.isOvernight && slot.endDate
-      let quantity = 1
-      if (isOvernight) {
-        quantity = Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
-      }
+      const nights = isOvernight
+        ? Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
+        : 1
+      // Per-unit net (one-night equivalent for overnights, full slot for standard)
+      // so Stripe's quantity stays meaningful.
+      const perUnitNet = slotNetCents(svc, {
+        petCount,
+        isHoliday: !!slot.isHoliday,
+        isOvernight: false, // ignore multi-night here; quantity carries it
+        nights: 1,
+      })
       const dateStr = new Date(slot.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
       return {
         price_data: {
           currency: 'gbp',
-          unit_amount: grossUp(svc.price_cents),
+          unit_amount: grossUp(perUnitNet),
           product_data: { name: `${svc.name} — ${dateStr}` },
         },
-        quantity,
+        quantity: isOvernight ? nights : 1,
       }
     })
 

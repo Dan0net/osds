@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { clientPriceCents } from '../lib/utils'
+import Modal from './Modal'
 
 function getWeekDates(baseDate) {
   const d = new Date(baseDate)
@@ -23,21 +25,30 @@ function parseTime(t) { const [h, m] = t.split(':').map(Number); return h * 60 +
 
 function nextDate(d) { const x = new Date(d); x.setDate(x.getDate() + 1); return x.toISOString().split('T')[0] }
 
+function shiftDate(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
+
+function paneDatesFromAnchor(anchorStr, count = 3) {
+  return Array.from({ length: count }, (_, i) => shiftDate(anchorStr, i))
+}
+
 // --- Positioned block on the time grid ---
 const TIME_COL = 40
-const PX_PER_HOUR = 48
+const PX_PER_HOUR_DESKTOP = 48
+const PX_PER_HOUR_MOBILE = 64
+const TOP_PAD = 10
+const MOBILE_PANE_DAYS = 3
+const MOBILE_GRID_MAX_HEIGHT = 'min(calc(100dvh - 280px), 480px)'
+const SWIPE_THRESHOLD = 40
+const SWIPE_DRAG_THRESHOLD = 10
 
 function colCSS(colIndex, gridCols, inset = 1) {
   return {
     left: `calc(${TIME_COL}px + ${colIndex} * ((100% - ${TIME_COL}px) / ${gridCols}) + ${inset}px)`,
     width: `calc((100% - ${TIME_COL}px) / ${gridCols} - ${inset + 1}px)`,
-  }
-}
-
-function topHeight(startMin, durationMin, startHour) {
-  return {
-    top: `${((startMin - startHour * 60) / 60) * PX_PER_HOUR}px`,
-    height: `${Math.max((durationMin / 60) * PX_PER_HOUR, 20)}px`,
   }
 }
 
@@ -52,28 +63,48 @@ function RemoveBtn({ onClick }) {
 }
 
 // --- Main component ---
-export default function AvailabilityCalendar({ services, walkerId, initialServiceId }) {
+export default function AvailabilityCalendar({ services, walkerId, initialServiceId, value, onChange, hideFooter = false }) {
   const walkerServices = services || []
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
   const navigate = useNavigate()
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedService, setSelectedService] = useState(initialServiceId || '')
+  const isControlled = value !== undefined && typeof onChange === 'function'
   const slotsKey = `osds_selectedSlots_${walkerId}`
-  const [selectedSlots, setSelectedSlots] = useState(() => {
+  const [internalSlots, setInternalSlots] = useState(() => {
+    if (isControlled) return []
     try {
       const saved = sessionStorage.getItem(slotsKey)
       return saved ? JSON.parse(saved) : []
     } catch { return [] }
   })
-  // weekSlots and fullTimeGrid are derived via useMemo below
+  const selectedSlots = isControlled ? value : internalSlots
+  const setSelectedSlots = useCallback((updater) => {
+    if (isControlled) {
+      const next = typeof updater === 'function' ? updater(value) : updater
+      onChange(next)
+    } else {
+      setInternalSlots(updater)
+    }
+  }, [isControlled, value, onChange])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
-  const [mobileOffset, setMobileOffset] = useState(0)
   const [hoverCell, setHoverCell] = useState(null)
   const [dragging, setDragging] = useState(null)
   const [dragCell, setDragCell] = useState(null)
   const gridRef = useRef(null)
+
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+
+  // Mobile swipe state
+  const [mobileAnchor, setMobileAnchor] = useState(todayStr)
+  const [mobileDx, setMobileDx] = useState(0)
+  const [mobileTransitioning, setMobileTransitioning] = useState(false)
+  const [pendingMobileAnchor, setPendingMobileAnchor] = useState(null)
+  const mobileTouchRef = useRef(null)
+  const mobileTrackRef = useRef(null)
 
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 640)
@@ -85,25 +116,39 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     if (initialServiceId && initialServiceId !== selectedService) setSelectedService(initialServiceId)
   }, [initialServiceId])
 
-  // Persist selections so navigating back restores them
+  // Persist selections so navigating back restores them (uncontrolled mode only)
   useEffect(() => {
+    if (isControlled) return
     sessionStorage.setItem(slotsKey, JSON.stringify(selectedSlots))
-  }, [selectedSlots])
+  }, [selectedSlots, isControlled])
 
-  const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
   const baseDate = new Date(today)
   baseDate.setDate(today.getDate() + weekOffset * 7)
   const weekDates = getWeekDates(baseDate)
 
+  const PX_PER_HOUR = isMobile ? PX_PER_HOUR_MOBILE : PX_PER_HOUR_DESKTOP
+  const topHeight = useCallback((startMin, durationMin, startHour) => ({
+    top: `${TOP_PAD + ((startMin - startHour * 60) / 60) * PX_PER_HOUR}px`,
+    height: `${Math.max((durationMin / 60) * PX_PER_HOUR, 20)}px`,
+  }), [PX_PER_HOUR])
+
   const service = walkerServices.find((s) => s.id === selectedService)
   const duration = service?.duration_minutes || 30
   const isOvernight = service?.service_type === 'overnight'
+  const [serviceModalOpen, setServiceModalOpen] = useState(false)
 
   const DROP_MIN = 18 * 60
   const PICK_MIN = 10 * 60
 
-  // --- Pre-fetch 28 days of availability ---
+  // Mobile panes
+  const currentPaneDates = paneDatesFromAnchor(mobileAnchor, MOBILE_PANE_DAYS)
+  const prevPaneDates = paneDatesFromAnchor(shiftDate(mobileAnchor, -MOBILE_PANE_DAYS), MOBILE_PANE_DAYS)
+  const nextPaneDates = paneDatesFromAnchor(shiftDate(mobileAnchor, MOBILE_PANE_DAYS), MOBILE_PANE_DAYS)
+  const atMobileStart = mobileAnchor <= todayStr
+
+  const visibleDates = isMobile ? currentPaneDates : weekDates
+
+  // --- Pre-fetch availability ---
   const [allSlotData, setAllSlotData] = useState({}) // { [date]: { slots, allSlots } }
   const [fetchedRange, setFetchedRange] = useState(null) // { start, end }
 
@@ -145,45 +190,49 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     return () => controller.abort()
   }, [walkerId, fetchRange])
 
-  // If the user navigates beyond the pre-fetched range, fetch more
+  // Visible range — used to trigger refetch when the user navigates out of the prefetched window
+  const visStart = isMobile ? (prevPaneDates[0] < todayStr ? todayStr : prevPaneDates[0]) : weekDates[0]
+  const visEnd = isMobile ? nextPaneDates[2] : weekDates[6]
+
   useEffect(() => {
     if (!walkerId || !fetchedRange) return
-    const needsStart = weekDates[0]
-    const needsEnd = weekDates[6]
-    if (needsStart >= fetchedRange.start && needsEnd <= fetchedRange.end) return
+    if (visStart >= fetchedRange.start && visEnd <= fetchedRange.end) return
 
     const controller = new AbortController()
     setLoadingSlots(true)
 
-    // Fetch a new 28-day window starting from the current week
-    const end = new Date(needsStart + 'T00:00:00')
+    const startStr = visStart
+    const end = new Date(startStr + 'T00:00:00')
     end.setDate(end.getDate() + 27)
     const endStr = toDateStr(end)
 
-    fetchRange(needsStart, endStr, controller.signal).then((data) => {
+    fetchRange(startStr, endStr, controller.signal).then((data) => {
       if (controller.signal.aborted) return
       setAllSlotData((prev) => ({ ...prev, ...data }))
       setFetchedRange((prev) => ({
-        start: needsStart < prev.start ? needsStart : prev.start,
+        start: startStr < prev.start ? startStr : prev.start,
         end: endStr > prev.end ? endStr : prev.end,
       }))
       setLoadingSlots(false)
     })
     return () => controller.abort()
-  }, [walkerId, weekDates[0], weekDates[6], fetchedRange, fetchRange])
+  }, [walkerId, visStart, visEnd, fetchedRange, fetchRange])
 
-  // Derive weekSlots and fullTimeGrid synchronously from pre-fetched data
+  // Derive weekSlots and fullTimeGrid synchronously
   const { weekSlots, fullTimeGrid } = useMemo(() => {
     const slotMap = {}
     const times = new Set()
-    for (const date of weekDates) {
+    const relevant = isMobile
+      ? [...prevPaneDates, ...currentPaneDates, ...nextPaneDates]
+      : weekDates
+    for (const date of relevant) {
       const day = allSlotData[date]
       slotMap[date] = day?.slots || []
       const allTimes = day?.allSlots || day?.slots || []
       allTimes.forEach((t) => times.add(t))
     }
     return { weekSlots: slotMap, fullTimeGrid: Array.from(times).sort() }
-  }, [weekDates.join(','), allSlotData])
+  }, [isMobile, weekDates.join(','), currentPaneDates.join(','), prevPaneDates.join(','), nextPaneDates.join(','), allSlotData])
 
   // --- Derived values ---
   const baseStartH = fullTimeGrid.length > 0 ? Math.max(7, parseInt(fullTimeGrid[0])) : 7
@@ -192,7 +241,6 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const startHour = hasOvernight ? Math.min(baseStartH, PICK_MIN / 60) : baseStartH
   const endHour = hasOvernight ? Math.max(baseEndH, DROP_MIN / 60 + 1) : baseEndH
   const hours = Array.from({ length: endHour - startHour }, (_, i) => i + startHour)
-  const visibleDates = isMobile ? weekDates.slice(mobileOffset, mobileOffset + 3) : weekDates
   const gridCols = visibleDates.length
 
   // --- Availability checks ---
@@ -222,15 +270,12 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
   function overnightBlocked(date) {
     const nd = nextDate(date)
-    // Check evening of drop-off day and morning of pick-up day for selection conflicts
     for (let m = DROP_MIN; m < endHour * 60; m += 30) if (blockedBySelection(date, m)) return true
     for (let m = startHour * 60; m < PICK_MIN; m += 30) if (blockedBySelection(nd, m)) return true
-    // Check server-side: morning slots booked on pick-up day
     const pickSlots = weekSlots[nd] || []
     for (let m = startHour * 60; m < PICK_MIN; m += 30) {
       if (pickSlots.length > 0 && !pickSlots.includes(timeStr(m)) && m >= baseStartH * 60) return true
     }
-    // Duplicate overnight check
     return selectedSlots.some((s) => s.isOvernight && (s.date === date || s.date === nd || s.endDate === date))
   }
 
@@ -243,7 +288,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     const date = visibleDates[colIdx]
     if (!date || date < todayStr) return null
     if (isOvernight) return overnightBlocked(date) ? null : { date, minutes: DROP_MIN }
-    const min = Math.floor((startHour * 60 + ((cy - rect.top) / PX_PER_HOUR) * 60) / 30) * 30
+    const min = Math.floor((startHour * 60 + ((cy - rect.top - TOP_PAD) / PX_PER_HOUR) * 60) / 30) * 30
     const t = timeStr(min)
     return slotAvailable(date, t) && !blockedBySelection(date, min) ? { date, minutes: min } : null
   }
@@ -283,12 +328,11 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
   // --- Event handlers ---
   function handleMouseMove(e) { if (!dragging) setHoverCell(resolveCell(e.clientX, e.clientY)) }
-  function handleClick() { if (!dragging) addSlot(hoverCell) }
-  function handleTouchEnd(e) {
-    if (!e.changedTouches.length) return
-    const t = e.changedTouches[0]
-    addSlot(resolveCell(t.clientX, t.clientY))
-    e.preventDefault()
+  function handleClick(e) {
+    if (dragging) return
+    // Browser suppresses click after a swipe/drag, so this only fires on a real tap.
+    const cell = hoverCell || resolveCell(e.clientX, e.clientY)
+    addSlot(cell)
   }
 
   // --- Drag to move (standard events only) ---
@@ -328,14 +372,91 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   }, [dragging, dragCell])
 
   function handleBookNow() {
-    // Always go to review page — it handles login prompt at submit time
     localStorage.setItem('osds_bookingIntent', JSON.stringify({ walkerSlug: walkerParam || null, walkerId, slots: selectedSlots, savedAt: Date.now() }))
     navigate(`${prefix}/book`, { state: { slots: selectedSlots, walkerId } })
   }
 
-  // --- Render helpers ---
-  function renderUnavailBlocks() {
-    return visibleDates.map((date, ci) => {
+  // --- Mobile swipe handlers ---
+  // Native listeners (passive: false on touchmove) so we can preventDefault and
+  // stop the browser from committing to a native scroll mid-swipe.
+  useEffect(() => {
+    if (!isMobile) return
+    const el = mobileTrackRef.current
+    if (!el) return
+
+    function onTouchStart(e) {
+      if (pendingMobileAnchor) return
+      if (e.touches.length !== 1) return
+      if (e.target.closest('[data-event]') || e.target.closest('[data-remove]')) return
+      mobileTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, swiping: false }
+    }
+
+    function onTouchMove(e) {
+      const ref = mobileTouchRef.current
+      if (!ref) return
+      // Always preventDefault while we're tracking a touch on the wrapper.
+      // If we don't, the browser can decide the gesture is a scroll —
+      // especially inside the modal's overflow-y-auto body — and stop
+      // dispatching touchmove events to JS partway through.
+      if (e.cancelable) e.preventDefault()
+
+      const t = e.touches[0]
+      const ddx = t.clientX - ref.x
+      const ddy = t.clientY - ref.y
+      const adx = Math.abs(ddx)
+      const ady = Math.abs(ddy)
+
+      // Lock into horizontal swipe as soon as horizontal motion clearly leads.
+      if (!ref.swiping && adx > 4 && adx > ady) ref.swiping = true
+
+      // Only translate the track once we've committed to horizontal so an
+      // initial vertical wobble doesn't jiggle the panes.
+      if (ref.swiping) {
+        setMobileDx(atMobileStart && ddx > 0 ? Math.min(ddx, 40) : ddx)
+      }
+    }
+
+    function onTouchEnd(e) {
+      const ref = mobileTouchRef.current
+      if (!ref) return
+      const final = e.changedTouches[0].clientX - ref.x
+      const swiping = ref.swiping
+      mobileTouchRef.current = null
+      if (!swiping || Math.abs(final) < SWIPE_THRESHOLD || (final > 0 && atMobileStart)) {
+        setMobileDx(0)
+        return
+      }
+      const width = el.offsetWidth || window.innerWidth
+      setMobileDx(final > 0 ? width : -width)
+      setPendingMobileAnchor(shiftDate(mobileAnchor, final > 0 ? -MOBILE_PANE_DAYS : MOBILE_PANE_DAYS))
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true })
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [isMobile, atMobileStart, mobileAnchor, pendingMobileAnchor])
+
+  function handleMobileTransitionEnd() {
+    if (!pendingMobileAnchor) return
+    setMobileTransitioning(true)
+    setMobileDx(0)
+    setMobileAnchor(pendingMobileAnchor < todayStr ? todayStr : pendingMobileAnchor)
+    setPendingMobileAnchor(null)
+    requestAnimationFrame(() => requestAnimationFrame(() => setMobileTransitioning(false)))
+  }
+
+  // --- Render helpers (parametrized by pane dates) ---
+  function renderUnavailBlocks(paneDates) {
+    const paneCols = paneDates.length
+    return paneDates.map((date, ci) => {
       const ranges = []
       for (let m = startHour * 60; m < endHour * 60; m += 30) {
         if (date < todayStr || !slotAvailable(date, timeStr(m))) {
@@ -346,32 +467,33 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
       }
       return ranges.map((r, i) => (
         <div key={`u-${date}-${i}`} className="absolute bg-gray-100/80 pointer-events-none"
-          style={{ ...topHeight(r.start, r.end - r.start, startHour), ...colCSS(ci, gridCols, 0) }} />
+          style={{ ...topHeight(r.start, r.end - r.start, startHour), ...colCSS(ci, paneCols, 0) }} />
       ))
     })
   }
 
-  function renderHoverGhost() {
+  function renderHoverGhost(paneDates) {
     if (!hoverCell) return null
-    const ci = visibleDates.indexOf(hoverCell.date)
+    const paneCols = paneDates.length
+    const ci = paneDates.indexOf(hoverCell.date)
     if (ci < 0) return null
-    const css = colCSS(ci, gridCols, 0)
+    const css = colCSS(ci, paneCols, 0)
     const ghost = 'absolute pointer-events-none rounded border border-dashed px-1.5 py-0.5 text-[10px] overflow-hidden'
 
     if (isOvernight) {
       const dropTop = ((DROP_MIN - startHour * 60) / 60) * PX_PER_HOUR
       const blocks = [
         <div key="gh-d" className={`${ghost} bg-purple-400/30 border-purple-400/50 text-purple-700 rounded-t`}
-          style={{ top: `${dropTop}px`, height: `${hours.length * PX_PER_HOUR - dropTop}px`, ...css }}>
+          style={{ top: `${TOP_PAD + dropTop}px`, height: `${hours.length * PX_PER_HOUR - dropTop}px`, ...css }}>
           Drop-off {timeStr(DROP_MIN)}
         </div>,
       ]
-      const nci = visibleDates.indexOf(nextDate(hoverCell.date))
+      const nci = paneDates.indexOf(nextDate(hoverCell.date))
       if (nci >= 0) {
         const pickH = ((PICK_MIN - startHour * 60) / 60) * PX_PER_HOUR
         blocks.push(
           <div key="gh-p" className={`${ghost} bg-purple-400/30 border-purple-400/50 text-purple-700 rounded-b flex items-end pb-0.5`}
-            style={{ top: 0, height: `${pickH}px`, ...colCSS(nci, gridCols, 0) }}>
+            style={{ top: `${TOP_PAD}px`, height: `${pickH}px`, ...colCSS(nci, paneCols, 0) }}>
             Pick-up {timeStr(PICK_MIN)}
           </div>
         )
@@ -386,17 +508,18 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     )
   }
 
-  function renderStandardEvents() {
+  function renderStandardEvents(paneDates) {
+    const paneCols = paneDates.length
     return selectedSlots.map((slot, i) => {
       if (slot.isOvernight || (dragging?.index === i && dragging.moved)) return null
-      const ci = visibleDates.indexOf(slot.date)
+      const ci = paneDates.indexOf(slot.date)
       if (ci < 0) return null
       return (
-        <div key={i}
+        <div key={i} data-event
           onMouseDown={(e) => { if (!e.target.closest('[data-remove]')) startDrag(i, e.clientX, e.clientY, e) }}
           onTouchStart={(e) => { if (!e.target.closest('[data-remove]') && e.touches.length) startDrag(i, e.touches[0].clientX, e.touches[0].clientY, e) }}
           className="absolute rounded bg-indigo-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-start justify-between group cursor-grab active:cursor-grabbing hover:bg-indigo-700 transition-colors"
-          style={{ ...topHeight(parseTime(slot.time), slot.durationMinutes, startHour), ...colCSS(ci, gridCols), zIndex: 20 }}>
+          style={{ ...topHeight(parseTime(slot.time), slot.durationMinutes, startHour), ...colCSS(ci, paneCols), zIndex: 20 }}>
           <span className="truncate leading-tight">{slot.time} {slot.serviceName}</span>
           <RemoveBtn onClick={() => removeSlot(i)} />
         </div>
@@ -404,43 +527,42 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     })
   }
 
-  function renderOvernightEvents() {
+  function renderOvernightEvents(paneDates) {
+    const paneCols = paneDates.length
     return selectedSlots.map((slot, i) => {
       if (!slot.isOvernight) return null
       const blocks = []
-      // Drop-off block
-      const ci = visibleDates.indexOf(slot.date)
+      const ci = paneDates.indexOf(slot.date)
       if (ci >= 0) {
         const dropMin = parseTime(slot.time)
-        const h = hours.length * PX_PER_HOUR - ((dropMin - startHour * 60) / 60) * PX_PER_HOUR
+        const dropTop = ((dropMin - startHour * 60) / 60) * PX_PER_HOUR
+        const h = hours.length * PX_PER_HOUR - dropTop
         blocks.push(
-          <div key={`od-${i}`} className="absolute rounded-t bg-purple-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-start justify-between group hover:bg-purple-700 transition-colors"
-            style={{ top: `${((dropMin - startHour * 60) / 60) * PX_PER_HOUR}px`, height: `${h}px`, ...colCSS(ci, gridCols), zIndex: 20 }}>
+          <div key={`od-${i}`} data-event className="absolute rounded-t bg-purple-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-start justify-between group hover:bg-purple-700 transition-colors"
+            style={{ top: `${TOP_PAD + dropTop}px`, height: `${h}px`, ...colCSS(ci, paneCols), zIndex: 20 }}>
             <span className="truncate leading-tight">Drop-off {slot.time} · {slot.nights}n · £{(slot.priceCents / 100).toFixed(0)}</span>
             <RemoveBtn onClick={() => removeSlot(i)} />
           </div>
         )
       }
-      // Pick-up block
-      const ei = visibleDates.indexOf(slot.endDate)
+      const ei = paneDates.indexOf(slot.endDate)
       if (ei >= 0) {
         const pickH = ((parseTime(slot.endTime) - startHour * 60) / 60) * PX_PER_HOUR
         if (pickH > 0) {
           blocks.push(
-            <div key={`op-${i}`} className="absolute rounded-b bg-purple-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-end justify-between hover:bg-purple-700 transition-colors group"
-              style={{ top: 0, height: `${pickH}px`, ...colCSS(ei, gridCols), zIndex: 20 }}>
+            <div key={`op-${i}`} data-event className="absolute rounded-b bg-purple-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-end justify-between hover:bg-purple-700 transition-colors group"
+              style={{ top: `${TOP_PAD}px`, height: `${pickH}px`, ...colCSS(ei, paneCols), zIndex: 20 }}>
               <span className="truncate leading-tight">Pick-up {slot.endTime}</span>
               <RemoveBtn onClick={() => removeSlot(i)} />
             </div>
           )
         }
       }
-      // Mid-day blocks
-      visibleDates.forEach((d, di) => {
+      paneDates.forEach((d, di) => {
         if (d > slot.date && d < slot.endDate) {
           blocks.push(
             <div key={`om-${i}-${di}`} className="absolute bg-purple-600/20 pointer-events-none"
-              style={{ top: 0, height: `${hours.length * PX_PER_HOUR}px`, ...colCSS(di, gridCols, 0), zIndex: 15 }} />
+              style={{ top: `${TOP_PAD}px`, height: `${hours.length * PX_PER_HOUR}px`, ...colCSS(di, paneCols, 0), zIndex: 15 }} />
           )
         }
       })
@@ -448,60 +570,32 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     })
   }
 
-  function renderDragGhost() {
+  function renderDragGhost(paneDates) {
     if (!dragging?.moved || !dragCell) return null
+    const paneCols = paneDates.length
     const slot = selectedSlots[dragging.index]
     if (!slot) return null
-    const ci = visibleDates.indexOf(dragCell.date)
+    const ci = paneDates.indexOf(dragCell.date)
     if (ci < 0) return null
     return (
       <div className="absolute rounded bg-indigo-500/60 border-2 border-indigo-400 border-dashed text-white px-1.5 py-0.5 text-[10px] pointer-events-none"
-        style={{ ...topHeight(dragCell.minutes, slot.durationMinutes, startHour), ...colCSS(ci, gridCols), zIndex: 30 }}>
+        style={{ ...topHeight(dragCell.minutes, slot.durationMinutes, startHour), ...colCSS(ci, paneCols), zIndex: 30 }}>
         {timeStr(dragCell.minutes)} {slot.serviceName}
       </div>
     )
   }
 
-  // --- Render ---
-  return (
-    <div>
-      {!initialServiceId && (
-        <div className="mb-3">
-          <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)}
-            className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs w-full sm:w-auto focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-            <option value="">All services (30 min slots)</option>
-            {walkerServices.filter((s) => s.active).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} — {s.service_type === 'overnight' ? 'per night' : `${s.duration_minutes} min`} — £{(clientPriceCents(s.price_cents) / 100).toFixed(2)}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Week navigation */}
-      <div className="flex items-center justify-between mb-2">
-        <button onClick={() => { setWeekOffset((w) => w - 1); setMobileOffset(0) }} disabled={weekOffset === 0} className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 text-xs font-medium">← Prev</button>
-        <span className="text-xs font-medium text-gray-700">
-          {new Date(weekDates[0]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – {new Date(weekDates[6]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-        </span>
-        <button onClick={() => { setWeekOffset((w) => w + 1); setMobileOffset(0) }} className="p-1.5 rounded-lg hover:bg-gray-100 text-xs font-medium">Next →</button>
-      </div>
-
-      {isMobile && (
-        <div className="flex items-center justify-between mb-1">
-          <button onClick={() => setMobileOffset((o) => Math.max(0, o - 1))} disabled={mobileOffset === 0} className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-30 p-1">← Earlier</button>
-          <button onClick={() => setMobileOffset((o) => Math.min(4, o + 1))} disabled={mobileOffset >= 4} className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-30 p-1">Later →</button>
-        </div>
-      )}
-
-      {/* Time grid */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-        {/* Day headers */}
-        <div className="grid border-b border-gray-200" style={{ gridTemplateColumns: `2.5rem repeat(${gridCols}, 1fr)` }}>
+  function DayPane({ dates, paneRef, interactive }) {
+    const bodyHeight = Math.max(hours.length, 10) * PX_PER_HOUR + 2 * TOP_PAD
+    return (
+      <div className="border border-gray-200 rounded-lg bg-white">
+        <div
+          className="grid border-b border-gray-200 bg-white sticky top-0 z-10"
+          style={{ gridTemplateColumns: `2.5rem repeat(${dates.length}, 1fr)` }}
+        >
           <div />
-          {visibleDates.map((date) => {
-            const d = new Date(date)
+          {dates.map((date) => {
+            const d = new Date(date + 'T00:00:00')
             return (
               <div key={date} className={`text-center py-1.5 text-xs border-l border-gray-100 ${date === todayStr ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>
                 <div>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</div>
@@ -511,52 +605,163 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
           })}
         </div>
 
-        {/* Grid body */}
-        <div ref={gridRef} className="relative cursor-pointer select-none"
-          style={{ height: `${Math.max(hours.length, 10) * PX_PER_HOUR}px` }}
-          onMouseMove={!loadingSlots ? handleMouseMove : undefined}
-          onMouseLeave={() => setHoverCell(null)}
-          onClick={!loadingSlots ? handleClick : undefined}
-          onTouchEnd={!loadingSlots ? handleTouchEnd : undefined}>
-
+        <div
+          ref={paneRef}
+          className={`relative select-none ${interactive ? 'cursor-pointer' : ''}`}
+          style={{ height: `${bodyHeight}px` }}
+          onMouseMove={interactive && !loadingSlots ? handleMouseMove : undefined}
+          onMouseLeave={interactive ? () => setHoverCell(null) : undefined}
+          onClick={interactive && !loadingSlots ? handleClick : undefined}
+        >
           {loadingSlots && (
             <div className="absolute inset-0 bg-white/70 z-30 flex items-center justify-center">
               <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
-          {/* Hour rows */}
           {hours.map((hour, i) => (
-            <div key={hour} className="absolute left-0 right-0 flex" style={{ top: `${i * PX_PER_HOUR}px`, height: `${PX_PER_HOUR}px` }}>
+            <div key={hour} className="absolute left-0 right-0 flex" style={{ top: `${TOP_PAD + i * PX_PER_HOUR}px`, height: `${PX_PER_HOUR}px` }}>
               <div className="w-10 shrink-0 text-right pr-1.5 text-[10px] text-gray-400 -mt-1.5">{`${String(hour).padStart(2, '0')}:00`}</div>
-              <div className="flex-1 border-t border-gray-100 grid" style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
-                {visibleDates.map((date) => (
+              <div className="flex-1 border-t border-gray-100 grid" style={{ gridTemplateColumns: `repeat(${dates.length}, 1fr)` }}>
+                {dates.map((date) => (
                   <div key={`${date}-${hour}`} className={`border-l border-gray-100 ${date < todayStr ? 'bg-gray-50' : ''}`} />
                 ))}
               </div>
             </div>
           ))}
 
-          {renderUnavailBlocks()}
-          {renderHoverGhost()}
-          {renderStandardEvents()}
-          {renderOvernightEvents()}
-          {renderDragGhost()}
+          {renderUnavailBlocks(dates)}
+          {interactive && renderHoverGhost(dates)}
+          {renderStandardEvents(dates)}
+          {renderOvernightEvents(dates)}
+          {interactive && renderDragGhost(dates)}
         </div>
       </div>
+    )
+  }
 
-      {/* Footer */}
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-xs text-gray-500">
-          {selectedSlots.length > 0
-            ? `${selectedSlots.length} booking${selectedSlots.length > 1 ? 's' : ''} · £${(selectedSlots.reduce((s, sl) => s + sl.priceCents, 0) / 100).toFixed(2)}`
-            : isOvernight ? 'Click a day to book an overnight stay' : 'Click the calendar to book a slot'}
-        </span>
-        <button onClick={handleBookNow} disabled={selectedSlots.length === 0}
-          className="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-          Book Now{selectedSlots.length > 0 ? ` (${selectedSlots.length})` : ''} →
+  // --- Navigation header ---
+  const headerAnchor = isMobile ? currentPaneDates[0] : weekDates[0]
+  const headerLabel = new Date(headerAnchor + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+
+  const selectedServiceObj = walkerServices.find((s) => s.id === selectedService)
+  const serviceLabel = selectedServiceObj ? selectedServiceObj.name : 'All services'
+  const serviceSubLabel = selectedServiceObj
+    ? `${selectedServiceObj.service_type === 'overnight' ? 'per night' : `${selectedServiceObj.duration_minutes} min`} · £${(clientPriceCents(selectedServiceObj.price_cents) / 100).toFixed(2)}`
+    : '30 min slots'
+
+  function handlePrev() {
+    if (isMobile) {
+      if (atMobileStart) return
+      const candidate = shiftDate(mobileAnchor, -MOBILE_PANE_DAYS)
+      setMobileAnchor(candidate < todayStr ? todayStr : candidate)
+    } else {
+      setWeekOffset((w) => Math.max(0, w - 1))
+    }
+  }
+  function handleNext() {
+    if (isMobile) setMobileAnchor((a) => shiftDate(a, MOBILE_PANE_DAYS))
+    else setWeekOffset((w) => w + 1)
+  }
+  const prevDisabled = isMobile ? atMobileStart : weekOffset === 0
+
+  return (
+    <div>
+      {!initialServiceId && (
+        <button
+          type="button"
+          onClick={() => setServiceModalOpen(true)}
+          className="cursor-pointer w-full flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5 mb-3 hover:border-indigo-300 transition text-left"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">{serviceLabel}</p>
+            <p className="text-xs text-gray-500 truncate">{serviceSubLabel}</p>
+          </div>
+          <ChevronDown size={16} className="text-gray-400 shrink-0" />
+        </button>
+      )}
+
+      {/* Month navigation */}
+      <div className="flex items-center justify-between mb-2">
+        <button onClick={handlePrev} disabled={prevDisabled} aria-label="Previous" className="cursor-pointer p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30">
+          <ChevronLeft size={18} />
+        </button>
+        <span className="text-sm font-semibold text-gray-900">{headerLabel}</span>
+        <button onClick={handleNext} aria-label="Next" className="cursor-pointer p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800">
+          <ChevronRight size={18} />
         </button>
       </div>
+
+      {/* Time grid */}
+      {isMobile ? (
+        <div
+          ref={mobileTrackRef}
+          className="overflow-x-hidden overflow-y-auto touch-pan-y overscroll-contain"
+          style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}
+        >
+          <div
+            className="flex w-[300%]"
+            style={{
+              transform: `translateX(calc(-33.3333% + ${mobileDx}px))`,
+              transition: mobileTouchRef.current || mobileTransitioning ? 'none' : 'transform 200ms ease-out',
+            }}
+            onTransitionEnd={handleMobileTransitionEnd}
+          >
+            <div className="w-1/3 shrink-0 px-px"><DayPane dates={prevPaneDates} paneRef={null} interactive={false} /></div>
+            <div className="w-1/3 shrink-0 px-px"><DayPane dates={currentPaneDates} paneRef={gridRef} interactive /></div>
+            <div className="w-1/3 shrink-0 px-px"><DayPane dates={nextPaneDates} paneRef={null} interactive={false} /></div>
+          </div>
+        </div>
+      ) : (
+        <DayPane dates={weekDates} paneRef={gridRef} interactive />
+      )}
+
+      {/* Footer */}
+      {!hideFooter && (
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-xs text-gray-500">
+            {selectedSlots.length > 0
+              ? `${selectedSlots.length} booking${selectedSlots.length > 1 ? 's' : ''} · £${(selectedSlots.reduce((s, sl) => s + sl.priceCents, 0) / 100).toFixed(2)}`
+              : isOvernight ? 'Click a day to book an overnight stay' : 'Click the calendar to book a slot'}
+          </span>
+          <button onClick={handleBookNow} disabled={selectedSlots.length === 0}
+            className="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+            Book Now{selectedSlots.length > 0 ? ` (${selectedSlots.length})` : ''} →
+          </button>
+        </div>
+      )}
+
+      <Modal open={serviceModalOpen} onClose={() => setServiceModalOpen(false)} title="Service">
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => { setSelectedService(''); setServiceModalOpen(false) }}
+            className="cursor-pointer w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:bg-indigo-50/40 transition flex items-center gap-3"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900">All services</p>
+              <p className="text-xs text-gray-500">30 min slots</p>
+            </div>
+            {selectedService === '' && <Check size={16} className="text-indigo-600 shrink-0" />}
+          </button>
+          {walkerServices.filter((s) => s.active).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => { setSelectedService(s.id); setServiceModalOpen(false) }}
+              className="cursor-pointer w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:bg-indigo-50/40 transition flex items-center gap-3"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{s.name}</p>
+                <p className="text-xs text-gray-500 truncate">
+                  {s.service_type === 'overnight' ? 'per night' : `${s.duration_minutes} min`} · £{(clientPriceCents(s.price_cents) / 100).toFixed(2)}
+                </p>
+              </div>
+              {selectedService === s.id && <Check size={16} className="text-indigo-600 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      </Modal>
     </div>
   )
 }

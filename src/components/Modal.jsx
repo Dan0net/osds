@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, ArrowLeft } from 'lucide-react'
 
 const ANIM_MS = 220
 
 export default function Modal({
   open,
   onClose,
+  onBack,
   title,
   children,
   footer,
@@ -72,11 +73,11 @@ export default function Modal({
       >
         <div className="flex items-center justify-between px-3 py-3 border-b border-gray-200 shrink-0 gap-2">
           <button
-            onClick={onClose}
+            onClick={onBack || onClose}
             className="cursor-pointer p-2 -m-1 text-gray-500 hover:text-gray-800 shrink-0"
-            aria-label="Close"
+            aria-label={onBack ? 'Back' : 'Close'}
           >
-            <X size={22} />
+            {onBack ? <ArrowLeft size={22} /> : <X size={22} />}
           </button>
           <h2 className="text-base font-semibold text-gray-900 truncate flex-1 text-center">{title}</h2>
           {formId || onSave ? (

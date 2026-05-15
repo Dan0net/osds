@@ -7,6 +7,10 @@ export default function ServiceForm({ initial, onSubmit, formId, onValidityChang
     service_type: initial?.service_type || 'standard',
     price_cents: initial ? String(initial.price_cents / 100) : '',
     duration_minutes: initial ? String(initial.duration_minutes) : '',
+    holiday_rate_cents: initial?.holiday_rate_cents != null ? String(initial.holiday_rate_cents / 100) : '',
+    extra_pet_rate_cents: initial?.extra_pet_rate_cents ? String(initial.extra_pet_rate_cents / 100) : '',
+    blocks_slot: initial?.blocks_slot ?? true,
+    buffer_after_minutes: initial?.buffer_after_minutes ? String(initial.buffer_after_minutes) : '',
     description: initial?.description || '',
   }))
 
@@ -26,6 +30,10 @@ export default function ServiceForm({ initial, onSubmit, formId, onValidityChang
       service_type: form.service_type,
       price_cents: Math.round(parseFloat(form.price_cents) * 100),
       duration_minutes: parseInt(form.duration_minutes),
+      holiday_rate_cents: form.holiday_rate_cents.trim() ? Math.round(parseFloat(form.holiday_rate_cents) * 100) : null,
+      extra_pet_rate_cents: form.extra_pet_rate_cents.trim() ? Math.round(parseFloat(form.extra_pet_rate_cents) * 100) : 0,
+      blocks_slot: form.blocks_slot,
+      buffer_after_minutes: form.buffer_after_minutes.trim() ? parseInt(form.buffer_after_minutes) : 0,
       description: form.description.trim(),
     })
   }
@@ -55,7 +63,7 @@ export default function ServiceForm({ initial, onSubmit, formId, onValidityChang
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Your price (£)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Standard rate (£)</label>
           <input
             type="number"
             step="0.01"
@@ -84,6 +92,59 @@ export default function ServiceForm({ initial, onSubmit, formId, onValidityChang
           />
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Holiday rate (£) <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={form.holiday_rate_cents}
+            onChange={(e) => update('holiday_rate_cents', e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            placeholder="—"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Additional pet rate (£) <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={form.extra_pet_rate_cents}
+            onChange={(e) => update('extra_pet_rate_cents', e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            placeholder="—"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Buffer after appointment (min) <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <input
+          type="number"
+          value={form.buffer_after_minutes}
+          onChange={(e) => update('buffer_after_minutes', e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+          placeholder="0"
+        />
+        <p className="text-xs text-gray-400 mt-1">Block extra time after each booking for travel or clean-up.</p>
+      </div>
+      <label className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg p-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.blocks_slot}
+          onChange={(e) => update('blocks_slot', e.target.checked)}
+          className="mt-0.5 w-4 h-4 accent-indigo-600"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900">Block the calendar</p>
+          <p className="text-xs text-gray-500">When ticked, this booking takes up the slot so other customers can't book it.</p>
+        </div>
+      </label>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Description <span className="text-gray-400 font-normal">(optional)</span>
