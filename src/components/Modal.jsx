@@ -10,6 +10,7 @@ export default function Modal({
   children,
   footer,
   formId,
+  onSave,
   saveLabel = 'Save',
   saveDisabled = false,
   saveLoading = false,
@@ -78,10 +79,11 @@ export default function Modal({
             <X size={22} />
           </button>
           <h2 className="text-base font-semibold text-gray-900 truncate flex-1 text-center">{title}</h2>
-          {formId ? (
+          {formId || onSave ? (
             <button
-              type="submit"
+              type={formId ? 'submit' : 'button'}
               form={formId}
+              onClick={formId ? undefined : onSave}
               disabled={saveDisabled || saveLoading}
               className="cursor-pointer px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             >

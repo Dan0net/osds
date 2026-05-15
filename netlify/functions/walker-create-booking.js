@@ -46,8 +46,14 @@ export async function handler(event) {
     return { statusCode: 403, body: JSON.stringify({ error: 'Not a walker' }) }
   }
 
-  const { client_id, slots, pet_id, mode } = JSON.parse(event.body)
+  const { client_id, slots, pet_id, pet_ids, mode } = JSON.parse(event.body)
   // mode: 'cash' or 'send_link'
+  // pet_ids: optional uuid[] of pets attached to each booking. pet_id is the
+  // back-compat single pet — if pet_ids is set, pet_id is the first element.
+  const finalPetIds = Array.isArray(pet_ids) && pet_ids.length > 0
+    ? pet_ids
+    : (pet_id ? [pet_id] : [])
+  const primaryPetId = finalPetIds[0] || null
 
   if (!client_id || !slots || !Array.isArray(slots) || slots.length === 0) {
     return { statusCode: 400, body: JSON.stringify({ error: 'client_id and slots are required' }) }
@@ -136,7 +142,8 @@ export async function handler(event) {
       client_id,
       payment_id: payment.id,
       service_id: slot.serviceId,
-      pet_id: pet_id || null,
+      pet_id: primaryPetId,
+      pet_ids: finalPetIds.length > 0 ? finalPetIds : null,
       booking_date: slot.date,
       start_time: slot.time,
       end_time: slot.endTime || null,

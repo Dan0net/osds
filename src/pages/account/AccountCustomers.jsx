@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
 import { inviteCustomer } from '../../lib/api'
 import { loadWalkerCustomers } from '../../lib/customers'
 import SearchList from '../../components/account/SearchList'
@@ -38,18 +39,30 @@ export default function AccountCustomers() {
     setLoading(false)
   }
 
-  async function handleAddCustomer(payload) {
+  async function handleAddCustomer({ owner, pets }) {
     setSubmitting(true)
     setAddError(null)
-    const { data, error } = await inviteCustomer(payload)
-    setSubmitting(false)
+    const { data, error } = await inviteCustomer(owner)
     if (error) {
+      setSubmitting(false)
       setAddError(error)
       return null
     }
+    if (data?.user?.id && pets?.length) {
+      const rows = pets.map((p) => {
+        const { __tempId, id, ...rest } = p
+        return { ...rest, user_id: data.user.id }
+      })
+      const { error: petError } = await supabase.from('pets').insert(rows)
+      if (petError) {
+        setSubmitting(false)
+        setAddError(`Customer was added, but pets failed to save: ${petError.message}`)
+        return null
+      }
+    }
+    setSubmitting(false)
     setAddOpen(false)
     if (data?.status === 'already_exists') {
-      // Surface the dedupe so the walker isn't surprised the profile has history.
       alert(`${data.user.name || 'This customer'} is already on OSDS — opening their profile.`)
     }
     if (data?.user?.id) navigate(`/account/customers/${data.user.id}`)

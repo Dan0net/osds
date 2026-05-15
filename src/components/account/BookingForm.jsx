@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, Plus, Check, AlertTriangle } from 'lucide-react'
+import { Check, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { inviteCustomer, walkerCreateBooking } from '../../lib/api'
@@ -9,12 +9,15 @@ import { clientPriceCents } from '../../lib/utils'
 import EntityPicker from './EntityPicker'
 import CustomerForm from './CustomerForm'
 import ServiceForm from './ServiceForm'
+import PetForm from './PetForm'
 import InviteConsentModal from './InviteConsentModal'
+import SelectionButton from './SelectionButton'
 
 export default function BookingForm({ onCreated, formId, onValidityChange, onSubmittingChange }) {
   const { walkerProfile } = useAuth()
   const [customer, setCustomer] = useState(null)
   const [service, setService] = useState(null)
+  const [selectedPets, setSelectedPets] = useState([])
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [mode, setMode] = useState('online')
@@ -23,8 +26,10 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
 
   const [customers, setCustomers] = useState([])
   const [services, setServices] = useState([])
+  const [customerPets, setCustomerPets] = useState([])
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false)
   const [servicePickerOpen, setServicePickerOpen] = useState(false)
+  const [petPickerOpen, setPetPickerOpen] = useState(false)
   const [consentOpen, setConsentOpen] = useState(false)
 
   useEffect(() => {
@@ -32,6 +37,27 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
     loadCustomers()
     loadServices()
   }, [walkerProfile?.id])
+
+  // When customer changes, load their pets and auto-select if exactly one.
+  useEffect(() => {
+    if (!customer) {
+      setCustomerPets([])
+      setSelectedPets([])
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('pets')
+      .select('id, name, breed, pet_type')
+      .eq('user_id', customer.id)
+      .then(({ data }) => {
+        if (cancelled) return
+        const list = data || []
+        setCustomerPets(list)
+        setSelectedPets(list.length === 1 ? [list[0]] : [])
+      })
+    return () => { cancelled = true }
+  }, [customer?.id])
 
   async function loadCustomers() {
     const list = await loadWalkerCustomers(walkerProfile.id)
@@ -48,16 +74,33 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
     setServices(data || [])
   }
 
-  async function handleInviteCustomer(payload) {
-    const { data, error: err } = await inviteCustomer(payload)
+  async function handleInviteCustomer({ owner, pets: newPets }) {
+    const { data, error: err } = await inviteCustomer(owner)
     if (err) {
       setError(err)
       return null
     }
-    if (data?.user && !customers.find((c) => c.id === data.user.id)) {
-      setCustomers((prev) => [data.user, ...prev])
+    const newUser = data?.user
+    if (!newUser) return null
+
+    if (newPets?.length) {
+      const rows = newPets.map((p) => {
+        const { __tempId, id, ...rest } = p
+        return { ...rest, user_id: newUser.id }
+      })
+      const { data: inserted, error: petError } = await supabase.from('pets').insert(rows).select()
+      if (petError) {
+        setError(`Customer added, but pets failed to save: ${petError.message}`)
+      } else if (inserted?.length) {
+        setCustomerPets(inserted)
+        setSelectedPets(inserted)
+      }
     }
-    return data?.user || null
+
+    if (!customers.find((c) => c.id === newUser.id)) {
+      setCustomers((prev) => [newUser, ...prev])
+    }
+    return newUser
   }
 
   function handleOpenCustomerPicker() {
@@ -79,8 +122,23 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
     return data
   }
 
+  async function handleCreatePet(payload) {
+    if (!customer) return null
+    const { data, error: err } = await supabase
+      .from('pets')
+      .insert({ ...payload, user_id: customer.id })
+      .select()
+      .single()
+    if (err) {
+      setError(err.message)
+      return null
+    }
+    setCustomerPets((prev) => [...prev, data])
+    return data
+  }
+
   const stripeReady = !!walkerProfile?.stripe_charges_enabled
-  const valid = !!(customer && service && date && time && (mode !== 'online' || stripeReady))
+  const valid = !!(customer && service && selectedPets.length > 0 && date && time && (mode !== 'online' || stripeReady))
 
   useEffect(() => { onValidityChange?.(valid) }, [valid])
   useEffect(() => { onSubmittingChange?.(submitting) }, [submitting])
@@ -95,6 +153,7 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
     const apiMode = mode === 'online' ? 'send_link' : 'cash'
     const res = await walkerCreateBooking({
       client_id: customer.id,
+      pet_ids: selectedPets.map((p) => p.id),
       slots: [{ serviceId: service.id, date, time, endTime }],
       mode: apiMode,
     })
@@ -105,6 +164,13 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
     }
     onCreated?.(res.data)
   }
+
+  const petPrimary = selectedPets.map((p) => p.name).filter(Boolean).join(' · ')
+  const petSecondary = selectedPets.length === 1
+    ? [selectedPets[0].pet_type, selectedPets[0].breed].filter(Boolean).join(' · ')
+    : selectedPets.length > 1
+      ? `${selectedPets.length} pets`
+      : null
 
   return (
     <>
@@ -128,6 +194,16 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
           primary={service?.name}
           secondary={service ? `£${(clientPriceCents(service.price_cents) / 100).toFixed(2)} · ${service.duration_minutes} min` : null}
         />
+
+        {customer && (
+          <SelectionButton
+            empty={selectedPets.length === 0}
+            emptyLabel="Add pet"
+            onClick={() => setPetPickerOpen(true)}
+            primary={petPrimary}
+            secondary={petSecondary}
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -235,41 +311,32 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
         emptyState="No services yet."
       />
 
+      <EntityPicker
+        open={petPickerOpen}
+        onClose={() => setPetPickerOpen(false)}
+        title="Pets"
+        items={customerPets}
+        searchFields={['name', 'breed']}
+        multiple
+        initialSelected={selectedPets}
+        renderItemContent={(p) => (
+          <>
+            <p className="text-sm font-medium text-gray-900 truncate">{p.name || 'Unnamed pet'}</p>
+            <p className="text-xs text-gray-500 truncate">{[p.pet_type, p.breed].filter(Boolean).join(' · ') || '—'}</p>
+          </>
+        )}
+        FormComponent={PetForm}
+        onSelect={setSelectedPets}
+        onCreate={handleCreatePet}
+        addLabel="Add new pet"
+        emptyState="No pets yet. Tap Add new pet to add one."
+      />
+
       <InviteConsentModal
         open={consentOpen}
         onClose={() => setConsentOpen(false)}
         onAccept={() => { setConsentOpen(false); setCustomerPickerOpen(true) }}
       />
     </>
-  )
-}
-
-function SelectionButton({ empty, emptyLabel, onClick, primary, secondary }) {
-  if (empty) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="cursor-pointer w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition text-left"
-      >
-        <div className="w-9 h-9 rounded-full bg-white text-indigo-600 flex items-center justify-center shrink-0">
-          <Plus size={18} />
-        </div>
-        <span className="text-sm font-semibold text-indigo-700">{emptyLabel}</span>
-      </button>
-    )
-  }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="cursor-pointer w-full border border-gray-300 hover:border-indigo-300 rounded-lg px-3 py-2.5 flex items-center justify-between text-left transition"
-    >
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{primary}</p>
-        {secondary && <p className="text-xs text-gray-500 truncate">{secondary}</p>}
-      </div>
-      <ChevronDown size={16} className="text-gray-400 shrink-0" />
-    </button>
   )
 }

@@ -5,6 +5,10 @@ import { resolveWalker } from '../../lib/walker'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
 import { ChevronLeft, Calendar, Clock, Moon, PawPrint } from 'lucide-react'
+import Modal from '../../components/Modal'
+import PetForm from '../../components/account/PetForm'
+
+const PET_FORM_ID = 'public-pet-form'
 
 export default function BookingFlow() {
   const { walker: walkerParam } = useParams()
@@ -25,7 +29,7 @@ export default function BookingFlow() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [showAddPet, setShowAddPet] = useState(false)
-  const [newPet, setNewPet] = useState({ name: '', breed: '' })
+  const [petFormValid, setPetFormValid] = useState(false)
   const [addingPet, setAddingPet] = useState(false)
 
   // Restore from localStorage if state was lost
@@ -176,15 +180,13 @@ export default function BookingFlow() {
                         </option>
                       ))}
                     </select>
-                    {!showAddPet && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAddPet(true)}
-                        className="cursor-pointer text-sm text-indigo-600 hover:underline"
-                      >
-                        + Add another pet
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPet(true)}
+                      className="cursor-pointer text-sm text-indigo-600 hover:underline"
+                    >
+                      + Add another pet
+                    </button>
                   </div>
                 ) : (
                   <div className="text-center py-2">
@@ -199,61 +201,37 @@ export default function BookingFlow() {
                     </button>
                   </div>
                 )}
-
-                {showAddPet && (
-                  <div className="mt-3 bg-gray-50 rounded-lg p-3 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={newPet.name}
-                        onChange={(e) => setNewPet((p) => ({ ...p, name: e.target.value }))}
-                        placeholder="Pet name"
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={newPet.breed}
-                        onChange={(e) => setNewPet((p) => ({ ...p, breed: e.target.value }))}
-                        placeholder="Breed"
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={addingPet || !newPet.name.trim()}
-                        onClick={async () => {
-                          setAddingPet(true)
-                          const { data } = await supabase
-                            .from('pets')
-                            .insert({ user_id: user.id, name: newPet.name.trim(), breed: newPet.breed.trim() })
-                            .select('*')
-                            .single()
-                          if (data) {
-                            setPets((prev) => [...prev, data])
-                            setSelectedPetId(data.id)
-                          }
-                          setNewPet({ name: '', breed: '' })
-                          setShowAddPet(false)
-                          setAddingPet(false)
-                        }}
-                        className="cursor-pointer bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {addingPet ? 'Adding…' : 'Add'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowAddPet(false); setNewPet({ name: '', breed: '' }) }}
-                        className="cursor-pointer text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
+
+          <Modal
+            open={showAddPet}
+            onClose={() => setShowAddPet(false)}
+            title="New pet"
+            formId={PET_FORM_ID}
+            saveDisabled={!petFormValid}
+            saveLoading={addingPet}
+          >
+            <PetForm
+              formId={PET_FORM_ID}
+              onValidityChange={setPetFormValid}
+              onSubmit={async (payload) => {
+                setAddingPet(true)
+                const { data } = await supabase
+                  .from('pets')
+                  .insert({ user_id: user.id, ...payload })
+                  .select('*')
+                  .single()
+                if (data) {
+                  setPets((prev) => [...prev, data])
+                  setSelectedPetId(data.id)
+                }
+                setShowAddPet(false)
+                setAddingPet(false)
+              }}
+            />
+          </Modal>
 
           {/* Notes */}
           <div className="mb-6">
