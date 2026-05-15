@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -131,9 +131,9 @@ export async function handler(event) {
     link: `/account/bookings/${booking_id}`,
     emailSubject: `${walkerName} rescheduled your booking`,
     emailHtml: emailTemplate('Booking rescheduled', [
-      `<strong>${walkerName}</strong> has moved your <strong>${svcName}</strong>.`,
-      `<strong>From:</strong> ${oldWhen}`,
-      `<strong>To:</strong> ${newWhen}`,
+      `<strong>${esc(walkerName)}</strong> has moved your <strong>${esc(svcName)}</strong>.`,
+      `<strong>From:</strong> ${esc(oldWhen)}`,
+      `<strong>To:</strong> ${esc(newWhen)}`,
     ], 'View bookings', `${siteUrl}/account/bookings/${booking_id}`),
   })
 

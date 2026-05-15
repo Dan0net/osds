@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, formatSlots } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatSlots } from './lib/notify.js'
 
 const OSDS_FEE_RATE = 0.05
 const STRIPE_PERCENT_RATE = 0.034
@@ -221,7 +221,7 @@ export async function handler(event) {
     link: `/account/bookings/${bookingIds[0]}`,
     emailSubject: `New booking request from ${clientName}`,
     emailHtml: emailTemplate('New booking request', [
-      `${clientName} has requested <strong>${serviceNames}</strong> on ${when}.`,
+      `${esc(clientName)} has requested <strong>${esc(serviceNames)}</strong> on ${esc(when)}.`,
       'Review and approve or decline from your dashboard.',
     ], 'View request', `${siteUrl}/account/bookings/${bookingIds[0]}`),
   })

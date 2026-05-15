@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -84,7 +84,7 @@ export async function handler(event) {
           link: bookingLink,
           emailSubject: `Payment received — ${amount} from ${clientName}`,
           emailHtml: emailTemplate('Payment received', [
-            `<strong>${clientName}</strong> has paid <strong>${amount}</strong> for <strong>${svcName}</strong>${when ? ` on ${when}` : ''}.`,
+            `<strong>${esc(clientName)}</strong> has paid <strong>${esc(amount)}</strong> for <strong>${esc(svcName)}</strong>${when ? ` on ${esc(when)}` : ''}.`,
             'The booking is now confirmed.',
           ], 'View booking', `${siteUrl}${bookingLink}`),
         })

@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, formatSlots } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatSlots } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const OSDS_FEE_RATE = 0.05
@@ -215,7 +215,7 @@ export async function handler(event) {
       link: '/account/bookings',
       emailSubject: `Booking confirmed with ${wp.business_name}`,
       emailHtml: emailTemplate('Booking confirmed', [
-        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${when}.`,
+        `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
         'Your booking is confirmed.',
       ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
     })
@@ -224,12 +224,12 @@ export async function handler(event) {
       type: 'booking_payment_link',
       title: 'Payment requested',
       body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,
-      link: '/account/bookings',
+      link: checkoutUrl || '/account/bookings',
       emailSubject: `Payment requested from ${wp.business_name}`,
       emailHtml: emailTemplate('Payment requested', [
-        `<strong>${wp.business_name}</strong> has booked <strong>${serviceNames}</strong> for you on ${when}.`,
-        'Please complete payment to confirm your booking.',
-      ], 'Pay now', 'https://onestopdog.shop/account/bookings'),
+        `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
+        'Please complete payment to confirm your booking. You don\'t need to sign in first — the link below opens the secure Stripe checkout.',
+      ], 'Pay now', checkoutUrl || 'https://onestopdog.shop/account/bookings'),
     })
   }
 

@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const OSDS_FEE_RATE = 0.05
@@ -182,7 +182,7 @@ export async function handler(event) {
     link: `/account/bookings/${bookings[0].id}`,
     emailSubject: `Booking cancelled — ${cancelSvcName} on ${cancelWhen}`,
     emailHtml: emailTemplate('Booking cancelled', [
-      `<strong>${cancelSvcName}</strong> on ${cancelWhen} has been cancelled.`,
+      `<strong>${esc(cancelSvcName)}</strong> on ${esc(cancelWhen)} has been cancelled.`,
       'Check your bookings page for details.',
     ], 'View bookings', `${siteUrl}/account/bookings/${bookings[0].id}`),
   })

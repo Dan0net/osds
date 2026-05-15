@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { emailTemplate, notify } from './lib/notify.js'
+import { emailTemplate, esc, notify } from './lib/notify.js'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -48,7 +48,7 @@ export async function handler(event) {
         'Your page is live!',
         [
           'Your booking page is ready to share with clients. Start by creating a booking for an existing client or sharing your link.',
-          `<strong>Your page:</strong> <a href="${siteUrl}/w/${wp.slug}">${wp.slug}.onestopdog.shop</a>`,
+          `<strong>Your page:</strong> <a href="${siteUrl}/w/${esc(wp.slug)}">${esc(wp.slug)}.onestopdog.shop</a>`,
         ],
         'View your page',
         `${siteUrl}/w/${wp.slug}`,

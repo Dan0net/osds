@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
 
 function createAdminClient() {
   return createClient(
@@ -79,7 +79,7 @@ export async function handler(event) {
       link: `/account/bookings/${bookings[0].id}`,
       emailSubject: `Your booking with ${walkerName} has been approved`,
       emailHtml: emailTemplate('Booking approved', [
-        `Great news! <strong>${walkerName}</strong> has approved your booking.`,
+        `Great news! <strong>${esc(walkerName)}</strong> has approved your booking.`,
         'You can now proceed to pay from your bookings page.',
       ], 'Pay now', `${siteUrl}/account/bookings/${bookings[0].id}`),
     })
@@ -156,7 +156,7 @@ export async function handler(event) {
     link: `/account/bookings/${booking_id}`,
     emailSubject: `Your booking with ${wName} has been approved`,
     emailHtml: emailTemplate('Booking approved', [
-      `Great news! <strong>${wName}</strong> has approved your <strong>${svcName}</strong> on ${when}.`,
+      `Great news! <strong>${esc(wName)}</strong> has approved your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
       'You can now proceed to pay from your bookings page.',
     ], 'Pay now', `${siteUrl2}/account/bookings/${booking_id}`),
   })

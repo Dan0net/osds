@@ -56,7 +56,7 @@ const PREF_MAP = {
   booking_payment_link: { email: 'email_approval', push: 'push_approval' },
 }
 
-export { emailTemplate } from './email-template.js'
+export { emailTemplate, esc } from './email-template.js'
 
 /**
  * Send an email via Resend. Best-effort — never throws.

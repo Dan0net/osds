@@ -6,6 +6,7 @@ import { inviteCustomer } from '../../lib/api'
 import SearchList from '../../components/account/SearchList'
 import Modal from '../../components/Modal'
 import CustomerForm from '../../components/account/CustomerForm'
+import InviteConsentModal from '../../components/account/InviteConsentModal'
 
 const PAID_STATUSES = new Set(['confirmed', 'paid'])
 
@@ -15,8 +16,17 @@ export default function AccountCustomers() {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
+  const [consentOpen, setConsentOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [addError, setAddError] = useState(null)
+
+  function handleAddClick() {
+    if (walkerProfile?.customer_invite_consent_at) {
+      setAddOpen(true)
+    } else {
+      setConsentOpen(true)
+    }
+  }
 
   useEffect(() => {
     if (!walkerProfile) return
@@ -63,7 +73,10 @@ export default function AccountCustomers() {
       return null
     }
     setAddOpen(false)
-    // Navigate to the new customer's detail page
+    if (data?.status === 'already_exists') {
+      // Surface the dedupe so the walker isn't surprised the profile has history.
+      alert(`${data.user.name || 'This customer'} is already on OSDS — opening their profile.`)
+    }
     if (data?.user?.id) navigate(`/account/customers/${data.user.id}`)
     return data?.user
   }
@@ -84,7 +97,7 @@ export default function AccountCustomers() {
           searchFields={['client.name', 'client.email']}
           placeholder="Search customers…"
           addLabel="Add customer"
-          onAdd={() => setAddOpen(true)}
+          onAdd={handleAddClick}
           emptyState="No customers yet. Customers appear here once they've booked with you, or you can add one manually."
           renderItem={({ client, totalBookings, lastBookingDate, totalSpendCents }) => (
             <Link
@@ -113,6 +126,12 @@ export default function AccountCustomers() {
           )}
         />
       )}
+
+      <InviteConsentModal
+        open={consentOpen}
+        onClose={() => setConsentOpen(false)}
+        onAccept={() => { setConsentOpen(false); setAddOpen(true) }}
+      />
 
       <Modal open={addOpen} onClose={() => { setAddOpen(false); setAddError(null) }} title="New customer">
         {addError && (

@@ -1,9 +1,26 @@
 /**
+ * HTML-escape a string for safe embedding inside an HTML attribute or text node.
+ * Use this to wrap any user-controlled value before interpolating into emailTemplate.
+ */
+export function esc(value) {
+  if (value == null) return ''
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
  * Shared HTML email template with OSDS branding.
  * Used by both notification emails (via notify.js) and Supabase auth email templates.
  *
+ * NOTE: title and bodyParagraphs are inserted as raw HTML — callers must
+ * pre-escape any user-controlled values with `esc()` before interpolating.
+ *
  * @param {string} title - Email heading
- * @param {string[]} bodyParagraphs - Array of paragraph strings
+ * @param {string[]} bodyParagraphs - Array of paragraph strings (may contain trusted HTML)
  * @param {string} [ctaText] - Button label
  * @param {string} [ctaUrl] - Button link
  * @param {string} [footerHtml] - Custom footer HTML (defaults to notification preferences link)

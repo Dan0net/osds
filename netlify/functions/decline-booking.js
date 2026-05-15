@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, formatDateTime } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -64,7 +64,7 @@ export async function handler(event) {
       link: `/account/bookings/${bookings[0].id}`,
       emailSubject: `${walkerName} declined your booking request`,
       emailHtml: emailTemplate('Booking declined', [
-        `Unfortunately, <strong>${walkerName}</strong> was unable to accept your booking request.`,
+        `Unfortunately, <strong>${esc(walkerName)}</strong> was unable to accept your booking request.`,
         'You can browse other walkers or try different dates.',
       ]),
     })
@@ -120,7 +120,7 @@ export async function handler(event) {
     link: `/account/bookings/${booking_id}`,
     emailSubject: `${wName} declined your booking request`,
     emailHtml: emailTemplate('Booking declined', [
-      `Unfortunately, <strong>${wName}</strong> was unable to accept your <strong>${svcName}</strong> on ${when}.`,
+      `Unfortunately, <strong>${esc(wName)}</strong> was unable to accept your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
       'You can browse other walkers or try different dates.',
     ]),
   })

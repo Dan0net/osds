@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const RATE_LIMIT_PER_HOUR = 20
+const RATE_LIMIT_PER_DAY = 100
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -38,15 +40,46 @@ export async function handler(event) {
     return { statusCode: 403, body: JSON.stringify({ error: 'Not a walker' }) }
   }
 
-  const { name, email, phone, notes } = JSON.parse(event.body || '{}')
+  const { name, email, phone, postcode } = JSON.parse(event.body || '{}')
   const trimmedName = (name || '').trim()
   const trimmedEmail = (email || '').trim().toLowerCase()
+  const trimmedPostcode = (postcode || '').trim().toUpperCase() || null
 
   if (!trimmedName || trimmedName.length < 2) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Name is required' }) }
   }
   if (!trimmedEmail || !EMAIL_RE.test(trimmedEmail)) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Valid email is required' }) }
+  }
+
+  // Per-walker rate limit. Counts only successful invites (not rate_limited rows).
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { count: hourCount } = await admin
+    .from('customer_invites')
+    .select('id', { count: 'exact', head: true })
+    .eq('walker_id', wp.id)
+    .in('result', ['invited', 'already_exists'])
+    .gte('created_at', oneHourAgo)
+  const { count: dayCount } = await admin
+    .from('customer_invites')
+    .select('id', { count: 'exact', head: true })
+    .eq('walker_id', wp.id)
+    .in('result', ['invited', 'already_exists'])
+    .gte('created_at', oneDayAgo)
+
+  if ((hourCount || 0) >= RATE_LIMIT_PER_HOUR || (dayCount || 0) >= RATE_LIMIT_PER_DAY) {
+    await admin.from('customer_invites').insert({
+      walker_id: wp.id,
+      email: trimmedEmail,
+      name: trimmedName,
+      result: 'rate_limited',
+    })
+    return {
+      statusCode: 429,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Invite limit reached. Try again later.' }),
+    }
   }
 
   // Reuse existing user if email already exists
@@ -57,10 +90,22 @@ export async function handler(event) {
     .maybeSingle()
 
   if (existingProfile) {
+    await admin.from('customer_invites').insert({
+      walker_id: wp.id,
+      invited_user_id: existingProfile.id,
+      email: trimmedEmail,
+      name: trimmedName,
+      result: 'already_exists',
+    })
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { user: existingProfile, invited: false } }),
+      body: JSON.stringify({
+        data: {
+          user: existingProfile,
+          status: 'already_exists',
+        },
+      }),
     }
   }
 
@@ -69,21 +114,31 @@ export async function handler(event) {
     data: {
       name: trimmedName,
       phone: phone?.trim() || null,
+      postcode: trimmedPostcode,
       invited_by_walker_name: wp.business_name || '',
     },
     redirectTo: `${siteUrl}/reset-password`,
   })
 
   if (inviteErr) {
+    await admin.from('customer_invites').insert({
+      walker_id: wp.id,
+      email: trimmedEmail,
+      name: trimmedName,
+      result: 'failed',
+    })
     return { statusCode: 500, body: JSON.stringify({ error: inviteErr.message }) }
   }
 
-  // Backfill profile fields the trigger may not have set
   const newUserId = invited?.user?.id
   if (newUserId) {
     await admin
       .from('users')
-      .update({ name: trimmedName, phone: phone?.trim() || null })
+      .update({
+        name: trimmedName,
+        phone: phone?.trim() || null,
+        postcode: trimmedPostcode,
+      })
       .eq('id', newUserId)
   }
 
@@ -93,9 +148,22 @@ export async function handler(event) {
     .eq('id', newUserId)
     .maybeSingle()
 
+  await admin.from('customer_invites').insert({
+    walker_id: wp.id,
+    invited_user_id: newUserId,
+    email: trimmedEmail,
+    name: trimmedName,
+    result: 'invited',
+  })
+
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: { user: profile, invited: true } }),
+    body: JSON.stringify({
+      data: {
+        user: profile,
+        status: 'invited',
+      },
+    }),
   }
 }

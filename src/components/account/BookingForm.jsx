@@ -7,6 +7,7 @@ import { clientPriceCents } from '../../lib/utils'
 import EntityPicker from './EntityPicker'
 import CustomerForm from './CustomerForm'
 import ServiceForm from './ServiceForm'
+import InviteConsentModal from './InviteConsentModal'
 
 export default function BookingForm({ onCreated, onCancel }) {
   const { walkerProfile } = useAuth()
@@ -22,6 +23,7 @@ export default function BookingForm({ onCreated, onCancel }) {
   const [services, setServices] = useState([])
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false)
   const [servicePickerOpen, setServicePickerOpen] = useState(false)
+  const [consentOpen, setConsentOpen] = useState(false)
 
   useEffect(() => {
     if (!walkerProfile) return
@@ -56,6 +58,10 @@ export default function BookingForm({ onCreated, onCancel }) {
   }
 
   async function handleInviteCustomer(payload) {
+    if (!walkerProfile?.customer_invite_consent_at) {
+      setConsentOpen(true)
+      return null
+    }
     const { data, error: err } = await inviteCustomer(payload)
     if (err) {
       setError(err)
@@ -226,6 +232,12 @@ export default function BookingForm({ onCreated, onCancel }) {
         onCreate={handleCreateService}
         addLabel="Add new"
         emptyState="No services yet."
+      />
+
+      <InviteConsentModal
+        open={consentOpen}
+        onClose={() => setConsentOpen(false)}
+        onAccept={() => setConsentOpen(false)}
       />
     </form>
   )
