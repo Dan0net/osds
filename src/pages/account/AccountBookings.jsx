@@ -29,6 +29,9 @@ export default function AccountBookings() {
 
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [servicesCount, setServicesCount] = useState(0)
+  const [customerInvitesCount, setCustomerInvitesCount] = useState(0)
+  const [walkerBookingsCount, setWalkerBookingsCount] = useState(0)
   const [searchParams, setSearchParams] = useSearchParams()
   const [paymentBanner, setPaymentBanner] = useState(null)
   const [createBookingModal, setCreateBookingModal] = useState(false)
@@ -95,7 +98,17 @@ export default function AccountBookings() {
       ? apiFetch('get-external-events')
       : Promise.resolve({ data: { events: [] } })
 
-    const [clientRes, walkerRes, externalRes] = await Promise.all([clientPromise, walkerPromise, externalPromise])
+    const servicesCountPromise = walkerProfile
+      ? supabase.from('services').select('id', { count: 'exact', head: true }).eq('walker_id', walkerProfile.id)
+      : Promise.resolve({ count: 0 })
+
+    const invitesCountPromise = walkerProfile
+      ? supabase.from('customer_invites').select('id', { count: 'exact', head: true }).eq('walker_id', walkerProfile.id)
+      : Promise.resolve({ count: 0 })
+
+    const [clientRes, walkerRes, externalRes, servicesRes, invitesRes] = await Promise.all([
+      clientPromise, walkerPromise, externalPromise, servicesCountPromise, invitesCountPromise,
+    ])
 
     const merged = []
     for (const b of clientRes.data || []) merged.push(toEvent(b, false))
@@ -103,6 +116,9 @@ export default function AccountBookings() {
     for (const e of externalRes.data?.events || []) merged.push(toExternalEvent(e))
 
     setBookings(merged)
+    setServicesCount(servicesRes.count || 0)
+    setCustomerInvitesCount(invitesRes.count || 0)
+    setWalkerBookingsCount((walkerRes.data || []).length)
     setLoading(false)
   }
 
@@ -144,6 +160,13 @@ export default function AccountBookings() {
 
   const walkerReady = !!(walkerProfile?.business_name && walkerProfile?.postcode && walkerProfile?.stripe_account_id)
   const noBookingsYet = bookings.length === 0
+
+  const setupItems = isWalker ? [
+    { done: customerInvitesCount > 0 || walkerBookingsCount > 0, label: 'Add a customer', link: '/account/customers' },
+    { done: servicesCount > 0, label: 'Add a service', link: '/account/services' },
+    { done: !!walkerProfile?.stripe_account_id, label: 'Connect Stripe', link: '/account/settings/stripe' },
+    { done: walkerBookingsCount > 0, label: 'Add a booking', onClick: () => setCreateBookingModal(true) },
+  ] : null
 
   return (
     <div>
@@ -213,6 +236,7 @@ export default function AccountBookings() {
             events={selectedDate ? (eventsByDay[format(selectedDate, 'yyyy-MM-dd')] || []) : []}
             open={sheetOpen}
             onClose={() => setSheetOpen(false)}
+            setupItems={setupItems}
           />
         </div>
       ) : (
@@ -240,39 +264,6 @@ export default function AccountBookings() {
             >
               Add booking for a client
             </button>
-          </div>
-        </div>
-      )}
-
-      {isWalker && !walkerReady && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mt-6">
-          <h2 className="mb-3 font-semibold">Get your page live</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { done: !!walkerProfile.business_name, label: 'Set up your profile', link: '/account/profile' },
-              { done: false, label: 'Add your services', link: '/account/services' },
-              { done: !!walkerProfile.postcode, label: 'Add your postcode', link: '/account/profile' },
-              { done: !!walkerProfile.stripe_account_id, label: 'Connect Stripe', link: '/account/settings/stripe' },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                to={item.link}
-                className={`flex items-center gap-2 p-3 rounded-lg border transition ${
-                  item.done
-                    ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                    : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40'
-                }`}
-              >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${
-                  item.done ? 'bg-green-200 text-green-700' : 'bg-gray-100 text-gray-400'
-                }`}>
-                  {item.done ? '✓' : '·'}
-                </span>
-                <span className={`text-sm font-medium ${item.done ? 'text-gray-400' : 'text-gray-700'}`}>
-                  {item.label}
-                </span>
-              </Link>
-            ))}
           </div>
         </div>
       )}

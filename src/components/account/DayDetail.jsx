@@ -70,7 +70,54 @@ function EventRow({ event, onClose }) {
   )
 }
 
-function DayContent({ date, events, onClose, showClose = false }) {
+function SetupSection({ items, onClose }) {
+  if (!items || items.every((i) => i.done)) return null
+  return (
+    <div className="mt-6">
+      <h3 className="text-sm font-semibold text-gray-900 mb-2">Get your page live</h3>
+      <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+        {items.map((item) => {
+          const className = `flex items-center gap-2 px-2.5 py-2 rounded-lg border transition ${
+            item.done
+              ? 'bg-green-50 border-green-200'
+              : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40'
+          }`
+          const inner = (
+            <>
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
+                item.done ? 'bg-green-200 text-green-700' : 'bg-gray-100 text-gray-400'
+              }`}>
+                {item.done ? '✓' : '·'}
+              </span>
+              <span className={`text-xs font-medium ${item.done ? 'text-gray-400' : 'text-gray-700'}`}>
+                {item.label}
+              </span>
+            </>
+          )
+          if (item.onClick) {
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => { item.onClick(); onClose?.() }}
+                className={'cursor-pointer text-left ' + className}
+              >
+                {inner}
+              </button>
+            )
+          }
+          return (
+            <Link key={item.label} to={item.link} onClick={onClose} className={className}>
+              {inner}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function DayContent({ date, events, onClose, showClose = false, setupItems }) {
   const heading = date ? format(date, 'EEEE d MMMM') : 'Select a day'
 
   return (
@@ -96,11 +143,12 @@ function DayContent({ date, events, onClose, showClose = false }) {
           ))}
         </div>
       )}
+      <SetupSection items={setupItems} onClose={onClose} />
     </>
   )
 }
 
-export default function DayDetail({ date, events, open, onClose }) {
+export default function DayDetail({ date, events, open, onClose, setupItems }) {
   // Desktop sidebar — always rendered, no animation
   // Mobile sheet — slides up from bottom, covers half the screen
   const [mounted, setMounted] = useState(false)
@@ -141,7 +189,7 @@ export default function DayDetail({ date, events, open, onClose }) {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden lg:block w-80 shrink-0 bg-white border border-gray-200 rounded-xl p-4 h-fit sticky top-6">
-        <DayContent date={date} events={events} onClose={onClose} />
+        <DayContent date={date} events={events} onClose={onClose} setupItems={setupItems} />
       </aside>
 
       {/* Mobile slide-up sheet — sits above the bottom nav bar */}
@@ -154,7 +202,7 @@ export default function DayDetail({ date, events, open, onClose }) {
           aria-modal="true"
         >
           <div className="p-4 overflow-y-auto">
-            <DayContent date={date} events={events} onClose={onClose} showClose />
+            <DayContent date={date} events={events} onClose={onClose} showClose setupItems={setupItems} />
           </div>
         </div>
       )}
