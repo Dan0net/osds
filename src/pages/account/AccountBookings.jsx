@@ -38,6 +38,8 @@ export default function AccountBookings() {
   const [view, setView] = useState(readStoredView)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => new Date())
+  const [bookingFormValid, setBookingFormValid] = useState(false)
+  const [bookingSubmitting, setBookingSubmitting] = useState(false)
   // Mobile drawer is open by default showing today's events; on desktop the
   // sidebar is always visible and this flag is ignored.
   const [sheetOpen, setSheetOpen] = useState(true)
@@ -268,8 +270,21 @@ export default function AccountBookings() {
         </div>
       )}
 
-      <Modal open={createBookingModal} onClose={() => setCreateBookingModal(false)} title="New booking">
-        <BookingForm onCreated={() => { setCreateBookingModal(false); loadBookings() }} onCancel={() => setCreateBookingModal(false)} />
+      <Modal
+        open={createBookingModal}
+        onClose={() => setCreateBookingModal(false)}
+        title="New booking"
+        formId="booking-form"
+        saveLabel="Create"
+        saveDisabled={!bookingFormValid}
+        saveLoading={bookingSubmitting}
+      >
+        <BookingForm
+          formId="booking-form"
+          onValidityChange={setBookingFormValid}
+          onSubmittingChange={setBookingSubmitting}
+          onCreated={() => { setCreateBookingModal(false); loadBookings() }}
+        />
       </Modal>
     </div>
   )

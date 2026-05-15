@@ -9,13 +9,13 @@ import CustomerForm from './CustomerForm'
 import ServiceForm from './ServiceForm'
 import InviteConsentModal from './InviteConsentModal'
 
-export default function BookingForm({ onCreated, onCancel }) {
+export default function BookingForm({ onCreated, formId, onValidityChange, onSubmittingChange }) {
   const { walkerProfile } = useAuth()
   const [customer, setCustomer] = useState(null)
   const [service, setService] = useState(null)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
-  const [mode, setMode] = useState('cash')
+  const [mode, setMode] = useState('online')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -87,7 +87,10 @@ export default function BookingForm({ onCreated, onCancel }) {
     return data
   }
 
-  const valid = customer && service && date && time
+  const valid = !!(customer && service && date && time)
+
+  useEffect(() => { onValidityChange?.(valid) }, [valid])
+  useEffect(() => { onSubmittingChange?.(submitting) }, [submitting])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -96,10 +99,11 @@ export default function BookingForm({ onCreated, onCancel }) {
     setError(null)
     const endMin = time.split(':').map(Number).reduce((h, m) => h * 60 + m) + (service.duration_minutes || 30)
     const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
+    const apiMode = mode === 'online' ? 'send_link' : 'cash'
     const res = await walkerCreateBooking({
       client_id: customer.id,
       slots: [{ serviceId: service.id, date, time, endTime }],
-      mode,
+      mode: apiMode,
     })
     setSubmitting(false)
     if (res.error) {
@@ -110,78 +114,63 @@ export default function BookingForm({ onCreated, onCancel }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>
-      )}
-
-      <PickerField
-        label="Customer"
-        value={customer ? `${customer.name}${customer.email ? ` · ${customer.email}` : ''}` : ''}
-        placeholder="Select a customer…"
-        onClick={() => setCustomerPickerOpen(true)}
-      />
-
-      <PickerField
-        label="Service"
-        value={service ? `${service.name} · £${(clientPriceCents(service.price_cents) / 100).toFixed(2)}` : ''}
-        placeholder="Select a service…"
-        onClick={() => setServicePickerOpen(true)}
-      />
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Payment</label>
-        <div className="grid grid-cols-2 gap-2">
-          <label className={`cursor-pointer flex items-center gap-2 p-3 border-2 rounded-lg text-sm ${mode === 'cash' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'}`}>
-            <input type="radio" name="mode" value="cash" checked={mode === 'cash'} onChange={() => setMode('cash')} className="text-indigo-600" />
-            Mark as paid (cash)
-          </label>
-          <label className={`cursor-pointer flex items-center gap-2 p-3 border-2 rounded-lg text-sm ${mode === 'send_link' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'}`}>
-            <input type="radio" name="mode" value="send_link" checked={mode === 'send_link'} onChange={() => setMode('send_link')} className="text-indigo-600" />
-            Send payment link
-          </label>
-        </div>
-      </div>
-
-      <div className="flex gap-2 pt-2">
-        <button
-          type="submit"
-          disabled={!valid || submitting}
-          className="cursor-pointer flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {submitting ? 'Creating…' : 'Create booking'}
-        </button>
-        {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="cursor-pointer flex-1 border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg hover:bg-gray-50"
-          >
-            Cancel
-          </button>
+    <>
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>
         )}
-      </div>
+
+        <SelectionButton
+          empty={!customer}
+          emptyLabel="Add customer"
+          onClick={() => setCustomerPickerOpen(true)}
+          primary={customer?.name || 'Unnamed'}
+          secondary={customer?.email}
+        />
+
+        <SelectionButton
+          empty={!service}
+          emptyLabel="Add service"
+          onClick={() => setServicePickerOpen(true)}
+          primary={service?.name}
+          secondary={service ? `£${(clientPriceCents(service.price_cents) / 100).toFixed(2)} · ${service.duration_minutes} min` : null}
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Payment</label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className={`cursor-pointer flex items-center gap-2 p-3 border-2 rounded-lg text-sm ${mode === 'online' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'}`}>
+              <input type="radio" name="mode" value="online" checked={mode === 'online'} onChange={() => setMode('online')} className="text-indigo-600" />
+              Online
+            </label>
+            <label className={`cursor-pointer flex items-center gap-2 p-3 border-2 rounded-lg text-sm ${mode === 'cash_on_arrival' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'}`}>
+              <input type="radio" name="mode" value="cash_on_arrival" checked={mode === 'cash_on_arrival'} onChange={() => setMode('cash_on_arrival')} className="text-indigo-600" />
+              Cash on arrival
+            </label>
+          </div>
+        </div>
+      </form>
 
       <EntityPicker
         open={customerPickerOpen}
@@ -239,24 +228,33 @@ export default function BookingForm({ onCreated, onCancel }) {
         onClose={() => setConsentOpen(false)}
         onAccept={() => setConsentOpen(false)}
       />
-    </form>
+    </>
   )
 }
 
-function PickerField({ label, value, placeholder, onClick }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+function SelectionButton({ empty, emptyLabel, onClick, primary, secondary }) {
+  if (empty) {
+    return (
       <button
         type="button"
         onClick={onClick}
-        className="cursor-pointer w-full flex items-center justify-between border border-gray-300 rounded-lg px-3 py-2 text-left hover:border-indigo-300 transition"
+        className="cursor-pointer w-full border-2 border-dashed border-gray-300 hover:border-indigo-400 rounded-lg px-3 py-3 flex items-center justify-center gap-2 text-sm font-medium text-indigo-600 transition"
       >
-        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
-          {value || placeholder}
-        </span>
-        <ChevronDown size={16} className="text-gray-400" />
+        <Plus size={16} /> {emptyLabel}
       </button>
-    </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="cursor-pointer w-full border border-gray-300 hover:border-indigo-300 rounded-lg px-3 py-2.5 flex items-center justify-between text-left transition"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{primary}</p>
+        {secondary && <p className="text-xs text-gray-500 truncate">{secondary}</p>}
+      </div>
+      <ChevronDown size={16} className="text-gray-400 shrink-0" />
+    </button>
   )
 }

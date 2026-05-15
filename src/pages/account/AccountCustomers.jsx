@@ -19,6 +19,7 @@ export default function AccountCustomers() {
   const [consentOpen, setConsentOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [addError, setAddError] = useState(null)
+  const [formValid, setFormValid] = useState(false)
 
   function handleAddClick() {
     if (walkerProfile?.customer_invite_consent_at) {
@@ -35,14 +36,21 @@ export default function AccountCustomers() {
 
   async function loadCustomers() {
     setLoading(true)
-    const { data } = await supabase
-      .from('bookings')
-      .select('client_id, booking_date, users:client_id(id, name, email, avatar_url), payments(amount_cents, status)')
-      .eq('walker_id', walkerProfile.id)
-      .order('booking_date', { ascending: false })
+    const [bookingsRes, invitesRes] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('client_id, booking_date, users:client_id(id, name, email, avatar_url), payments(amount_cents, status)')
+        .eq('walker_id', walkerProfile.id)
+        .order('booking_date', { ascending: false }),
+      supabase
+        .from('customer_invites')
+        .select('invited_user_id, users:invited_user_id(id, name, email, avatar_url)')
+        .eq('walker_id', walkerProfile.id)
+        .in('result', ['invited', 'already_exists']),
+    ])
 
     const map = new Map()
-    for (const row of data || []) {
+    for (const row of bookingsRes.data || []) {
       if (!row.client_id || !row.users) continue
       const existing = map.get(row.client_id) || {
         client: row.users,
@@ -58,6 +66,15 @@ export default function AccountCustomers() {
         existing.totalSpendCents += row.payments.amount_cents || 0
       }
       map.set(row.client_id, existing)
+    }
+    for (const row of invitesRes.data || []) {
+      if (!row.invited_user_id || !row.users || map.has(row.invited_user_id)) continue
+      map.set(row.invited_user_id, {
+        client: row.users,
+        totalBookings: 0,
+        lastBookingDate: null,
+        totalSpendCents: 0,
+      })
     }
     setCustomers([...map.values()])
     setLoading(false)
@@ -133,14 +150,25 @@ export default function AccountCustomers() {
         onAccept={() => { setConsentOpen(false); setAddOpen(true) }}
       />
 
-      <Modal open={addOpen} onClose={() => { setAddOpen(false); setAddError(null) }} title="New customer">
+      <Modal
+        open={addOpen}
+        onClose={() => { setAddOpen(false); setAddError(null) }}
+        title="New customer"
+        formId="customer-form"
+        saveDisabled={!formValid}
+        saveLoading={submitting}
+      >
         {addError && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{addError}</div>
         )}
         <p className="text-xs text-gray-500 mb-4">
           They'll receive an email invite. They can pay any booking from the link without signing in.
         </p>
-        <CustomerForm onSubmit={handleAddCustomer} onCancel={() => setAddOpen(false)} submitting={submitting} />
+        <CustomerForm
+          formId="customer-form"
+          onSubmit={handleAddCustomer}
+          onValidityChange={setFormValid}
+        />
       </Modal>
     </div>
   )

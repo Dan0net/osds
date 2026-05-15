@@ -13,6 +13,7 @@ export default function ServiceDetail() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [formValid, setFormValid] = useState(false)
 
   useEffect(() => {
     if (!walkerProfile) return
@@ -96,7 +97,20 @@ export default function ServiceDetail() {
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
       )}
 
-      <ServiceForm initial={service} onSubmit={handleSave} submitting={submitting} />
+      <ServiceForm
+        formId="service-edit-form"
+        initial={service}
+        onSubmit={handleSave}
+        onValidityChange={setFormValid}
+      />
+      <button
+        type="submit"
+        form="service-edit-form"
+        disabled={!formValid || submitting}
+        className="cursor-pointer w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+      >
+        {submitting ? 'Saving…' : 'Save'}
+      </button>
     </div>
   )
 }

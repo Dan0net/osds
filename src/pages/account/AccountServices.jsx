@@ -14,6 +14,7 @@ export default function AccountServices() {
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [formValid, setFormValid] = useState(false)
 
   useEffect(() => {
     if (!walkerProfile) return
@@ -90,8 +91,19 @@ export default function AccountServices() {
         />
       )}
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="New service">
-        <ServiceForm onSubmit={handleCreate} onCancel={() => setAddOpen(false)} submitting={submitting} />
+      <Modal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="New service"
+        formId="service-form"
+        saveDisabled={!formValid}
+        saveLoading={submitting}
+      >
+        <ServiceForm
+          formId="service-form"
+          onSubmit={handleCreate}
+          onValidityChange={setFormValid}
+        />
       </Modal>
     </div>
   )
