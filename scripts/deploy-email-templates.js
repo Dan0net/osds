@@ -57,6 +57,8 @@ const payload = {
   mailer_subjects_magic_link: 'Your login link — One Stop Dog Shop',
   mailer_templates_email_change_content: readTemplate('email_change.html'),
   mailer_subjects_email_change: 'Confirm email change — One Stop Dog Shop',
+  mailer_templates_invite_content: readTemplate('invite.html'),
+  mailer_subjects_invite: 'You\'ve been invited to One Stop Dog Shop',
 }
 
 const url = `https://api.supabase.com/v1/projects/${projectRef}/config/auth`

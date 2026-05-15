@@ -40,6 +40,10 @@ content_path = "./supabase/templates/magic_link.html"
 subject = "Confirm email change — One Stop Dog Shop"
 content_path = "./supabase/templates/email_change.html"
 
+[auth.email.template.invite]
+subject = "You've been invited to One Stop Dog Shop"
+content_path = "./supabase/templates/invite.html"
+
 [auth.external.google]
 enabled = false
 

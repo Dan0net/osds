@@ -59,6 +59,16 @@ const templates = [
     cta: 'Confirm change',
     footer: 'You received this email because an email change was requested for your account.',
   },
+  {
+    file: 'invite.html',
+    title: 'You\'ve been invited to One Stop Dog Shop',
+    body: [
+      '{{ if .Data.invited_by_walker_name }}<strong>{{ .Data.invited_by_walker_name }}</strong> has added you as a customer on One Stop Dog Shop.{{ else }}A dog walker has added you as a customer on One Stop Dog Shop.{{ end }}',
+      'Click the button below to set up your account. You\'ll be able to set a password, manage your bookings, and pay for services.',
+    ],
+    cta: 'Set up your account',
+    footer: 'You received this email because a dog walker added you as a customer using this address.',
+  },
 ]
 
 for (const t of templates) {
@@ -66,6 +76,8 @@ for (const t of templates) {
   const body = [...t.body]
   if (t.file === 'email_change.html') {
     body.push('If you didn\'t request this change, please secure your account immediately.')
+  } else if (t.file === 'invite.html') {
+    body.push('If you weren\'t expecting this, you can safely ignore this email — no account will be created until you click the link above.')
   } else {
     body.push('If you didn\'t ' + (t.file === 'confirmation.html' ? 'create this account' : 'request this') + ', you can safely ignore this email.' + (t.file === 'recovery.html' ? ' Your password will remain unchanged.' : ''))
   }

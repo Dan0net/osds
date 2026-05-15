@@ -30,7 +30,7 @@ export async function handler(event) {
 
   const { data: wp } = await supabase
     .from('walker_profiles')
-    .select('id')
+    .select('id, business_name')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -66,7 +66,11 @@ export async function handler(event) {
 
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
   const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(trimmedEmail, {
-    data: { name: trimmedName, phone: phone?.trim() || null },
+    data: {
+      name: trimmedName,
+      phone: phone?.trim() || null,
+      invited_by_walker_name: wp.business_name || '',
+    },
     redirectTo: `${siteUrl}/reset-password`,
   })
 
