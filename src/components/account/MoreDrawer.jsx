@@ -1,13 +1,42 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { NAV_ITEMS, filterForRole } from './nav'
 import ProfileChip from './ProfileChip'
 
+const ANIM_MS = 200
+
 export default function MoreDrawer({ open, onClose }) {
   const { walkerProfile } = useAuth()
   const isWalker = !!walkerProfile
+  const [mounted, setMounted] = useState(false)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+    } else {
+      setVisible(false)
+      const id = setTimeout(() => setMounted(false), ANIM_MS)
+      return () => clearTimeout(id)
+    }
+  }, [open])
+
+  // After mount, wait two frames so the initial `translate-y-full` paints
+  // before we flip to `translate-y-0`. Otherwise the browser collapses both
+  // states into one paint and the transition never runs.
+  useEffect(() => {
+    if (!mounted || !open) return
+    let raf2
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setVisible(true))
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
+  }, [mounted, open])
 
   useEffect(() => {
     if (!open) return
@@ -22,7 +51,7 @@ export default function MoreDrawer({ open, onClose }) {
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted) return null
 
   const items = filterForRole(NAV_ITEMS, isWalker)
   // Top-level items minus the Settings parent (Settings shows as a section heading instead).
@@ -30,7 +59,13 @@ export default function MoreDrawer({ open, onClose }) {
   const settingsChildren = items.filter((i) => i.parent === 'settings')
 
   return (
-    <div className="lg:hidden fixed inset-0 z-50 bg-white flex flex-col" role="dialog" aria-modal="true">
+    <div
+      className={`lg:hidden fixed inset-0 z-50 bg-white flex flex-col transition-transform duration-200 ease-out ${
+        visible ? 'translate-y-0' : 'translate-y-full'
+      }`}
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
         <div className="flex-1 min-w-0">
           <ProfileChip onItemClick={onClose} />
