@@ -357,24 +357,30 @@ export default function AccountBookings() {
       {isWalker && !walkerReady && noBookingsYet && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
           <h2 className="mb-3 font-semibold">Get your page live</h2>
-          <div className="space-y-2 text-sm">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { done: !!walkerProfile.business_name, label: 'Set up your profile', link: '/account/profile' },
               { done: false, label: 'Add your services', link: '/account/services' },
               { done: !!walkerProfile.postcode, label: 'Add your postcode', link: '/account/profile' },
-              { done: !!walkerProfile.stripe_account_id, label: 'Connect Stripe', link: '/account/profile' },
+              { done: !!walkerProfile.stripe_account_id, label: 'Connect Stripe', link: '/account/settings/stripe' },
             ].map((item) => (
               <Link
                 key={item.label}
                 to={item.link}
-                className="flex items-center gap-2 hover:bg-gray-50 rounded p-1.5 -mx-1.5"
+                className={`flex items-center gap-2 p-3 rounded-lg border transition ${
+                  item.done
+                    ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                    : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40'
+                }`}
               >
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${
-                  item.done ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                  item.done ? 'bg-green-200 text-green-700' : 'bg-gray-100 text-gray-400'
                 }`}>
                   {item.done ? '✓' : '·'}
                 </span>
-                <span className={item.done ? 'text-gray-400 line-through' : 'text-gray-700'}>{item.label}</span>
+                <span className={`text-sm font-medium ${item.done ? 'text-gray-400' : 'text-gray-700'}`}>
+                  {item.label}
+                </span>
               </Link>
             ))}
           </div>
