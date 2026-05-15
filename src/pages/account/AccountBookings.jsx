@@ -160,13 +160,13 @@ export default function AccountBookings() {
     setSheetOpen(true)
   }
 
-  const walkerReady = !!(walkerProfile?.business_name && walkerProfile?.postcode && walkerProfile?.stripe_account_id)
+  const walkerReady = !!(walkerProfile?.business_name && walkerProfile?.postcode && walkerProfile?.stripe_charges_enabled)
   const noBookingsYet = bookings.length === 0
 
   const setupItems = isWalker ? [
     { done: customerInvitesCount > 0 || walkerBookingsCount > 0, label: 'Add a customer', link: '/account/customers' },
     { done: servicesCount > 0, label: 'Add a service', link: '/account/services' },
-    { done: !!walkerProfile?.stripe_account_id, label: 'Connect Stripe', link: '/account/settings/stripe' },
+    { done: !!walkerProfile?.stripe_charges_enabled, label: 'Connect Stripe', link: '/account/settings/stripe' },
     { done: walkerBookingsCount > 0, label: 'Add a booking', onClick: () => setCreateBookingModal(true) },
   ] : null
 

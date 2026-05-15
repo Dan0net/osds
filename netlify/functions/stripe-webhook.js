@@ -92,6 +92,17 @@ export async function handler(event) {
     }
   }
 
+  if (stripeEvent.type === 'account.updated') {
+    const account = stripeEvent.data.object
+    const { error: accountError } = await supabase
+      .from('walker_profiles')
+      .update({ stripe_charges_enabled: !!account.charges_enabled })
+      .eq('stripe_account_id', account.id)
+    if (accountError) {
+      console.error('Failed to sync stripe_charges_enabled:', accountError)
+    }
+  }
+
   if (stripeEvent.type === 'checkout.session.expired') {
     const session = stripeEvent.data.object
     const paymentId = session.metadata?.payment_id

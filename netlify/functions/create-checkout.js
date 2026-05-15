@@ -61,12 +61,12 @@ export async function handler(event) {
   // Get walker's Stripe account
   const { data: wp } = await adminSupabase
     .from('walker_profiles')
-    .select('stripe_account_id, business_name')
+    .select('stripe_account_id, stripe_charges_enabled, business_name')
     .eq('id', payment.walker_id)
     .single()
 
-  if (!wp?.stripe_account_id) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Walker has not connected Stripe' }) }
+  if (!wp?.stripe_charges_enabled) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Walker has not finished Stripe onboarding' }) }
   }
 
   // Get booking details for line items

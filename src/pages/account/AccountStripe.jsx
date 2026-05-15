@@ -1,25 +1,34 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
 import { stripeConnectOnboard, stripeConnectCallback, stripeDashboardLink } from '../../lib/api'
 
 export default function AccountStripe() {
-  const { walkerProfile } = useAuth()
+  const { walkerProfile, refreshProfile } = useAuth()
   const [stripeLoading, setStripeLoading] = useState(false)
   const [stripeStatus, setStripeStatus] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (walkerProfile?.stripe_account_id) {
-      stripeConnectCallback().then((res) => {
-        if (res.data) setStripeStatus(res.data)
-      })
-    }
+    if (!walkerProfile?.stripe_account_id) return
+    stripeConnectCallback().then(async (res) => {
+      if (!res.data) return
+      setStripeStatus(res.data)
+      const live = !!res.data.charges_enabled
+      if (live !== walkerProfile.stripe_charges_enabled) {
+        await supabase
+          .from('walker_profiles')
+          .update({ stripe_charges_enabled: live })
+          .eq('id', walkerProfile.id)
+        await refreshProfile()
+      }
+    })
   }, [walkerProfile?.stripe_account_id])
 
   async function handleConnect() {
     setStripeLoading(true)
     setError(null)
-    const res = await stripeConnectOnboard()
+    const res = await stripeConnectOnboard({ return_path: '/account/settings/stripe' })
     if (res.data?.url) window.location.href = res.data.url
     else {
       setError(res.error || 'Failed to start Stripe onboarding')

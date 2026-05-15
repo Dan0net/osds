@@ -38,7 +38,7 @@ export async function handler(event) {
   // Verify walker
   const { data: wp } = await supabase
     .from('walker_profiles')
-    .select('id, stripe_account_id, business_name')
+    .select('id, stripe_account_id, stripe_charges_enabled, business_name')
     .eq('user_id', user.id)
     .single()
 
@@ -57,8 +57,8 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'mode must be cash or send_link' }) }
   }
 
-  if (mode === 'send_link' && !wp.stripe_account_id) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Connect Stripe first to send payment links' }) }
+  if (mode === 'send_link' && !wp.stripe_charges_enabled) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Finish Stripe onboarding before sending payment links' }) }
   }
 
   // Verify client exists

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, Plus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronDown, Plus, Check, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { inviteCustomer, walkerCreateBooking } from '../../lib/api'
@@ -87,7 +88,8 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
     return data
   }
 
-  const valid = !!(customer && service && date && time)
+  const stripeReady = !!walkerProfile?.stripe_charges_enabled
+  const valid = !!(customer && service && date && time && (mode !== 'online' || stripeReady))
 
   useEffect(() => { onValidityChange?.(valid) }, [valid])
   useEffect(() => { onSubmittingChange?.(submitting) }, [submitting])
@@ -162,13 +164,32 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
           <div className="grid grid-cols-2 gap-2">
             <label className={`cursor-pointer flex items-center gap-2 p-3 border-2 rounded-lg text-sm ${mode === 'online' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'}`}>
               <input type="radio" name="mode" value="online" checked={mode === 'online'} onChange={() => setMode('online')} className="text-indigo-600" />
-              Online
+              Online (Stripe)
             </label>
             <label className={`cursor-pointer flex items-center gap-2 p-3 border-2 rounded-lg text-sm ${mode === 'cash_on_arrival' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'}`}>
               <input type="radio" name="mode" value="cash_on_arrival" checked={mode === 'cash_on_arrival'} onChange={() => setMode('cash_on_arrival')} className="text-indigo-600" />
               Cash on arrival
             </label>
           </div>
+          {mode === 'online' && (
+            stripeReady ? (
+              <div className="flex items-center gap-1.5 text-xs text-green-700 mt-2">
+                <Check size={14} /> Stripe connected
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                <div className="flex items-center gap-1.5 text-xs text-amber-800">
+                  <AlertTriangle size={14} /> Stripe isn't set up yet
+                </div>
+                <Link
+                  to="/account/settings/stripe"
+                  className="text-xs font-semibold text-amber-800 hover:text-amber-900 underline shrink-0"
+                >
+                  Connect Stripe
+                </Link>
+              </div>
+            )
+          )}
         </div>
       </form>
 
@@ -238,9 +259,12 @@ function SelectionButton({ empty, emptyLabel, onClick, primary, secondary }) {
       <button
         type="button"
         onClick={onClick}
-        className="cursor-pointer w-full border-2 border-dashed border-gray-300 hover:border-indigo-400 rounded-lg px-3 py-3 flex items-center justify-center gap-2 text-sm font-medium text-indigo-600 transition"
+        className="cursor-pointer w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition text-left"
       >
-        <Plus size={16} /> {emptyLabel}
+        <div className="w-9 h-9 rounded-full bg-white text-indigo-600 flex items-center justify-center shrink-0">
+          <Plus size={18} />
+        </div>
+        <span className="text-sm font-semibold text-indigo-700">{emptyLabel}</span>
       </button>
     )
   }
