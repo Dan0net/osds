@@ -3,23 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch, createCheckout } from '../../lib/api'
-import OwnerSetupWizard from '../../components/OwnerSetupWizard'
 
 export default function AccountDashboard() {
   const { user, profile, walkerProfile: wp } = useAuth()
   const navigate = useNavigate()
-
-  // Owner wizard: show if owner hasn't completed setup.
-  // Initial check on mount — once dismissed, stays dismissed for this page lifecycle.
-  const needsSetup = profile && !wp && !profile.setup_completed_at
-  const [wizardDismissed, setWizardDismissed] = useState(false)
-
-  // Walker wizard redirect
-  useEffect(() => {
-    if (wp && !wp.setup_completed_at) {
-      navigate('/account/setup', { replace: true })
-    }
-  }, [wp?.setup_completed_at])
 
   const walkerSlug = wp?.slug
   const domain = import.meta.env.VITE_DOMAIN || 'onestopdog.shop'
@@ -129,9 +116,7 @@ export default function AccountDashboard() {
     setSelectedIds(new Set(pendingRequests.map((b) => b.id)))
   }, [walkerBookings])
 
-  // Owner wizard — must be after all hooks
-  if (needsSetup && !wizardDismissed) return <OwnerSetupWizard onComplete={() => setWizardDismissed(true)} />
-
+  const walkerReady = !!(wp?.business_name && wp?.postcode && wp?.stripe_account_id)
   const totalRevenueCents = walkerPaymentsTotal
 
   function getServiceName(b) {
@@ -536,8 +521,7 @@ export default function AccountDashboard() {
         </div>
       )}
 
-      {/* Post-wizard walker CTAs */}
-      {wp && wp.setup_completed_at && walkerBookings.length === 0 && (
+      {wp && walkerReady && walkerBookings.length === 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mb-8">
           <h2 className="text-lg font-semibold mb-2">Your page is live!</h2>
           <p className="text-sm text-gray-600 mb-4">
@@ -562,8 +546,7 @@ export default function AccountDashboard() {
         </div>
       )}
 
-      {/* Walker setup checklist (fallback for walkers without setup_completed_at) */}
-      {wp && !wp.setup_completed_at && walkerBookings.length === 0 && (
+      {wp && !walkerReady && walkerBookings.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-8">
           <h2 className="mb-3">Get your page live</h2>
           <div className="space-y-2 text-sm">

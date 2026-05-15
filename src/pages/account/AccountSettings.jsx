@@ -55,7 +55,7 @@ export default function AccountSettings() {
         })
       if (wpErr) throw wpErr
       await refreshProfile()
-      navigate('/account/setup')
+      navigate('/account')
     } catch (err) {
       alert(err.message)
     } finally {

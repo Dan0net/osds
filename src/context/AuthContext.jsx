@@ -115,34 +115,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function completeSetup(role) {
-    if (role === 'walker' && walkerProfile) {
-      await supabase
-        .from('walker_profiles')
-        .update({ setup_completed_at: new Date().toISOString() })
-        .eq('id', walkerProfile.id)
-    } else if (user) {
-      await supabase
-        .from('users')
-        .update({ setup_completed_at: new Date().toISOString() })
-        .eq('id', user.id)
-    }
-    // Send welcome email (fire-and-forget)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        fetch('/.netlify/functions/send-welcome-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        })
-      }
-    } catch { /* non-critical */ }
-    await refreshProfile()
-  }
-
   return (
     <AuthContext.Provider
       value={{
@@ -157,7 +129,6 @@ export function AuthProvider({ children }) {
         requestPasswordReset,
         updatePassword,
         refreshProfile,
-        completeSetup,
       }}
     >
       {children}

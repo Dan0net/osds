@@ -87,7 +87,6 @@ export default function WalkerPage() {
   const avgRating = reviews.length > 0
     ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
     : null
-  const isSetupComplete = !!walker?.setup_completed_at
 
   if (loading) {
     return (
@@ -256,15 +255,10 @@ export default function WalkerPage() {
           {/* Services */}
           <div className="py-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold mb-4">Services</h2>
-            {!isSetupComplete && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-                <p className="text-sm text-amber-800">This walker is still setting up their page. Booking is not available yet.</p>
-              </div>
-            )}
             <div className="space-y-3">
               {services.filter((s) => s.active).map((service) => {
                 const isOvernight = service.service_type === 'overnight'
-                return isSetupComplete ? (
+                return (
                   <button
                     key={service.id}
                     onClick={() => navigate(`${prefix}/book/${service.id}`)}
@@ -286,27 +280,6 @@ export default function WalkerPage() {
                       £{(clientPriceCents(service.price_cents) / 100).toFixed(2)}
                     </span>
                   </button>
-                ) : (
-                  <div
-                    key={service.id}
-                    className="w-full flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl opacity-60 text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 text-gray-400 flex items-center justify-center shrink-0">
-                        {isOvernight ? <Moon size={20} /> : <Clock size={20} />}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">{service.name}</h3>
-                        <p className="text-xs text-gray-400">
-                          {isOvernight ? 'per night' : `${service.duration_minutes} min`}
-                          {service.description && ` · ${service.description}`}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-400 shrink-0 ml-4">
-                      £{(clientPriceCents(service.price_cents) / 100).toFixed(2)}
-                    </span>
-                  </div>
                 )
               })}
             </div>
@@ -383,39 +356,30 @@ export default function WalkerPage() {
               )}
             </div>
 
-            {isSetupComplete ? (
-              <>
-                <div className="space-y-2 mb-4">
-                  {services.filter((s) => s.active).slice(0, 4).map((service) => (
-                    <Link
-                      key={service.id}
-                      to={`${prefix}/book/${service.id}`}
-                      className="cursor-pointer flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-300 transition text-sm"
-                    >
-                      <div>
-                        <span className="font-medium">{service.name}</span>
-                        <span className="text-gray-400 ml-1.5">
-                          {service.service_type === 'overnight' ? '/ night' : `/ ${service.duration_minutes}min`}
-                        </span>
-                      </div>
-                      <span className="font-semibold text-indigo-600">£{(clientPriceCents(service.price_cents) / 100).toFixed(0)}</span>
-                    </Link>
-                  ))}
-                </div>
-                {services.length > 0 && (
-                  <Link
-                    to={`${prefix}/book/${services[0].id}`}
-                    className="cursor-pointer block text-center bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition"
-                  >
-                    Book now
-                  </Link>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-2">
-                <p className="text-sm text-gray-400">Booking not available yet</p>
-                <p className="text-xs text-gray-400 mt-1">This walker is still setting up</p>
-              </div>
+            <div className="space-y-2 mb-4">
+              {services.filter((s) => s.active).slice(0, 4).map((service) => (
+                <Link
+                  key={service.id}
+                  to={`${prefix}/book/${service.id}`}
+                  className="cursor-pointer flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-300 transition text-sm"
+                >
+                  <div>
+                    <span className="font-medium">{service.name}</span>
+                    <span className="text-gray-400 ml-1.5">
+                      {service.service_type === 'overnight' ? '/ night' : `/ ${service.duration_minutes}min`}
+                    </span>
+                  </div>
+                  <span className="font-semibold text-indigo-600">£{(clientPriceCents(service.price_cents) / 100).toFixed(0)}</span>
+                </Link>
+              ))}
+            </div>
+            {services.length > 0 && (
+              <Link
+                to={`${prefix}/book/${services[0].id}`}
+                className="cursor-pointer block text-center bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition"
+              >
+                Book now
+              </Link>
             )}
           </div>
         </div>

@@ -27,7 +27,6 @@ import AccountPayments from './pages/account/AccountPayments'
 import AccountInbox from './pages/account/AccountInbox'
 import AccountProfile from './pages/account/AccountProfile'
 import AccountSettings from './pages/account/AccountSettings'
-import WalkerSetupWizard from './pages/account/WalkerSetupWizard'
 import BookingDetail from './pages/account/BookingDetail'
 import AccountNotifications from './pages/account/AccountNotifications'
 
@@ -72,7 +71,6 @@ function PlatformRoutes() {
           <Route path="profile" element={<AccountProfile />} />
           <Route path="notifications" element={<AccountNotifications />} />
           <Route path="settings" element={<AccountSettings />} />
-          <Route path="setup" element={<WalkerSetupWizard />} />
         </Route>
       </Route>
     </Routes>

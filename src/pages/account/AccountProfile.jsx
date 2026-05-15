@@ -134,7 +134,7 @@ export default function AccountProfile() {
         })
       if (wpErr) throw wpErr
       await refreshProfile()
-      navigate('/account/setup')
+      navigate('/account')
     } catch (err) {
       setError(err.message)
     } finally {
