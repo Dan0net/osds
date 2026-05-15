@@ -42,8 +42,6 @@ const PX_PER_HOUR_MOBILE = 64
 const TOP_PAD = 10
 const MOBILE_PANE_DAYS = 3
 const MOBILE_GRID_MAX_HEIGHT = 'min(calc(100dvh - 280px), 480px)'
-const SWIPE_THRESHOLD = 40
-const SWIPE_DRAG_THRESHOLD = 10
 
 function colCSS(colIndex, gridCols, inset = 1) {
   return {
@@ -98,13 +96,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
 
-  // Mobile swipe state
+  // Mobile pane state — prev/next arrows step the 3-day window.
   const [mobileAnchor, setMobileAnchor] = useState(todayStr)
-  const [mobileDx, setMobileDx] = useState(0)
-  const [mobileTransitioning, setMobileTransitioning] = useState(false)
-  const [pendingMobileAnchor, setPendingMobileAnchor] = useState(null)
-  const mobileTouchRef = useRef(null)
-  const mobileTrackRef = useRef(null)
 
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 640)
@@ -140,10 +133,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const DROP_MIN = 18 * 60
   const PICK_MIN = 10 * 60
 
-  // Mobile panes
   const currentPaneDates = paneDatesFromAnchor(mobileAnchor, MOBILE_PANE_DAYS)
-  const prevPaneDates = paneDatesFromAnchor(shiftDate(mobileAnchor, -MOBILE_PANE_DAYS), MOBILE_PANE_DAYS)
-  const nextPaneDates = paneDatesFromAnchor(shiftDate(mobileAnchor, MOBILE_PANE_DAYS), MOBILE_PANE_DAYS)
   const atMobileStart = mobileAnchor <= todayStr
 
   const visibleDates = isMobile ? currentPaneDates : weekDates
@@ -191,8 +181,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   }, [walkerId, fetchRange])
 
   // Visible range — used to trigger refetch when the user navigates out of the prefetched window
-  const visStart = isMobile ? (prevPaneDates[0] < todayStr ? todayStr : prevPaneDates[0]) : weekDates[0]
-  const visEnd = isMobile ? nextPaneDates[2] : weekDates[6]
+  const visStart = isMobile ? currentPaneDates[0] : weekDates[0]
+  const visEnd = isMobile ? currentPaneDates[MOBILE_PANE_DAYS - 1] : weekDates[6]
 
   useEffect(() => {
     if (!walkerId || !fetchedRange) return
@@ -222,9 +212,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const { weekSlots, fullTimeGrid } = useMemo(() => {
     const slotMap = {}
     const times = new Set()
-    const relevant = isMobile
-      ? [...prevPaneDates, ...currentPaneDates, ...nextPaneDates]
-      : weekDates
+    const relevant = isMobile ? currentPaneDates : weekDates
     for (const date of relevant) {
       const day = allSlotData[date]
       slotMap[date] = day?.slots || []
@@ -232,7 +220,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
       allTimes.forEach((t) => times.add(t))
     }
     return { weekSlots: slotMap, fullTimeGrid: Array.from(times).sort() }
-  }, [isMobile, weekDates.join(','), currentPaneDates.join(','), prevPaneDates.join(','), nextPaneDates.join(','), allSlotData])
+  }, [isMobile, weekDates.join(','), currentPaneDates.join(','), allSlotData])
 
   // --- Derived values ---
   const baseStartH = fullTimeGrid.length > 0 ? Math.max(7, parseInt(fullTimeGrid[0])) : 7
@@ -374,83 +362,6 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   function handleBookNow() {
     localStorage.setItem('osds_bookingIntent', JSON.stringify({ walkerSlug: walkerParam || null, walkerId, slots: selectedSlots, savedAt: Date.now() }))
     navigate(`${prefix}/book`, { state: { slots: selectedSlots, walkerId } })
-  }
-
-  // --- Mobile swipe handlers ---
-  // Native listeners (passive: false on touchmove) so we can preventDefault and
-  // stop the browser from committing to a native scroll mid-swipe.
-  useEffect(() => {
-    if (!isMobile) return
-    const el = mobileTrackRef.current
-    if (!el) return
-
-    function onTouchStart(e) {
-      if (pendingMobileAnchor) return
-      if (e.touches.length !== 1) return
-      if (e.target.closest('[data-event]') || e.target.closest('[data-remove]')) return
-      mobileTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, swiping: false }
-    }
-
-    function onTouchMove(e) {
-      const ref = mobileTouchRef.current
-      if (!ref) return
-      // Always preventDefault while we're tracking a touch on the wrapper.
-      // If we don't, the browser can decide the gesture is a scroll —
-      // especially inside the modal's overflow-y-auto body — and stop
-      // dispatching touchmove events to JS partway through.
-      if (e.cancelable) e.preventDefault()
-
-      const t = e.touches[0]
-      const ddx = t.clientX - ref.x
-      const ddy = t.clientY - ref.y
-      const adx = Math.abs(ddx)
-      const ady = Math.abs(ddy)
-
-      // Lock into horizontal swipe as soon as horizontal motion clearly leads.
-      if (!ref.swiping && adx > 4 && adx > ady) ref.swiping = true
-
-      // Only translate the track once we've committed to horizontal so an
-      // initial vertical wobble doesn't jiggle the panes.
-      if (ref.swiping) {
-        setMobileDx(atMobileStart && ddx > 0 ? Math.min(ddx, 40) : ddx)
-      }
-    }
-
-    function onTouchEnd(e) {
-      const ref = mobileTouchRef.current
-      if (!ref) return
-      const final = e.changedTouches[0].clientX - ref.x
-      const swiping = ref.swiping
-      mobileTouchRef.current = null
-      if (!swiping || Math.abs(final) < SWIPE_THRESHOLD || (final > 0 && atMobileStart)) {
-        setMobileDx(0)
-        return
-      }
-      const width = el.offsetWidth || window.innerWidth
-      setMobileDx(final > 0 ? width : -width)
-      setPendingMobileAnchor(shiftDate(mobileAnchor, final > 0 ? -MOBILE_PANE_DAYS : MOBILE_PANE_DAYS))
-    }
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd, { passive: true })
-    el.addEventListener('touchcancel', onTouchEnd, { passive: true })
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchend', onTouchEnd)
-      el.removeEventListener('touchcancel', onTouchEnd)
-    }
-  }, [isMobile, atMobileStart, mobileAnchor, pendingMobileAnchor])
-
-  function handleMobileTransitionEnd() {
-    if (!pendingMobileAnchor) return
-    setMobileTransitioning(true)
-    setMobileDx(0)
-    setMobileAnchor(pendingMobileAnchor < todayStr ? todayStr : pendingMobileAnchor)
-    setPendingMobileAnchor(null)
-    requestAnimationFrame(() => requestAnimationFrame(() => setMobileTransitioning(false)))
   }
 
   // --- Render helpers (parametrized by pane dates) ---
@@ -694,23 +605,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
       {/* Time grid */}
       {isMobile ? (
-        <div
-          ref={mobileTrackRef}
-          className="overflow-x-hidden overflow-y-auto touch-pan-y overscroll-contain"
-          style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}
-        >
-          <div
-            className="flex w-[300%]"
-            style={{
-              transform: `translateX(calc(-33.3333% + ${mobileDx}px))`,
-              transition: mobileTouchRef.current || mobileTransitioning ? 'none' : 'transform 200ms ease-out',
-            }}
-            onTransitionEnd={handleMobileTransitionEnd}
-          >
-            <div className="w-1/3 shrink-0 px-px"><DayPane dates={prevPaneDates} paneRef={null} interactive={false} /></div>
-            <div className="w-1/3 shrink-0 px-px"><DayPane dates={currentPaneDates} paneRef={gridRef} interactive /></div>
-            <div className="w-1/3 shrink-0 px-px"><DayPane dates={nextPaneDates} paneRef={null} interactive={false} /></div>
-          </div>
+        <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}>
+          <DayPane dates={currentPaneDates} paneRef={gridRef} interactive />
         </div>
       ) : (
         <DayPane dates={weekDates} paneRef={gridRef} interactive />
