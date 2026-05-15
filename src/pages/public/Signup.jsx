@@ -1,17 +1,20 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { EMAIL_RE, UK_POSTCODE_RE } from '../../lib/validators'
+import { AuthShell, SubmitButton, AuthFooter, TextField, ErrorBanner } from '../../components/Auth'
 
 export default function Signup() {
   const [searchParams] = useSearchParams()
-  const initialRole = searchParams.get('role') === 'walker' ? 'walker' : 'owner'
+  const roleParam = searchParams.get('role')
+  const initialRole = roleParam === 'walker' ? 'walker' : roleParam === 'owner' ? 'owner' : null
   const initialPostcode = searchParams.get('postcode') || sessionStorage.getItem('osds_postcode') || ''
 
   const [role, setRole] = useState(initialRole)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [postcode, setPostcode] = useState(initialPostcode)
-  const passwordRef = useRef(null)
+  const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -21,18 +24,20 @@ export default function Signup() {
   const returnTo = searchParams.get('returnTo')
   const loginLink = returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : '/login'
 
+  const nameValid = name.trim().length >= 2
+  const emailValid = EMAIL_RE.test(email.trim())
+  const postcodeValid = UK_POSTCODE_RE.test(postcode.trim().toUpperCase())
+  const passwordValid = password.length >= 8
+  const formValid = nameValid && emailValid && postcodeValid && passwordValid
+
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!postcode.trim()) {
-      setError('Postcode is required.')
-      return
-    }
+    if (!formValid) return
     setError(null)
     setSubmitting(true)
     try {
-      // Extract walker slug from booking returnTo (e.g. /w/ellie/book)
       const bookingMatch = returnTo?.match(/\/w\/([^/]+)\/book/)
-      await signUp(email, passwordRef.current.value, name, postcode.trim(), role, bookingMatch?.[1] || null)
+      await signUp(email, password, name, postcode.trim(), role, bookingMatch?.[1] || null)
       setConfirmed(true)
     } catch (err) {
       setError(err.message)
@@ -87,104 +92,87 @@ export default function Signup() {
     )
   }
 
-  return (
-    <div className="max-w-md mx-auto px-4 py-16">
-      <h1 className="text-2xl mb-6 text-center">Create an account</h1>
+  const subtitle =
+    role === 'walker'
+      ? "Let's get your walking business set up."
+      : role === 'owner'
+      ? "Let's find the perfect walker for your pup."
+      : 'Tell us who you are to get started.'
 
-      {/* Role toggle */}
-      <div className="flex gap-3 mb-6">
-        <button
-          type="button"
-          onClick={() => setRole('owner')}
-          className={`flex-1 cursor-pointer py-3 text-sm font-semibold rounded-lg border-2 transition ${
-            role === 'owner'
-              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-              : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
-          }`}
-        >
-          🐾 Pet owner
-        </button>
-        <button
-          type="button"
-          onClick={() => setRole('walker')}
-          className={`flex-1 cursor-pointer py-3 text-sm font-semibold rounded-lg border-2 transition ${
-            role === 'walker'
-              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-              : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
-          }`}
-        >
-          🦮 Dog walker
-        </button>
+  return (
+    <AuthShell title="Join the pack 🐾" subtitle={subtitle}>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+        <RoleButton selected={role === 'owner'} onClick={() => setRole('owner')} icon="🐾" label="Pet owner" />
+        <RoleButton selected={role === 'walker'} onClick={() => setRole('walker')} icon="🦮" label="Dog walker" />
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-          {error}
-        </div>
-      )}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Your name</label>
-          <input
-            type="text"
+      <ErrorBanner>{error}</ErrorBanner>
+
+      {role && (
+        <form
+          key={role}
+          onSubmit={handleSubmit}
+          className="space-y-4 animate-fade-slide-up"
+        >
+          <TextField
+            label="Your name"
             name="name"
             autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="Ellie"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
+          <TextField
+            label="Email"
             type="email"
             name="email"
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="you@example.com"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Postcode</label>
-          <input
-            type="text"
+          <TextField
+            label="Postcode"
             name="postcode"
             autoComplete="postal-code"
             required
             value={postcode}
             onChange={(e) => setPostcode(e.target.value.toUpperCase())}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="SW1A 1AA"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input
-            ref={passwordRef}
+          <TextField
+            label="Password"
             type="password"
             name="password"
             autoComplete="new-password"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 8 characters"
           />
-        </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="cursor-pointer w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {submitting ? 'Creating account…' : 'Create account'}
-        </button>
-      </form>
-      <p className="text-sm text-center text-gray-500 mt-4">
-        Already have an account?{' '}
-        <Link to={loginLink} className="text-indigo-600 hover:underline">
-          Log in
-        </Link>
-      </p>
-    </div>
+          <SubmitButton disabled={submitting || !formValid}>
+            {submitting ? 'Creating account…' : 'Create account'}
+          </SubmitButton>
+        </form>
+      )}
+
+      <AuthFooter prefix="Already have an account?" to={loginLink} linkText="Log in" />
+    </AuthShell>
+  )
+}
+
+function RoleButton({ selected, onClick, icon, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`cursor-pointer flex flex-col items-center justify-center py-6 sm:py-7 px-3 rounded-xl border-2 transition ${
+        selected
+          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm'
+          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800'
+      }`}
+    >
+      <span className="text-3xl sm:text-4xl mb-2">{icon}</span>
+      <span className="font-semibold text-base sm:text-lg">{label}</span>
+    </button>
   )
 }

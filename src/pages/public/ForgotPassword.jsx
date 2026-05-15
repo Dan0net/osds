@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { EMAIL_RE } from '../../lib/validators'
+import { AuthShell, SubmitButton, AuthFooter, TextField } from '../../components/Auth'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -8,8 +10,11 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false)
   const { requestPasswordReset } = useAuth()
 
+  const emailValid = EMAIL_RE.test(email.trim())
+
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!emailValid) return
     setSubmitting(true)
     try {
       await requestPasswordReset(email)
@@ -44,36 +49,26 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-16">
-      <h1 className="text-2xl mb-2 text-center">Reset your password</h1>
-      <p className="text-sm text-gray-500 text-center mb-6">
-        Enter your email and we'll send you a link to set a new password.
-      </p>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
-            type="email"
-            name="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            placeholder="you@example.com"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-        >
+    <AuthShell
+      title="Forgot your password? 🔑"
+      subtitle="No worries — enter your email and we'll send you a link to set a new one."
+    >
+      <form onSubmit={handleSubmit} className="space-y-4 animate-fade-slide-up">
+        <TextField
+          label="Email"
+          type="email"
+          name="email"
+          autoComplete="username"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+        />
+        <SubmitButton disabled={submitting || !emailValid}>
           {submitting ? 'Sending…' : 'Send reset link'}
-        </button>
+        </SubmitButton>
       </form>
-      <p className="text-sm text-center text-gray-500 mt-4">
-        <Link to="/login" className="text-indigo-600 hover:underline">Back to log in</Link>
-      </p>
-    </div>
+      <AuthFooter to="/login" linkText="Back to log in" />
+    </AuthShell>
   )
 }

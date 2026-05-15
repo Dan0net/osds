@@ -22,15 +22,12 @@ export default function Layout({ walker }) {
               </Link>
             ) : (
               <>
-                <Link to="/signup?role=walker" className="text-gray-600 hover:text-gray-900">
-                  Become a walker
-                </Link>
-                <Link to="/login" className="text-gray-600 hover:text-indigo-600">
+                <Link to="/login" className="text-gray-600 hover:text-indigo-600 px-3 py-2 sm:py-1.5 text-base sm:text-sm">
                   Log in
                 </Link>
                 <Link
                   to="/signup"
-                  className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700"
+                  className="bg-indigo-600 text-white px-4 py-2 sm:px-3 sm:py-1.5 rounded-lg hover:bg-indigo-700 text-base sm:text-sm"
                 >
                   Sign up
                 </Link>

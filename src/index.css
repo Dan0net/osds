@@ -5,6 +5,10 @@
   --font-body: "Nunito", sans-serif;
 }
 
+html {
+  font-size: 112.5%;
+}
+
 body {
   font-family: var(--font-body);
 }
@@ -19,4 +23,12 @@ h2, h3 {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-slide-up {
+  animation: fade-slide-up 320ms ease-out both;
 }
