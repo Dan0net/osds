@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
-import { stripeConnectOnboard, stripeConnectCallback, stripeDashboardLink } from '../../lib/api'
 import ImageUpload from '../../components/ImageUpload'
 
 export default function AccountProfile() {
@@ -23,18 +22,7 @@ export default function AccountProfile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [creatingWalker, setCreatingWalker] = useState(false)
-  const [stripeLoading, setStripeLoading] = useState(false)
-  const [stripeStatus, setStripeStatus] = useState(null)
   const [searchParams] = useSearchParams()
-
-  // Check Stripe onboarding status on mount / return from Stripe
-  useEffect(() => {
-    if (walkerProfile?.stripe_account_id) {
-      stripeConnectCallback().then((res) => {
-        if (res.data) setStripeStatus(res.data)
-      })
-    }
-  }, [walkerProfile?.stripe_account_id])
 
   useEffect(() => {
     if (profile) {
@@ -256,67 +244,6 @@ export default function AccountProfile() {
                 />
                 <span className="text-sm text-gray-500">{form.theme_color}</span>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Stripe</label>
-              {stripeStatus?.charges_enabled ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-sm text-green-700 font-medium">Stripe connected</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const res = await stripeDashboardLink()
-                      if (res.data?.url) window.open(res.data.url, '_blank')
-                    }}
-                    className="border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50"
-                  >
-                    Open Stripe Dashboard
-                  </button>
-                </div>
-              ) : walkerProfile?.stripe_account_id && stripeStatus && !stripeStatus.charges_enabled ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 rounded-full bg-yellow-500" />
-                    <span className="text-sm text-yellow-700 font-medium">Onboarding incomplete</span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={stripeLoading}
-                    onClick={async () => {
-                      setStripeLoading(true)
-                      const res = await stripeConnectOnboard()
-                      if (res.data?.url) window.location.href = res.data.url
-                      else setStripeLoading(false)
-                    }}
-                    className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {stripeLoading ? 'Redirecting…' : 'Continue Stripe Setup'}
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <button
-                    type="button"
-                    disabled={stripeLoading}
-                    onClick={async () => {
-                      setStripeLoading(true)
-                      const res = await stripeConnectOnboard()
-                      if (res.data?.url) window.location.href = res.data.url
-                      else {
-                        setError(res.error || 'Failed to start Stripe onboarding')
-                        setStripeLoading(false)
-                      }
-                    }}
-                    className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {stripeLoading ? 'Redirecting…' : 'Connect Stripe Account'}
-                  </button>
-                  <p className="text-xs text-gray-400 mt-1">Required to accept payments.</p>
-                </div>
-              )}
             </div>
           </div>
         ) : (

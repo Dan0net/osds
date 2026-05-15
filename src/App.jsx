@@ -28,6 +28,7 @@ import AccountProfile from './pages/account/AccountProfile'
 import AccountSettingsLayout from './pages/account/AccountSettingsLayout'
 import AccountAvailability from './pages/account/AccountAvailability'
 import AccountCalendarSync from './pages/account/AccountCalendarSync'
+import AccountStripe from './pages/account/AccountStripe'
 import AccountServices from './pages/account/AccountServices'
 import ServiceDetail from './pages/account/ServiceDetail'
 import AccountCustomers from './pages/account/AccountCustomers'
@@ -84,6 +85,7 @@ function PlatformRoutes() {
             <Route index element={<Navigate to="availability" replace />} />
             <Route path="availability" element={<AccountAvailability />} />
             <Route path="calendar-sync" element={<AccountCalendarSync />} />
+            <Route path="stripe" element={<AccountStripe />} />
           </Route>
         </Route>
       </Route>

@@ -9,6 +9,7 @@ import {
   Settings,
   Clock,
   Repeat,
+  CreditCard,
 } from 'lucide-react'
 
 export const NAV_ITEMS = [
@@ -22,6 +23,7 @@ export const NAV_ITEMS = [
   { key: 'settings', to: '/account/settings', label: 'Settings', icon: Settings, walkerOnly: true },
   { key: 'settings.availability', to: '/account/settings/availability', label: 'Availability', icon: Clock, walkerOnly: true, parent: 'settings' },
   { key: 'settings.calendar-sync', to: '/account/settings/calendar-sync', label: 'Calendar sync', icon: Repeat, walkerOnly: true, parent: 'settings' },
+  { key: 'settings.stripe', to: '/account/settings/stripe', label: 'Stripe', icon: CreditCard, walkerOnly: true, parent: 'settings' },
 ]
 
 export const BOTTOM_BAR_KEYS = ['bookings', 'messages', 'money']
