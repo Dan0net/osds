@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
   addMonths, subMonths, startOfMonth, endOfMonth,
   startOfWeek, endOfWeek, eachDayOfInterval,
@@ -9,6 +9,65 @@ import DaySegments from './DaySegments'
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const SWIPE_THRESHOLD = 40
+const DRAG_THRESHOLD = 10
+
+function buildDays(m) {
+  const monthStart = startOfMonth(m)
+  const monthEnd = endOfMonth(m)
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+  return eachDayOfInterval({ start: gridStart, end: gridEnd })
+}
+
+function MonthGrid({ month, days, eventsByDay, selectedDate, onSelect, suppressClickRef }) {
+  const today = new Date()
+  return (
+    <div className="grid grid-cols-7 w-1/3 shrink-0">
+      {days.map((day, i) => {
+        const dateKey = format(day, 'yyyy-MM-dd')
+        const events = eventsByDay[dateKey] || []
+        const inMonth = isSameMonth(day, month)
+        const isSelected = inMonth && selectedDate && isSameDay(day, selectedDate)
+        const isTodayCell = inMonth && isToday(day) && !isSelected
+        const isPast = day < today && !isSameDay(day, today)
+        const rowIndex = Math.floor(i / 7)
+
+        let numberClass = 'text-gray-700'
+        if (isPast) numberClass = 'text-gray-400'
+        if (isTodayCell) numberClass = 'text-indigo-600 font-semibold'
+
+        function handleClick() {
+          if (suppressClickRef?.current) return
+          onSelect(day)
+        }
+
+        return (
+          <button
+            key={dateKey}
+            type="button"
+            onClick={handleClick}
+            className={`cursor-pointer h-9 lg:aspect-square lg:h-auto flex flex-col items-center justify-center py-0 lg:py-1 hover:bg-gray-50 rounded-lg ${
+              rowIndex > 0 ? 'border-t border-gray-100' : ''
+            }`}
+          >
+            {inMonth ? (
+              <span
+                className={`flex items-center justify-center w-7 h-7 text-sm font-medium rounded-full ${
+                  isSelected ? 'bg-gray-900 text-white' : numberClass
+                }`}
+              >
+                {format(day, 'd')}
+              </span>
+            ) : (
+              <span className="w-7 h-7" aria-hidden />
+            )}
+            <DaySegments events={inMonth ? events : []} />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function MonthCalendar({
   eventsByDay,
@@ -19,27 +78,63 @@ export default function MonthCalendar({
   onMonthChange,
 }) {
   const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
+  const widthRef = useRef(null)
+  const suppressClickRef = useRef(false)
+  const [dx, setDx] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const [pendingMonth, setPendingMonth] = useState(null)
 
-  const monthStart = startOfMonth(month)
-  const monthEnd = endOfMonth(month)
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
-  const today = new Date()
+  const prevMonth = subMonths(month, 1)
+  const nextMonth = addMonths(month, 1)
+  const prevDays = buildDays(prevMonth)
+  const days = buildDays(month)
+  const nextDays = buildDays(nextMonth)
 
   function handlePrev() { onMonthChange(subMonths(month, 1)) }
   function handleNext() { onMonthChange(addMonths(month, 1)) }
 
   function handleTouchStart(e) {
+    if (e.touches.length !== 1 || pendingMonth) return
     touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+    suppressClickRef.current = false
+    setDragging(true)
+  }
+  function handleTouchMove(e) {
+    if (touchStartX.current == null) return
+    const ddx = e.touches[0].clientX - touchStartX.current
+    const ddy = e.touches[0].clientY - touchStartY.current
+    if (!suppressClickRef.current && Math.abs(ddy) > Math.abs(ddx) && Math.abs(ddy) > DRAG_THRESHOLD) {
+      touchStartX.current = null
+      setDragging(false)
+      setDx(0)
+      return
+    }
+    if (Math.abs(ddx) > DRAG_THRESHOLD) suppressClickRef.current = true
+    setDx(ddx)
   }
   function handleTouchEnd(e) {
     if (touchStartX.current == null) return
-    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const final = e.changedTouches[0].clientX - touchStartX.current
     touchStartX.current = null
-    if (Math.abs(dx) < SWIPE_THRESHOLD) return
-    if (dx > 0) handlePrev()
-    else handleNext()
+    if (Math.abs(final) < SWIPE_THRESHOLD) {
+      setDragging(false)
+      setDx(0)
+      return
+    }
+    const width = widthRef.current?.offsetWidth || window.innerWidth
+    setDragging(false)
+    setDx(final > 0 ? width : -width)
+    setPendingMonth(final > 0 ? prevMonth : nextMonth)
+  }
+  function handleTransitionEnd() {
+    if (!pendingMonth) return
+    setDragging(true)
+    setDx(0)
+    onMonthChange(pendingMonth)
+    setPendingMonth(null)
+    requestAnimationFrame(() => requestAnimationFrame(() => setDragging(false)))
   }
 
   return (
@@ -75,46 +170,29 @@ export default function MonthCalendar({
 
       <div className="grid grid-cols-7 mb-1">
         {WEEKDAYS.map((d, i) => (
-          <div key={i} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
+          <div key={i} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>
         ))}
       </div>
 
       <div
-        className="grid grid-cols-7"
+        ref={widthRef}
+        className="overflow-hidden touch-pan-y"
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {days.map((day) => {
-          const dateKey = format(day, 'yyyy-MM-dd')
-          const events = eventsByDay[dateKey] || []
-          const inMonth = isSameMonth(day, month)
-          const isSelected = selectedDate && isSameDay(day, selectedDate)
-          const isTodayCell = isToday(day) && !isSelected
-          const isPast = day < today && !isSameDay(day, today)
-
-          let numberClass = 'text-gray-700'
-          if (!inMonth) numberClass = 'text-gray-300'
-          else if (isPast) numberClass = 'text-gray-400'
-          if (isTodayCell) numberClass = 'text-indigo-600 font-semibold'
-
-          return (
-            <button
-              key={dateKey}
-              type="button"
-              onClick={() => onSelect(day)}
-              className="cursor-pointer h-9 lg:aspect-square lg:h-auto flex flex-col items-center justify-center py-0 lg:py-1 hover:bg-gray-50 rounded-lg"
-            >
-              <span
-                className={`flex items-center justify-center w-7 h-7 text-sm font-medium rounded-full ${
-                  isSelected ? 'bg-gray-900 text-white' : numberClass
-                }`}
-              >
-                {format(day, 'd')}
-              </span>
-              <DaySegments events={events} />
-            </button>
-          )
-        })}
+        <div
+          className="flex w-[300%]"
+          style={{
+            transform: `translateX(calc(-33.3333% + ${dx}px))`,
+            transition: dragging ? 'none' : 'transform 200ms ease-out',
+          }}
+          onTransitionEnd={handleTransitionEnd}
+        >
+          <MonthGrid month={prevMonth} days={prevDays} eventsByDay={eventsByDay} selectedDate={selectedDate} onSelect={onSelect} suppressClickRef={suppressClickRef} />
+          <MonthGrid month={month} days={days} eventsByDay={eventsByDay} selectedDate={selectedDate} onSelect={onSelect} suppressClickRef={suppressClickRef} />
+          <MonthGrid month={nextMonth} days={nextDays} eventsByDay={eventsByDay} selectedDate={selectedDate} onSelect={onSelect} suppressClickRef={suppressClickRef} />
+        </div>
       </div>
     </div>
   )

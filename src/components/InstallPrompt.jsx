@@ -46,7 +46,7 @@ export default function InstallPrompt() {
   const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent)
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-50 safe-area-pb">
+    <div className="fixed left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-50 bottom-[calc(56px+env(safe-area-inset-bottom))] lg:bottom-0">
       <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900">Get push notifications</p>
