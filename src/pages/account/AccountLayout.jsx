@@ -35,7 +35,7 @@ export default function AccountLayout() {
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
       <main className="lg:ml-64 pb-24 lg:pb-8 min-h-screen">
-        <div className="max-w-5xl mx-auto w-full px-4 py-6">
+        <div className="max-w-5xl mx-auto w-full px-4 py-3 lg:py-6">
           <Outlet />
         </div>
       </main>
