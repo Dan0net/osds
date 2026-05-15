@@ -34,8 +34,8 @@ export default function AccountLayout() {
       <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} />
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
-      <main className="lg:ml-64 pb-24 lg:pb-8 min-h-screen">
-        <div className="max-w-5xl mx-auto w-full px-4 py-3 lg:py-6">
+      <main className="lg:ml-64 lg:pb-8 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom))] lg:h-auto flex flex-col lg:block">
+        <div className="max-w-5xl mx-auto w-full px-4 py-3 lg:py-6 flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible lg:min-h-0">
           <Outlet />
         </div>
       </main>
