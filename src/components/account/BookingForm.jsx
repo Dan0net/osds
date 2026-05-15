@@ -4,6 +4,7 @@ import { ChevronDown, Plus, Check, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { inviteCustomer, walkerCreateBooking } from '../../lib/api'
+import { loadWalkerCustomers } from '../../lib/customers'
 import { clientPriceCents } from '../../lib/utils'
 import EntityPicker from './EntityPicker'
 import CustomerForm from './CustomerForm'
@@ -33,19 +34,8 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
   }, [walkerProfile?.id])
 
   async function loadCustomers() {
-    const { data } = await supabase
-      .from('bookings')
-      .select('users:client_id(id, name, email)')
-      .eq('walker_id', walkerProfile.id)
-    const seen = new Set()
-    const unique = []
-    for (const row of data || []) {
-      if (row.users && !seen.has(row.users.id)) {
-        seen.add(row.users.id)
-        unique.push(row.users)
-      }
-    }
-    setCustomers(unique)
+    const list = await loadWalkerCustomers(walkerProfile.id)
+    setCustomers(list.map((c) => c.client))
   }
 
   async function loadServices() {
@@ -59,10 +49,6 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
   }
 
   async function handleInviteCustomer(payload) {
-    if (!walkerProfile?.customer_invite_consent_at) {
-      setConsentOpen(true)
-      return null
-    }
     const { data, error: err } = await inviteCustomer(payload)
     if (err) {
       setError(err)
@@ -72,6 +58,11 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
       setCustomers((prev) => [data.user, ...prev])
     }
     return data?.user || null
+  }
+
+  function handleOpenCustomerPicker() {
+    if (walkerProfile?.customer_invite_consent_at) setCustomerPickerOpen(true)
+    else setConsentOpen(true)
   }
 
   async function handleCreateService(payload) {
@@ -125,7 +116,7 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
         <SelectionButton
           empty={!customer}
           emptyLabel="Add customer"
-          onClick={() => setCustomerPickerOpen(true)}
+          onClick={handleOpenCustomerPicker}
           primary={customer?.name || 'Unnamed'}
           secondary={customer?.email}
         />
@@ -247,7 +238,7 @@ export default function BookingForm({ onCreated, formId, onValidityChange, onSub
       <InviteConsentModal
         open={consentOpen}
         onClose={() => setConsentOpen(false)}
-        onAccept={() => setConsentOpen(false)}
+        onAccept={() => { setConsentOpen(false); setCustomerPickerOpen(true) }}
       />
     </>
   )

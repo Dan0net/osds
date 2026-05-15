@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
 import { colorForBooking } from '../../lib/eventColor'
+import { loadWalkerCustomers } from '../../lib/customers'
 import Modal from '../../components/Modal'
 import BookingForm from '../../components/account/BookingForm'
 import MonthCalendar from '../../components/account/MonthCalendar'
@@ -30,7 +31,7 @@ export default function AccountBookings() {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [servicesCount, setServicesCount] = useState(0)
-  const [customerInvitesCount, setCustomerInvitesCount] = useState(0)
+  const [customerCount, setCustomerCount] = useState(0)
   const [walkerBookingsCount, setWalkerBookingsCount] = useState(0)
   const [searchParams, setSearchParams] = useSearchParams()
   const [paymentBanner, setPaymentBanner] = useState(null)
@@ -104,12 +105,12 @@ export default function AccountBookings() {
       ? supabase.from('services').select('id', { count: 'exact', head: true }).eq('walker_id', walkerProfile.id)
       : Promise.resolve({ count: 0 })
 
-    const invitesCountPromise = walkerProfile
-      ? supabase.from('customer_invites').select('id', { count: 'exact', head: true }).eq('walker_id', walkerProfile.id)
-      : Promise.resolve({ count: 0 })
+    const customersPromise = walkerProfile
+      ? loadWalkerCustomers(walkerProfile.id)
+      : Promise.resolve([])
 
-    const [clientRes, walkerRes, externalRes, servicesRes, invitesRes] = await Promise.all([
-      clientPromise, walkerPromise, externalPromise, servicesCountPromise, invitesCountPromise,
+    const [clientRes, walkerRes, externalRes, servicesRes, customers] = await Promise.all([
+      clientPromise, walkerPromise, externalPromise, servicesCountPromise, customersPromise,
     ])
 
     const merged = []
@@ -119,7 +120,7 @@ export default function AccountBookings() {
 
     setBookings(merged)
     setServicesCount(servicesRes.count || 0)
-    setCustomerInvitesCount(invitesRes.count || 0)
+    setCustomerCount(customers.length)
     setWalkerBookingsCount((walkerRes.data || []).length)
     setLoading(false)
   }
@@ -164,7 +165,7 @@ export default function AccountBookings() {
   const noBookingsYet = bookings.length === 0
 
   const setupItems = isWalker ? [
-    { done: customerInvitesCount > 0 || walkerBookingsCount > 0, label: 'Add a customer', link: '/account/customers' },
+    { done: customerCount > 0, label: 'Add a customer', link: '/account/customers' },
     { done: servicesCount > 0, label: 'Add a service', link: '/account/services' },
     { done: !!walkerProfile?.stripe_charges_enabled, label: 'Connect Stripe', link: '/account/settings/stripe' },
     { done: walkerBookingsCount > 0, label: 'Add a booking', onClick: () => setCreateBookingModal(true) },

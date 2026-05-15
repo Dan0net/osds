@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { inviteCustomer } from '../../lib/api'
+import { loadWalkerCustomers } from '../../lib/customers'
 import SearchList from '../../components/account/SearchList'
 import Modal from '../../components/Modal'
 import CustomerForm from '../../components/account/CustomerForm'
 import InviteConsentModal from '../../components/account/InviteConsentModal'
-
-const PAID_STATUSES = new Set(['confirmed', 'paid'])
 
 export default function AccountCustomers() {
   const { walkerProfile } = useAuth()
@@ -36,47 +34,7 @@ export default function AccountCustomers() {
 
   async function loadCustomers() {
     setLoading(true)
-    const [bookingsRes, invitesRes] = await Promise.all([
-      supabase
-        .from('bookings')
-        .select('client_id, booking_date, users:client_id(id, name, email, avatar_url), payments(amount_cents, status)')
-        .eq('walker_id', walkerProfile.id)
-        .order('booking_date', { ascending: false }),
-      supabase
-        .from('customer_invites')
-        .select('invited_user_id, users:invited_user_id(id, name, email, avatar_url)')
-        .eq('walker_id', walkerProfile.id)
-        .in('result', ['invited', 'already_exists']),
-    ])
-
-    const map = new Map()
-    for (const row of bookingsRes.data || []) {
-      if (!row.client_id || !row.users) continue
-      const existing = map.get(row.client_id) || {
-        client: row.users,
-        totalBookings: 0,
-        lastBookingDate: null,
-        totalSpendCents: 0,
-      }
-      existing.totalBookings += 1
-      if (!existing.lastBookingDate || row.booking_date > existing.lastBookingDate) {
-        existing.lastBookingDate = row.booking_date
-      }
-      if (row.payments && PAID_STATUSES.has(row.payments.status)) {
-        existing.totalSpendCents += row.payments.amount_cents || 0
-      }
-      map.set(row.client_id, existing)
-    }
-    for (const row of invitesRes.data || []) {
-      if (!row.invited_user_id || !row.users || map.has(row.invited_user_id)) continue
-      map.set(row.invited_user_id, {
-        client: row.users,
-        totalBookings: 0,
-        lastBookingDate: null,
-        totalSpendCents: 0,
-      })
-    }
-    setCustomers([...map.values()])
+    setCustomers(await loadWalkerCustomers(walkerProfile.id))
     setLoading(false)
   }
 
