@@ -4,12 +4,12 @@ import { Link } from 'react-router-dom'
 export default function DetailHeader({ backHref, backLabel = 'Back', title, right }) {
   return (
     <>
-      <div className="-ml-1 mb-1">
+      <div className="-mx-4 px-3 pb-3 border-b border-gray-200 mb-3 lg:mb-4 flex items-center">
         <Link
           to={backHref}
-          className="cursor-pointer inline-flex items-center gap-0.5 h-10 pl-1 pr-2 text-gray-900 hover:text-gray-600 active:opacity-70"
+          className="cursor-pointer inline-flex items-center gap-0.5 p-2 -m-1 text-gray-900 hover:text-gray-600 active:opacity-70"
         >
-          <ChevronLeft size={24} strokeWidth={2.25} />
+          <ChevronLeft size={22} />
           <span className="text-base font-medium">{backLabel}</span>
         </Link>
       </div>
