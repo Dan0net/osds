@@ -29,6 +29,13 @@ import AccountSettingsLayout from './pages/account/AccountSettingsLayout'
 import AccountAvailability from './pages/account/AccountAvailability'
 import AccountCalendarSync from './pages/account/AccountCalendarSync'
 import AccountStripe from './pages/account/AccountStripe'
+import AccountNotifications from './pages/account/AccountNotifications'
+import { useAuth } from './hooks/useAuth'
+
+function SettingsIndex() {
+  const { walkerProfile } = useAuth()
+  return <Navigate to={walkerProfile ? 'availability' : 'notifications'} replace />
+}
 import AccountServices from './pages/account/AccountServices'
 import ServiceDetail from './pages/account/ServiceDetail'
 import AccountCustomers from './pages/account/AccountCustomers'
@@ -75,17 +82,18 @@ function PlatformRoutes() {
           <Route path="payments" element={<Navigate to="/account/money" replace />} />
           <Route path="messages" element={<AccountMessages />} />
           <Route path="inbox" element={<Navigate to="/account/messages" replace />} />
-          <Route path="notifications" element={<Navigate to="/account/messages?tab=preferences" replace />} />
+          <Route path="notifications" element={<Navigate to="/account/settings/notifications" replace />} />
           <Route path="services" element={<AccountServices />} />
           <Route path="services/:serviceId" element={<ServiceDetail />} />
           <Route path="customers" element={<AccountCustomers />} />
           <Route path="customers/:clientId" element={<CustomerDetail />} />
           <Route path="profile" element={<AccountProfile />} />
           <Route path="settings" element={<AccountSettingsLayout />}>
-            <Route index element={<Navigate to="availability" replace />} />
+            <Route index element={<SettingsIndex />} />
             <Route path="availability" element={<AccountAvailability />} />
             <Route path="calendar-sync" element={<AccountCalendarSync />} />
             <Route path="stripe" element={<AccountStripe />} />
+            <Route path="notifications" element={<AccountNotifications />} />
           </Route>
         </Route>
       </Route>

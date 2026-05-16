@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { format, parseISO, addDays } from 'date-fns'
+import { format, parseISO, addDays, startOfMonth } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
@@ -9,19 +9,9 @@ import { colorForBooking } from '../../lib/eventColor'
 import { loadWalkerCustomers } from '../../lib/customers'
 import BookingForm from '../../components/account/BookingForm'
 import MonthCalendar from '../../components/account/MonthCalendar'
-import DayDetail from '../../components/account/DayDetail'
-import UpcomingList from '../../components/account/UpcomingList'
-import ViewToggle from '../../components/account/ViewToggle'
+import BookingsSidebar from '../../components/account/BookingsSidebar'
 
 const EXTERNAL_COLOR = '#9ca3af' // gray-400
-
-const VIEW_STORAGE_KEY = 'osds_bookings_view'
-
-function readStoredView() {
-  if (typeof window === 'undefined') return 'calendar'
-  const v = window.localStorage.getItem(VIEW_STORAGE_KEY)
-  return v === 'list' ? 'list' : 'calendar'
-}
 
 export default function AccountBookings() {
   const { user, walkerProfile } = useAuth()
@@ -35,12 +25,9 @@ export default function AccountBookings() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [paymentBanner, setPaymentBanner] = useState(null)
   const [createBookingModal, setCreateBookingModal] = useState(false)
-  const [view, setView] = useState(readStoredView)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => new Date())
-  // Mobile drawer is open by default showing today's events; on desktop the
-  // sidebar is always visible and this flag is ignored.
-  const [sheetOpen, setSheetOpen] = useState(true)
+  const [drawerHeight, setDrawerHeight] = useState('half')
 
   // Payment success/cancel banner from Stripe redirect
   useEffect(() => {
@@ -69,13 +56,6 @@ export default function AccountBookings() {
   useEffect(() => {
     if (user) loadBookings()
   }, [user?.id, walkerProfile?.id])
-
-  // Persist view choice
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(VIEW_STORAGE_KEY, view)
-    }
-  }, [view])
 
   async function loadBookings() {
     setLoading(true)
@@ -146,20 +126,14 @@ export default function AccountBookings() {
     return map
   }, [bookings])
 
-  function handleDaySelect(day) {
+  const handleSelectDate = useCallback((day) => {
     setSelectedDate(day)
-    setSheetOpen(true)
-  }
+    setVisibleMonth(startOfMonth(day))
+  }, [])
 
   function handleTodayClick() {
-    const today = new Date()
-    setVisibleMonth(today)
-    setSelectedDate(today)
-    setSheetOpen(true)
+    handleSelectDate(new Date())
   }
-
-  const walkerReady = !!(walkerProfile?.business_name && walkerProfile?.postcode && walkerProfile?.stripe_charges_enabled)
-  const noBookingsYet = bookings.length === 0
 
   const setupItems = isWalker ? [
     { done: customerCount > 0, label: 'Add a customer', link: '/account/customers' },
@@ -172,25 +146,16 @@ export default function AccountBookings() {
     <div>
       <div className="flex items-center justify-between mb-3 lg:mb-6 gap-2">
         <h1 className="text-xl lg:text-2xl truncate">
-          {view === 'calendar' ? (
-            <>
-              <span className="lg:hidden">{format(visibleMonth, 'MMMM yyyy')}</span>
-              <span className="hidden lg:inline">Bookings</span>
-            </>
-          ) : (
-            'Bookings'
-          )}
+          <span className="lg:hidden">{format(visibleMonth, 'MMMM yyyy')}</span>
+          <span className="hidden lg:inline">Bookings</span>
         </h1>
         <div className="flex items-center gap-2 shrink-0">
-          {view === 'calendar' && (
-            <button
-              onClick={handleTodayClick}
-              className="lg:hidden cursor-pointer h-9 px-3 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
-              Today
-            </button>
-          )}
-          <ViewToggle value={view} onChange={setView} />
+          <button
+            onClick={handleTodayClick}
+            className="lg:hidden cursor-pointer h-9 px-3 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
+          >
+            Today
+          </button>
           {isWalker && (
             <button
               onClick={() => setCreateBookingModal(true)}
@@ -221,50 +186,24 @@ export default function AccountBookings() {
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : view === 'calendar' ? (
-        <div className="lg:flex lg:gap-6">
+      ) : (
+        <div className="lg:flex lg:gap-6 lg:items-stretch pb-[50dvh] lg:pb-0 lg:h-[calc(100vh-10rem)]">
           <MonthCalendar
             eventsByDay={eventsByDay}
             selectedDate={selectedDate}
-            onSelect={handleDaySelect}
+            onSelect={handleSelectDate}
             onToday={handleTodayClick}
             month={visibleMonth}
             onMonthChange={setVisibleMonth}
           />
-          <DayDetail
-            date={selectedDate}
-            events={selectedDate ? (eventsByDay[format(selectedDate, 'yyyy-MM-dd')] || []) : []}
-            open={sheetOpen}
-            onClose={() => setSheetOpen(false)}
+          <BookingsSidebar
+            eventsByDay={eventsByDay}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
             setupItems={setupItems}
+            drawerHeight={drawerHeight}
+            onToggleDrawerHeight={() => setDrawerHeight((h) => (h === 'half' ? 'full' : 'half'))}
           />
-        </div>
-      ) : (
-        <UpcomingList eventsByDay={eventsByDay} />
-      )}
-
-      {isWalker && walkerReady && noBookingsYet && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mt-6">
-          <h2 className="text-lg font-semibold mb-2">Your page is live!</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Share your page with clients or add a booking to get started.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <a
-              href={`/w/${walkerProfile.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700"
-            >
-              View your live page
-            </a>
-            <button
-              onClick={() => setCreateBookingModal(true)}
-              className="cursor-pointer border border-indigo-600 text-indigo-600 text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-50"
-            >
-              Add booking for a client
-            </button>
-          </div>
         </div>
       )}
 
