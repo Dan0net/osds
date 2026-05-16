@@ -137,6 +137,7 @@ export default function BookingsSidebar({
   const dayRefs = useRef({})
   const sentinelRef = useRef(null)
   const suppressScrollUntilRef = useRef(0)
+  const fromScrollRef = useRef(false)
 
   // Update selected day to the section currently at the top of the scroll viewport
   useEffect(() => {
@@ -162,6 +163,7 @@ export default function BookingsSidebar({
       if (!bestDate) return
       const currentKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null
       if (bestDate === currentKey) return
+      fromScrollRef.current = true
       onSelectDate(parseISO(bestDate))
     }
     function onScroll() {
@@ -193,10 +195,14 @@ export default function BookingsSidebar({
     return () => observer.disconnect()
   }, [days.length])
 
-  // Scroll to selected date when prop changes — but skip when we're already there
-  // (which happens when the change was driven by the observer above).
+  // Scroll to selected date when prop changes externally (calendar click).
+  // Skip when the change came from the sidebar's own scroll listener.
   useEffect(() => {
     if (!selectedDate) return
+    if (fromScrollRef.current) {
+      fromScrollRef.current = false
+      return
+    }
     const key = format(selectedDate, 'yyyy-MM-dd')
 
     // Extend the window if the target is past the end
@@ -326,9 +332,9 @@ export default function BookingsSidebar({
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-80 shrink-0 bg-white border border-gray-200 rounded-xl lg:h-full lg:min-h-0"
+      className="hidden lg:flex lg:flex-col w-80 bg-white border-t border-l border-gray-200 lg:fixed lg:right-0 lg:bottom-0 lg:top-[5.25rem] lg:rounded-tl-xl lg:shadow-sm"
     >
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
         {list}
       </div>
     </aside>

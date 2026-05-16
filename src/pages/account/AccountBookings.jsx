@@ -187,7 +187,7 @@ export default function AccountBookings() {
           <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="lg:flex lg:gap-6 lg:items-stretch pb-[50dvh] lg:pb-0 lg:h-[calc(100vh-10rem)]">
+        <div className="pb-[50dvh] lg:pb-0 lg:pr-[21.5rem] lg:h-[calc(100vh-10rem)]">
           <MonthCalendar
             eventsByDay={eventsByDay}
             selectedDate={selectedDate}
