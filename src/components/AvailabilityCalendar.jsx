@@ -41,7 +41,7 @@ const PX_PER_HOUR_DESKTOP = 48
 const PX_PER_HOUR_MOBILE = 64
 const TOP_PAD = 10
 const MOBILE_PANE_DAYS = 3
-const MOBILE_GRID_MAX_HEIGHT = 'calc(100dvh - 200px)'
+const MOBILE_GRID_MAX_HEIGHT = 'calc(100dvh - 220px)'
 
 function colCSS(colIndex, gridCols, inset = 1) {
   return {
@@ -497,12 +497,12 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   }
 
   function DayPane({ dates, paneRef, interactive }) {
-    const bodyHeight = Math.max(hours.length, 10) * PX_PER_HOUR + 2 * TOP_PAD
+    const bodyHeight = hours.length * PX_PER_HOUR + TOP_PAD + 14
     return (
       <div className="bg-white">
         <div
-          className="grid border-b border-gray-200 bg-white sticky top-0 z-10"
-          style={{ gridTemplateColumns: `2.5rem repeat(${dates.length}, 1fr)` }}
+          className="grid border-b border-gray-200 bg-white sticky top-0 z-40"
+          style={{ gridTemplateColumns: `${TIME_COL}px repeat(${dates.length}, 1fr)` }}
         >
           <div />
           {dates.map((date) => {
@@ -532,7 +532,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
           {hours.map((hour, i) => (
             <div key={hour} className="absolute left-0 right-0 flex" style={{ top: `${TOP_PAD + i * PX_PER_HOUR}px`, height: `${PX_PER_HOUR}px` }}>
-              <div className="w-10 shrink-0 text-right pr-1.5 text-[10px] text-gray-400 -mt-1.5">{`${String(hour).padStart(2, '0')}:00`}</div>
+              <div style={{ width: `${TIME_COL}px` }} className="shrink-0 text-right pr-1.5 text-[10px] text-gray-400 -mt-1.5">{`${String(hour).padStart(2, '0')}:00`}</div>
               <div className="flex-1 border-t border-gray-100 grid" style={{ gridTemplateColumns: `repeat(${dates.length}, 1fr)` }}>
                 {dates.map((date) => (
                   <div key={`${date}-${hour}`} className={`border-l border-gray-100 ${date < todayStr ? 'bg-gray-50' : ''}`} />
@@ -540,6 +540,13 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
               </div>
             </div>
           ))}
+          {/* End-of-day label so the last visible time aligns with the body bottom */}
+          <div
+            className="absolute text-right pr-1.5 text-[10px] text-gray-400 -mt-1.5 shrink-0"
+            style={{ width: `${TIME_COL}px`, left: 0, top: `${TOP_PAD + hours.length * PX_PER_HOUR}px` }}
+          >
+            {`${String(endHour).padStart(2, '0')}:00`}
+          </div>
 
           {renderUnavailBlocks(dates)}
           {interactive && renderHoverGhost(dates)}
@@ -605,7 +612,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
       {/* Time grid */}
       {isMobile ? (
-        <div className="border border-gray-200 rounded-lg overflow-y-auto overscroll-contain bg-white" style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}>
+        <div className="border border-gray-200 rounded-lg overflow-y-auto overscroll-none bg-white" style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}>
           <DayPane dates={currentPaneDates} paneRef={gridRef} interactive />
         </div>
       ) : (
