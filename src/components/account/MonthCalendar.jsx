@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import {
   addMonths, subMonths, startOfMonth, endOfMonth,
-  startOfWeek, endOfWeek, eachDayOfInterval,
+  startOfWeek, endOfWeek, eachDayOfInterval, addDays,
   isSameDay, isToday, isSameMonth, format,
 } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -16,13 +16,18 @@ function buildDays(m) {
   const monthEnd = endOfMonth(m)
   const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
   const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  return eachDayOfInterval({ start: gridStart, end: gridEnd })
+  const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
+  // Always render 6 rows so calendar height is consistent month-to-month
+  while (days.length < 42) {
+    days.push(addDays(days[days.length - 1], 1))
+  }
+  return days
 }
 
 function MonthGrid({ month, days, eventsByDay, selectedDate, onSelect, suppressClickRef }) {
   const today = new Date()
   return (
-    <div className="grid grid-cols-7 w-1/3 shrink-0">
+    <div className="grid grid-cols-7 grid-rows-6 w-1/3 shrink-0 h-full lg:grid-rows-none lg:h-auto">
       {days.map((day, i) => {
         const dateKey = format(day, 'yyyy-MM-dd')
         const events = eventsByDay[dateKey] || []
@@ -46,7 +51,7 @@ function MonthGrid({ month, days, eventsByDay, selectedDate, onSelect, suppressC
             key={dateKey}
             type="button"
             onClick={handleClick}
-            className={`cursor-pointer h-9 lg:aspect-square lg:h-auto flex flex-col items-center justify-center py-0 lg:py-1 hover:bg-gray-50 rounded-lg ${
+            className={`cursor-pointer min-h-0 lg:aspect-square lg:h-auto flex flex-col items-center justify-center py-0 lg:py-1 hover:bg-gray-50 rounded-lg ${
               rowIndex > 0 ? 'border-t border-gray-100' : ''
             }`}
           >
@@ -138,7 +143,7 @@ export default function MonthCalendar({
   }
 
   return (
-    <div className="flex-1 min-w-0">
+    <div className="min-w-0 flex flex-col h-full lg:block lg:h-auto">
       <div className="hidden lg:flex items-center justify-between mb-4">
         <h2 className="text-3xl font-bold text-gray-900">{format(month, 'MMMM yyyy')}</h2>
         <div className="flex items-center gap-1">
@@ -168,7 +173,7 @@ export default function MonthCalendar({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 mb-1">
+      <div className="grid grid-cols-7 mb-1 shrink-0">
         {WEEKDAYS.map((d, i) => (
           <div key={i} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>
         ))}
@@ -176,13 +181,13 @@ export default function MonthCalendar({
 
       <div
         ref={widthRef}
-        className="overflow-hidden touch-pan-y"
+        className="overflow-hidden touch-pan-y flex-1 min-h-0 lg:flex-none lg:min-h-[auto]"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         <div
-          className="flex w-[300%]"
+          className="flex w-[300%] h-full lg:h-auto"
           style={{
             transform: `translateX(calc(-33.3333% + ${dx}px))`,
             transition: dragging ? 'none' : 'transform 200ms ease-out',
