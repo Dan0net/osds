@@ -1,30 +1,36 @@
+// 0 events  → empty placeholder.
+// 1 event   → single coloured dot.
+// 2+ events → one fixed-width bar split into proportional segments; each
+//             segment's width is the event's share of total duration that day.
+
 export default function DaySegments({ events }) {
-  if (!events || events.length === 0) {
+  const active = (events || []).filter((e) => !e.inactive)
+
+  if (active.length === 0) {
     return <div className="h-1.5 mt-1" aria-hidden />
   }
 
-  if (events.length === 1) {
+  if (active.length === 1) {
     return (
       <div className="flex justify-center mt-1">
-        <span
-          className="w-1.5 h-1.5 rounded-full"
-          style={{ backgroundColor: events[0].color }}
-        />
+        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active[0].color }} />
       </div>
     )
   }
 
-  const MAX = 4
-  const segments = events.slice(0, MAX)
+  const total = active.reduce((sum, e) => sum + (e.durationMinutes || 30), 0) || 1
 
   return (
     <div className="flex justify-center mt-1">
       <div className="h-1.5 rounded-full overflow-hidden flex w-8">
-        {segments.map((event, i) => (
+        {active.map((event, i) => (
           <span
             key={event.id + '-' + i}
-            className="flex-1"
-            style={{ backgroundColor: event.color }}
+            style={{
+              backgroundColor: event.color,
+              flexGrow: (event.durationMinutes || 30) / total,
+              flexBasis: 0,
+            }}
           />
         ))}
       </div>

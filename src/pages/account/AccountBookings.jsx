@@ -216,11 +216,15 @@ export default function AccountBookings() {
   )
 }
 
-function formatDuration(start, end) {
-  if (!start || !end) return ''
+function minutesBetween(start, end) {
+  if (!start || !end) return 0
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
-  const mins = (eh - sh) * 60 + (em - sm)
+  return (eh - sh) * 60 + (em - sm)
+}
+
+function formatDuration(start, end) {
+  const mins = minutesBetween(start, end)
   if (mins <= 0) return ''
   if (mins < 60) return `${mins}m`
   const h = Math.floor(mins / 60)
@@ -233,6 +237,9 @@ function toExternalEvent(e) {
   const durationLabel = !e.allDay && e.end_time && e.start_time
     ? formatDuration(e.start_time, e.end_time)
     : ''
+  const durationMinutes = e.allDay
+    ? 1440
+    : Math.max(15, minutesBetween(e.start_time, e.end_time) || 30)
   return {
     id: e.id || `ext-${e.date}-${e.start_time || 'allday'}`,
     booking_date: e.date,
@@ -243,6 +250,7 @@ function toExternalEvent(e) {
     secondaryLabel: '',
     startLabel,
     durationLabel,
+    durationMinutes,
     external: true,
   }
 }
@@ -261,11 +269,14 @@ function toEvent(b, isWalkerSide) {
   const isOvernight = !!b.end_date && b.end_date !== b.booking_date
   const startLabel = startTime
   let durationLabel = ''
+  let durationMinutes = 30
   if (isOvernight) {
     const nights = differenceInCalendarDays(parseISO(b.end_date), parseISO(b.booking_date))
     durationLabel = `${nights}n stay`
+    durationMinutes = 1440 // each calendar day the overnight touches reads as a full day
   } else if (b.end_time) {
     durationLabel = formatDuration(b.start_time, b.end_time)
+    durationMinutes = Math.max(15, minutesBetween(b.start_time, b.end_time) || 30)
   }
   return {
     id: b.id,
@@ -277,6 +288,7 @@ function toEvent(b, isWalkerSide) {
     secondaryLabel: service,
     startLabel,
     durationLabel,
+    durationMinutes,
     inactive: INACTIVE_STATUSES.has(b.status),
     external: false,
   }
