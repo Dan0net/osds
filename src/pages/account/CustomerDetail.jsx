@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, Mail, Phone, Plus } from 'lucide-react'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { Mail, Phone, Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import Modal from '../../components/Modal'
 import PetForm from '../../components/account/PetForm'
+import DetailHeader from '../../components/account/DetailHeader'
 import { bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
 
 const PET_FORM_ID = 'customer-pet-form'
@@ -12,6 +13,14 @@ const PET_FORM_ID = 'customer-pet-form'
 export default function CustomerDetail() {
   const { clientId } = useParams()
   const { walkerProfile } = useAuth()
+  const location = useLocation()
+  const from = location.state?.from
+  const backHref = from || '/account/customers'
+  const backLabel = (() => {
+    if (from?.startsWith('/account/bookings/')) return 'Booking'
+    if (from?.startsWith('/account/payments/')) return 'Payment'
+    return 'Customers'
+  })()
   const [client, setClient] = useState(null)
   const [bookings, setBookings] = useState([])
   const [pets, setPets] = useState([])
@@ -66,20 +75,16 @@ export default function CustomerDetail() {
 
   if (!client) {
     return (
-      <div>
-        <Link to="/account/customers" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-          <ChevronLeft size={16} /> Back to customers
-        </Link>
+      <>
+        <DetailHeader backHref={backHref} backLabel={backLabel} />
         <p className="text-sm text-gray-500">Customer not found.</p>
-      </div>
+      </>
     )
   }
 
   return (
-    <div>
-      <Link to="/account/customers" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-        <ChevronLeft size={16} /> Back to customers
-      </Link>
+    <>
+      <DetailHeader backHref={backHref} backLabel={backLabel} />
 
       <div className="flex items-center gap-4 mb-6">
         <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold overflow-hidden shrink-0">
@@ -178,7 +183,7 @@ export default function CustomerDetail() {
           />
         )}
       </Modal>
-    </div>
+    </>
   )
 }
 

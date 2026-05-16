@@ -61,7 +61,7 @@ export async function handler(event) {
       type: 'booking_declined',
       title: 'Booking declined',
       body: `${walkerName} declined your booking request`,
-      link: `/account/bookings/${bookings[0].id}`,
+      link: `/account/payments/${payment_id}`,
       emailSubject: `${walkerName} declined your booking request`,
       emailHtml: emailTemplate('Booking declined', [
         `Unfortunately, <strong>${esc(walkerName)}</strong> was unable to accept your booking request.`,
@@ -117,7 +117,7 @@ export async function handler(event) {
     type: 'booking_declined',
     title: 'Booking declined',
     body: `${wName} declined your ${svcName} on ${when}`,
-    link: `/account/bookings/${booking_id}`,
+    link: updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`,
     emailSubject: `${wName} declined your booking request`,
     emailHtml: emailTemplate('Booking declined', [
       `Unfortunately, <strong>${esc(wName)}</strong> was unable to accept your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,

@@ -179,12 +179,12 @@ export async function handler(event) {
     type: 'booking_cancelled',
     title: 'Booking cancelled',
     body: `${cancelSvcName} on ${cancelWhen} has been cancelled`,
-    link: `/account/bookings/${bookings[0].id}`,
+    link: bookings[0].payment_id ? `/account/payments/${bookings[0].payment_id}` : `/account/bookings/${bookings[0].id}`,
     emailSubject: `Booking cancelled — ${cancelSvcName} on ${cancelWhen}`,
     emailHtml: emailTemplate('Booking cancelled', [
       `<strong>${esc(cancelSvcName)}</strong> on ${esc(cancelWhen)} has been cancelled.`,
       'Check your bookings page for details.',
-    ], 'View bookings', `${siteUrl}/account/bookings/${bookings[0].id}`),
+    ], 'View bookings', `${siteUrl}${bookings[0].payment_id ? `/account/payments/${bookings[0].payment_id}` : `/account/bookings/${bookings[0].id}`}`),
   })
 
   return {

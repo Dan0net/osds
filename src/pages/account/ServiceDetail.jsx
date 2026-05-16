@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import ServiceForm from '../../components/account/ServiceForm'
+import DetailHeader from '../../components/account/DetailHeader'
 
 export default function ServiceDetail() {
   const { serviceId } = useParams()
   const { walkerProfile } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from
+  const backHref = from || '/account/services'
+  const backLabel = from?.startsWith('/account/bookings/') ? 'Booking' : 'Services'
   const [service, setService] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -61,37 +65,36 @@ export default function ServiceDetail() {
   if (loading) return <p className="text-sm text-gray-400">Loading…</p>
   if (!service) {
     return (
-      <div>
-        <Link to="/account/services" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-          <ChevronLeft size={16} /> Back to services
-        </Link>
+      <>
+        <DetailHeader backHref={backHref} backLabel={backLabel} />
         <p className="text-sm text-gray-500">Service not found.</p>
-      </div>
+      </>
     )
   }
 
   return (
-    <div>
-      <Link to="/account/services" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-        <ChevronLeft size={16} /> Back to services
-      </Link>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl">{service.name}</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={toggleActive}
-            className="cursor-pointer text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
-            {service.active ? 'Deactivate' : 'Activate'}
-          </button>
-          <button
-            onClick={handleDelete}
-            className="cursor-pointer text-sm font-medium px-3 py-1.5 rounded-lg text-red-600 hover:bg-red-50"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
+    <>
+      <DetailHeader
+        backHref={backHref}
+        backLabel={backLabel}
+        title={service.name}
+        right={
+          <div className="flex gap-2">
+            <button
+              onClick={toggleActive}
+              className="cursor-pointer text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              {service.active ? 'Deactivate' : 'Activate'}
+            </button>
+            <button
+              onClick={handleDelete}
+              className="cursor-pointer text-sm font-medium px-3 py-1.5 rounded-lg text-red-600 hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      />
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
@@ -111,6 +114,6 @@ export default function ServiceDetail() {
       >
         {submitting ? 'Saving…' : 'Save'}
       </button>
-    </div>
+    </>
   )
 }

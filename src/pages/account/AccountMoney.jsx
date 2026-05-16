@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { stripeDashboardLink, createCheckout } from '../../lib/api'
@@ -72,7 +73,12 @@ export default function AccountMoney() {
           {payments.map((p) => {
             const badge = paymentStatusBadge(p)
             return (
-            <div key={p.id} className="p-4 flex items-center justify-between">
+            <Link
+              key={p.id}
+              to={`/account/payments/${p.id}`}
+              state={{ from: '/account/money' }}
+              className="p-4 flex items-center justify-between hover:bg-gray-50 transition"
+            >
               <div>
                 <p className="text-sm font-medium">{p.counterpart}</p>
                 <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -85,7 +91,9 @@ export default function AccountMoney() {
               <div className="flex items-center gap-3">
                 {p.type === 'paid' && p.status === 'awaiting_payment' && (
                   <button
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
                       setActionLoading(p.id)
                       const res = await createCheckout(p.id)
                       if (res.data?.url) {
@@ -95,7 +103,7 @@ export default function AccountMoney() {
                       }
                     }}
                     disabled={!!actionLoading}
-                    className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                    className="cursor-pointer bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                   >
                     {actionLoading === p.id ? 'Redirecting…' : 'Pay now'}
                   </button>
@@ -104,7 +112,7 @@ export default function AccountMoney() {
                   {p.type === 'received' ? '+' : '−'}£{((p.type === 'received' ? p.total_cents - (p.platform_fee_cents || 0) : p.total_cents) / 100).toFixed(2)}
                 </span>
               </div>
-            </div>
+            </Link>
             )
           })}
         </div>

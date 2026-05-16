@@ -76,12 +76,12 @@ export async function handler(event) {
       type: 'booking_approved',
       title: 'Booking approved',
       body: `${walkerName} approved your booking — pay now to confirm`,
-      link: `/account/bookings/${bookings[0].id}`,
+      link: `/account/payments/${payment_id}`,
       emailSubject: `Your booking with ${walkerName} has been approved`,
       emailHtml: emailTemplate('Booking approved', [
         `Great news! <strong>${esc(walkerName)}</strong> has approved your booking.`,
         'You can now proceed to pay from your bookings page.',
-      ], 'Pay now', `${siteUrl}/account/bookings/${bookings[0].id}`),
+      ], 'Pay now', `${siteUrl}/account/payments/${payment_id}`),
     })
 
     return {
@@ -153,12 +153,12 @@ export async function handler(event) {
     type: 'booking_approved',
     title: 'Booking approved',
     body: `${wName} approved your ${svcName} on ${when}`,
-    link: `/account/bookings/${booking_id}`,
+    link: updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`,
     emailSubject: `Your booking with ${wName} has been approved`,
     emailHtml: emailTemplate('Booking approved', [
       `Great news! <strong>${esc(wName)}</strong> has approved your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
       'You can now proceed to pay from your bookings page.',
-    ], 'Pay now', `${siteUrl2}/account/bookings/${booking_id}`),
+    ], 'Pay now', `${siteUrl2}${updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`}`),
   })
 
   return {

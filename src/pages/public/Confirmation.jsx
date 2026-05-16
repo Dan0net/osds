@@ -1,6 +1,7 @@
 import { Link, useLocation, useSearchParams, useParams } from 'react-router-dom'
 import { resolveWalker } from '../../lib/walker'
-import { CheckCircle, Clock, Moon, ArrowLeft } from 'lucide-react'
+import { CheckCircle, ArrowLeft } from 'lucide-react'
+import BookingCard from '../../components/account/BookingCard'
 
 export default function Confirmation() {
   const { walker: walkerParam } = useParams()
@@ -58,40 +59,28 @@ export default function Confirmation() {
 
       {/* Booking summary card */}
       {slots.length > 0 && (
-        <div className="border border-gray-200 rounded-xl overflow-hidden mb-8">
-          <div className="divide-y divide-gray-100">
+        <div className="mb-8">
+          <div className="space-y-2">
             {slots.map((slot, i) => (
-              <div key={i} className="px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
-                    {slot.isOvernight ? <Moon size={14} className="text-gray-500" /> : <Clock size={14} className="text-gray-500" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{slot.serviceName}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(slot.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-                      {slot.isOvernight && slot.endDate ? (
-                        <> → {new Date(slot.endDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</>
-                      ) : null}
-                      {' · '}
-                      {slot.isOvernight
-                        ? `Drop-off ${slot.time} · Pick-up ${slot.endTime}`
-                        : `${slot.time}–${slot.endTime}`}
-                    </p>
-                  </div>
-                  <span className="text-sm font-medium shrink-0">£{(slot.priceCents / 100).toFixed(2)}</span>
-                </div>
-              </div>
+              <BookingCard
+                key={i}
+                serviceName={slot.serviceName}
+                date={slot.date}
+                endDate={slot.endDate}
+                startTime={slot.time}
+                endTime={slot.endTime}
+                right={
+                  <span className="text-sm font-medium">£{(slot.priceCents / 100).toFixed(2)}</span>
+                }
+              />
             ))}
           </div>
 
-          <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              {pet && <span className="text-sm text-gray-500">Pet: <span className="font-medium text-gray-700">{pet.name}</span></span>}
-              <div className="flex items-center gap-3 ml-auto">
-                <span className="text-xs bg-yellow-100 text-yellow-700 font-medium px-2 py-0.5 rounded-full">Requested</span>
-                <span className="text-sm font-semibold">£{(totalCents / 100).toFixed(2)}</span>
-              </div>
+          <div className="mt-3 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between">
+            {pet && <span className="text-sm text-gray-500">Pet: <span className="font-medium text-gray-700">{pet.name}</span></span>}
+            <div className="flex items-center gap-3 ml-auto">
+              <span className="text-xs bg-yellow-100 text-yellow-700 font-medium px-2 py-0.5 rounded-full">Requested</span>
+              <span className="text-sm font-semibold">£{(totalCents / 100).toFixed(2)}</span>
             </div>
           </div>
         </div>

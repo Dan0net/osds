@@ -15,10 +15,7 @@ import PetForm from './PetForm'
 import ServiceForm from './ServiceForm'
 import InviteConsentModal from './InviteConsentModal'
 import SelectionButton from './SelectionButton'
-
-function formatSlotDate(date) {
-  return new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-}
+import BookingCard from './BookingCard'
 
 export default function BookingForm({ open, onClose, onCreated }) {
   const { walkerProfile } = useAuth()
@@ -313,30 +310,33 @@ export default function BookingForm({ open, onClose, onCreated }) {
 
         {step === 3 && (
           <div className="space-y-4">
-            <ul className="space-y-2">
+            <div className="space-y-2">
               {sortedSlots.map(({ slot, i }) => {
                 const svc = serviceMap[slot.serviceId]
                 return (
-                  <li key={i} className="bg-white border border-gray-200 rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{svc?.name || 'Service'}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatSlotDate(slot.date)} · {slot.time}{slot.isOvernight ? ` → ${formatSlotDate(slot.endDate)} ${slot.endTime}` : ''}
-                        </p>
+                  <BookingCard
+                    key={i}
+                    serviceName={svc?.name || 'Service'}
+                    date={slot.date}
+                    endDate={slot.endDate}
+                    startTime={slot.time}
+                    endTime={slot.endTime}
+                    right={
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-900">
+                          £{(slotDisplay(slot) / 100).toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(i)}
+                          className="cursor-pointer p-1 -m-1 text-gray-400 hover:text-red-500"
+                          aria-label="Remove slot"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
-                      <div className="text-sm font-semibold text-gray-900 shrink-0">
-                        £{(slotDisplay(slot) / 100).toFixed(2)}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeSlot(i)}
-                        className="cursor-pointer p-1 -m-1 text-gray-400 hover:text-red-500"
-                        aria-label="Remove slot"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
+                    }
+                  >
                     <button
                       type="button"
                       onClick={() => toggleHoliday(i)}
@@ -348,10 +348,10 @@ export default function BookingForm({ open, onClose, onCreated }) {
                     >
                       <Sparkles size={12} /> Holiday rate
                     </button>
-                  </li>
+                  </BookingCard>
                 )
               })}
-            </ul>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Payment</label>

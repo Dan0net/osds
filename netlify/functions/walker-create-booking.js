@@ -237,7 +237,7 @@ export async function handler(event) {
       type: 'booking_confirmed',
       title: 'Booking confirmed',
       body: `${wp.business_name} booked ${serviceNames} for you on ${when}`,
-      link: '/account/bookings',
+      link: `/account/payments/${payment.id}`,
       emailSubject: `Booking confirmed with ${wp.business_name}`,
       emailHtml: emailTemplate('Booking confirmed', [
         `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
@@ -249,7 +249,7 @@ export async function handler(event) {
       type: 'booking_payment_link',
       title: 'Payment requested',
       body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,
-      link: checkoutUrl || '/account/bookings',
+      link: checkoutUrl || `/account/payments/${payment.id}`,
       emailSubject: `Payment requested from ${wp.business_name}`,
       emailHtml: emailTemplate('Payment requested', [
         `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,

@@ -225,12 +225,12 @@ export async function handler(event) {
     type: 'booking_request',
     title: 'New booking request',
     body: `${clientName} requested ${serviceNames} on ${when}`,
-    link: `/account/bookings/${bookingIds[0]}`,
+    link: `/account/payments/${payment.id}`,
     emailSubject: `New booking request from ${clientName}`,
     emailHtml: emailTemplate('New booking request', [
       `${esc(clientName)} has requested <strong>${esc(serviceNames)}</strong> on ${esc(when)}.`,
       'Review and approve or decline from your dashboard.',
-    ], 'View request', `${siteUrl}/account/bookings/${bookingIds[0]}`),
+    ], 'View request', `${siteUrl}/account/payments/${payment.id}`),
   })
 
   return {
