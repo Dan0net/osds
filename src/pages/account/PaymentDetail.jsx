@@ -47,7 +47,7 @@ export default function PaymentDetail() {
         .from('bookings')
         .select(`
           *,
-          services(name, duration_minutes, service_type),
+          services(name, price_cents, duration_minutes, service_type),
           pets(name, breed)
         `)
         .eq('payment_id', paymentId)
@@ -184,6 +184,13 @@ export default function PaymentDetail() {
                 endTime={b.end_time}
                 to={`/account/bookings/${b.id}`}
                 state={stateBack}
+                right={
+                  b.services?.price_cents != null && (
+                    <span className="text-sm font-semibold text-gray-900">
+                      £{(b.services.price_cents / 100).toFixed(2)}
+                    </span>
+                  )
+                }
               />
             ))}
           </div>

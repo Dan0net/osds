@@ -193,6 +193,13 @@ export default function BookingDetail() {
             secondary={booking.services.service_type ? `${booking.services.service_type} · ${booking.services.duration_minutes} min` : null}
             to={isWalker && booking.service_id ? `/account/services/${booking.service_id}` : null}
             state={{ from: `/account/bookings/${booking.id}` }}
+            right={
+              booking.services.price_cents != null && (
+                <span className="text-sm font-semibold text-gray-900">
+                  £{(booking.services.price_cents / 100).toFixed(2)}
+                </span>
+              )
+            }
           />
         )}
         {booking.payments && (
