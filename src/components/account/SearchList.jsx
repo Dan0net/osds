@@ -33,13 +33,14 @@ export default function SearchList({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={placeholder}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            className="w-full h-10 pl-9 pr-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
           />
         </div>
         {onAdd && (
           <button
             onClick={onAdd}
-            className="cursor-pointer inline-flex items-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700"
+            aria-label={addLabel}
+            className="cursor-pointer flex items-center justify-center gap-1.5 h-10 w-10 sm:w-auto sm:px-4 shrink-0 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
           >
             <Plus size={16} />
             <span className="hidden sm:inline">{addLabel}</span>
