@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useLocation, Link } from 'react-router-dom'
+import { ChevronLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { createCheckout, cancelBooking, apiFetch } from '../../lib/api'
@@ -18,7 +19,14 @@ const STATUS_STYLES = {
 export default function BookingDetail() {
   const { bookingId } = useParams()
   const { user, walkerProfile } = useAuth()
-  const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from
+  const backHref = from || '/account/bookings'
+  const backLabel = (() => {
+    if (from === '/account/messages') return 'Messages'
+    if (from?.startsWith('/account/customers/')) return 'Customer'
+    return 'Bookings'
+  })()
   const [booking, setBooking] = useState(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
@@ -109,8 +117,11 @@ export default function BookingDetail() {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
         <p className="text-gray-500 mb-4">Booking not found.</p>
-        <Link to="/account/bookings" className="text-indigo-600 hover:underline">
-          &larr; Back to bookings
+        <Link
+          to={backHref}
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        >
+          <ChevronLeft size={16} /> {backLabel}
         </Link>
       </div>
     )
@@ -124,17 +135,34 @@ export default function BookingDetail() {
   const formatDate = (d) =>
     new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 
+  const serviceLink = isWalker && booking.service_id ? `/account/services/${booking.service_id}` : null
+  const clientLink = isWalker && booking.client_id ? `/account/customers/${booking.client_id}` : null
+  const petLink = isWalker && booking.client_id
+    ? `/account/customers/${booking.client_id}`
+    : isClient ? '/account/pets' : null
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <Link to="/account/bookings" className="text-sm text-indigo-600 hover:underline mb-4 inline-block">
-        &larr; All bookings
+      <Link
+        to={backHref}
+        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+      >
+        <ChevronLeft size={16} /> {backLabel}
       </Link>
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         {/* Header */}
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-xl">{booking.services?.name || 'Booking'}</h1>
+            <h1 className="text-xl">
+              {serviceLink ? (
+                <Link to={serviceLink} className="hover:underline">
+                  {booking.services?.name || 'Booking'}
+                </Link>
+              ) : (
+                booking.services?.name || 'Booking'
+              )}
+            </h1>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[booking.status] || 'bg-gray-100 text-gray-600'}`}>
               {booking.status}
             </span>
@@ -155,11 +183,17 @@ export default function BookingDetail() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-500 block mb-0.5">{isWalker ? 'Client' : 'Walker'}</span>
-              <span className="font-medium">
-                {isWalker
-                  ? booking.users?.name || 'Unknown'
-                  : booking.walker_profiles?.business_name || 'Unknown'}
-              </span>
+              {clientLink ? (
+                <Link to={clientLink} className="font-medium hover:underline">
+                  {booking.users?.name || 'Unknown'}
+                </Link>
+              ) : (
+                <span className="font-medium">
+                  {isWalker
+                    ? booking.users?.name || 'Unknown'
+                    : booking.walker_profiles?.business_name || 'Unknown'}
+                </span>
+              )}
             </div>
             <div>
               <span className="text-gray-500 block mb-0.5">Service type</span>
@@ -171,11 +205,19 @@ export default function BookingDetail() {
           {booking.pets && (
             <div className="text-sm">
               <span className="text-gray-500 block mb-0.5">Pet</span>
-              <span className="font-medium">
-                {booking.pets.name}
-                {booking.pets.breed ? ` — ${booking.pets.breed}` : ''}
-                {booking.pets.weight ? `, ${booking.pets.weight}kg` : ''}
-              </span>
+              {petLink ? (
+                <Link to={petLink} className="font-medium hover:underline">
+                  {booking.pets.name}
+                  {booking.pets.breed ? ` — ${booking.pets.breed}` : ''}
+                  {booking.pets.weight ? `, ${booking.pets.weight}kg` : ''}
+                </Link>
+              ) : (
+                <span className="font-medium">
+                  {booking.pets.name}
+                  {booking.pets.breed ? ` — ${booking.pets.breed}` : ''}
+                  {booking.pets.weight ? `, ${booking.pets.weight}kg` : ''}
+                </span>
+              )}
               {booking.pets.notes && (
                 <p className="text-gray-500 text-xs mt-0.5">{booking.pets.notes}</p>
               )}

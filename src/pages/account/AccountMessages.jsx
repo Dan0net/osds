@@ -42,7 +42,7 @@ export default function AccountMessages() {
       setNotifications((prev) => prev.map((n) => n.id === notification.id ? { ...n, read: true } : n))
       window.dispatchEvent(new Event('notifications-read'))
     }
-    if (notification.link) navigate(notification.link)
+    if (notification.link) navigate(notification.link, { state: { from: '/account/messages' } })
   }
 
   async function markAllRead() {
@@ -74,22 +74,23 @@ export default function AccountMessages() {
             <button
               key={n.id}
               onClick={() => markAsRead(n)}
-              className={`cursor-pointer w-full text-left bg-white border rounded-lg p-4 flex items-start justify-between hover:bg-gray-50 transition-colors ${
+              className={`cursor-pointer w-full text-left bg-white border rounded-lg p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors ${
                 n.read ? 'border-gray-200' : 'border-indigo-300 bg-indigo-50'
               }`}
             >
-              <div>
-                {!n.read && (
-                  <span className="inline-block w-2 h-2 bg-indigo-600 rounded-full mr-2 mt-1" />
-                )}
-                <span className={`text-sm ${n.read ? 'text-gray-600' : 'font-medium text-gray-900'}`}>
+              <span
+                aria-hidden
+                className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${n.read ? 'invisible' : 'bg-indigo-600'}`}
+              />
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm ${n.read ? 'text-gray-600' : 'font-medium text-gray-900'}`}>
                   {n.title}
-                </span>
+                </p>
                 {n.body && (
-                  <p className="text-xs text-gray-500 mt-0.5 ml-4">{n.body}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{n.body}</p>
                 )}
               </div>
-              <span className="text-xs text-gray-400 whitespace-nowrap ml-4">{timeAgo(n.created_at)}</span>
+              <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">{timeAgo(n.created_at)}</span>
             </button>
           ))}
         </div>

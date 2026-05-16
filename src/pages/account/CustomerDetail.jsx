@@ -144,6 +144,7 @@ export default function CustomerDetail() {
               <Link
                 key={b.id}
                 to={`/account/bookings/${b.id}`}
+                state={{ from: `/account/customers/${clientId}` }}
                 className="flex items-center justify-between p-3 hover:bg-gray-50"
               >
                 <div className="min-w-0">
