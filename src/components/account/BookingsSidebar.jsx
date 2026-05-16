@@ -274,7 +274,7 @@ export default function BookingsSidebar({
             data-date={date}
             className="mb-4"
           >
-            <h3 className="text-sm font-semibold text-gray-900 sticky top-0 bg-white py-1.5 z-[1] flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-gray-900 sticky -top-px bg-white -mx-4 px-4 pt-[7px] pb-1.5 z-[1] flex items-center gap-1.5">
               {dateIsToday && <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
               {dayHeading(date)}
             </h3>
