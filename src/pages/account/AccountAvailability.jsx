@@ -73,6 +73,10 @@ export default function AccountAvailability() {
     setAvailSaving(false)
     await loadAvailability()
   }
+  if (!walkerProfile) {
+    return <p className="text-sm text-gray-500">Availability is only available for walkers.</p>
+  }
+
   async function addBlockedDate() {
     if (!newBlock.date) return
     await supabase.from('blocked_dates').insert({

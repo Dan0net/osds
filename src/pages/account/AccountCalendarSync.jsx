@@ -99,6 +99,10 @@ export default function AccountCalendarSync() {
     window.location.reload()
   }
 
+  if (!walkerProfile) {
+    return <p className="text-sm text-gray-500">Calendar sync is only available for walkers.</p>
+  }
+
   return (
     <div className="space-y-4">
       <div className="bg-white border border-gray-200 rounded-lg p-4">

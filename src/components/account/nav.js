@@ -10,6 +10,7 @@ import {
   Clock,
   Repeat,
   CreditCard,
+  Bell,
 } from 'lucide-react'
 
 export const NAV_ITEMS = [
@@ -20,10 +21,11 @@ export const NAV_ITEMS = [
   { key: 'services', to: '/account/services', label: 'Services', icon: Wrench, walkerOnly: true },
   { key: 'customers', to: '/account/customers', label: 'Customers', icon: Users, walkerOnly: true },
   { key: 'profile', to: '/account/profile', label: 'Profile', icon: User },
-  { key: 'settings', to: '/account/settings', label: 'Settings', icon: Settings, walkerOnly: true },
+  { key: 'settings', to: '/account/settings', label: 'Settings', icon: Settings },
   { key: 'settings.availability', to: '/account/settings/availability', label: 'Availability', icon: Clock, walkerOnly: true, parent: 'settings' },
   { key: 'settings.calendar-sync', to: '/account/settings/calendar-sync', label: 'Calendar sync', icon: Repeat, walkerOnly: true, parent: 'settings' },
   { key: 'settings.stripe', to: '/account/settings/stripe', label: 'Stripe', icon: CreditCard, walkerOnly: true, parent: 'settings' },
+  { key: 'settings.notifications', to: '/account/settings/notifications', label: 'Notifications', icon: Bell, parent: 'settings' },
 ]
 
 export const BOTTOM_BAR_KEYS = ['bookings', 'messages', 'money']
