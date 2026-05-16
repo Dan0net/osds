@@ -175,7 +175,7 @@ export async function handler(event) {
   const cancelSvcName = cancelSvc?.name || 'Booking'
   const cancelWhen = formatDateTime(bookings[0].booking_date, bookings[0].start_time)
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-  notify(adminSupabase, otherPartyId, {
+  await notify(adminSupabase, otherPartyId, {
     type: 'booking_cancelled',
     title: 'Booking cancelled',
     body: `${cancelSvcName} on ${cancelWhen} has been cancelled`,

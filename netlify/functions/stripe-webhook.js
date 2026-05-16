@@ -77,7 +77,7 @@ export async function handler(event) {
       if (walkerProfile) {
         const bookingLink = paidBookings?.id ? `/account/bookings/${paidBookings.id}` : '/account/money'
         const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-        notify(supabase, walkerProfile.user_id, {
+        await notify(supabase, walkerProfile.user_id, {
           type: 'payment_confirmed',
           title: 'Payment received',
           body: `${clientName} paid ${amount} for ${svcName}${when ? ` on ${when}` : ''}`,

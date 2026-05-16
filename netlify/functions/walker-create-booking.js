@@ -233,7 +233,7 @@ export async function handler(event) {
   const when = formatSlots(slots)
 
   if (isCash) {
-    notify(adminSupabase, client_id, {
+    await notify(adminSupabase, client_id, {
       type: 'booking_confirmed',
       title: 'Booking confirmed',
       body: `${wp.business_name} booked ${serviceNames} for you on ${when}`,
@@ -245,7 +245,7 @@ export async function handler(event) {
       ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
     })
   } else {
-    notify(adminSupabase, client_id, {
+    await notify(adminSupabase, client_id, {
       type: 'booking_payment_link',
       title: 'Payment requested',
       body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,

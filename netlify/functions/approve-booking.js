@@ -72,7 +72,7 @@ export async function handler(event) {
     const { data: walkerUser } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
     const walkerName = walkerUser?.business_name || 'Your walker'
     const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-    notify(adminSupabase, bookings[0].client_id, {
+    await notify(adminSupabase, bookings[0].client_id, {
       type: 'booking_approved',
       title: 'Booking approved',
       body: `${walkerName} approved your booking — pay now to confirm`,
@@ -149,7 +149,7 @@ export async function handler(event) {
   const svcName = svc?.name || 'booking'
   const when = formatDateTime(updated.booking_date, updated.start_time)
   const siteUrl2 = process.env.SITE_URL || 'https://onestopdog.shop'
-  notify(adminSupabase2, updated.client_id, {
+  await notify(adminSupabase2, updated.client_id, {
     type: 'booking_approved',
     title: 'Booking approved',
     body: `${wName} approved your ${svcName} on ${when}`,

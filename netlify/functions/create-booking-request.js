@@ -221,7 +221,7 @@ export async function handler(event) {
   const when = formatSlots(slots)
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
 
-  notify(adminSupabase, walker.user_id, {
+  await notify(adminSupabase, walker.user_id, {
     type: 'booking_request',
     title: 'New booking request',
     body: `${clientName} requested ${serviceNames} on ${when}`,

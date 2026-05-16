@@ -1,7 +1,21 @@
 import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import webpush from 'web-push'
+
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
+  : null
+
+// Dev fallback: when Resend isn't configured but SMTP_HOST is, route emails
+// through a local SMTP server (e.g. Mailpit on localhost:1025) so they show
+// up alongside Supabase auth emails during development.
+const smtpTransport = (!resend && process.env.SMTP_HOST)
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '1025'),
+      secure: false,
+      ignoreTLS: true,
+    })
   : null
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -59,20 +73,18 @@ const PREF_MAP = {
 export { emailTemplate, esc } from './email-template.js'
 
 /**
- * Send an email via Resend. Best-effort — never throws.
+ * Send an email via Resend (production) or a local SMTP relay (dev). Best-effort — never throws.
  */
 async function sendEmail(to, subject, html) {
-  if (!resend) {
-    console.log(`[DEV EMAIL] To: ${to} | Subject: ${subject}`)
-    return
-  }
+  const from = 'One Stop Dog Shop <notifications@onestopdog.shop>'
   try {
-    await resend.emails.send({
-      from: 'One Stop Dog Shop <notifications@onestopdog.shop>',
-      to,
-      subject,
-      html,
-    })
+    if (resend) {
+      await resend.emails.send({ from, to, subject, html })
+    } else if (smtpTransport) {
+      await smtpTransport.sendMail({ from, to, subject, html })
+    } else {
+      console.log(`[DEV EMAIL] To: ${to} | Subject: ${subject}`)
+    }
   } catch (err) {
     console.error('Email send failed:', err.message)
   }

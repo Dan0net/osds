@@ -57,7 +57,7 @@ export async function handler(event) {
     const adminSupabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const { data: wp } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
     const walkerName = wp?.business_name || 'Your walker'
-    notify(adminSupabase, bookings[0].client_id, {
+    await notify(adminSupabase, bookings[0].client_id, {
       type: 'booking_declined',
       title: 'Booking declined',
       body: `${walkerName} declined your booking request`,
@@ -113,7 +113,7 @@ export async function handler(event) {
   const wName = wp?.business_name || 'Your walker'
   const svcName = svc?.name || 'booking'
   const when = formatDateTime(updated.booking_date, updated.start_time)
-  notify(adminSupabase, updated.client_id, {
+  await notify(adminSupabase, updated.client_id, {
     type: 'booking_declined',
     title: 'Booking declined',
     body: `${wName} declined your ${svcName} on ${when}`,
