@@ -72,16 +72,21 @@ export async function handler(event) {
     const { data: walkerUser } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
     const walkerName = walkerUser?.business_name || 'Your walker'
     const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-    await notify(adminSupabase, bookings[0].client_id, {
-      type: 'booking_approved',
-      title: 'Booking approved',
-      body: `${walkerName} approved your booking — pay now to confirm`,
-      link: `/account/payments/${payment_id}`,
-      emailSubject: `Your booking with ${walkerName} has been approved`,
-      emailHtml: emailTemplate('Booking approved', [
-        `Great news! <strong>${esc(walkerName)}</strong> has approved your booking.`,
-        'You can now proceed to pay from your bookings page.',
-      ], 'Pay now', `${siteUrl}/account/payments/${payment_id}`),
+    await notify(adminSupabase, {
+      walkerId: bookings[0].walker_id,
+      clientId: bookings[0].client_id,
+      recipientUserId: bookings[0].client_id,
+      event: {
+        type: 'booking_approved',
+        title: 'Booking approved',
+        body: `${walkerName} approved your booking — pay now to confirm`,
+        link: `/account/payments/${payment_id}`,
+        emailSubject: `Your booking with ${walkerName} has been approved`,
+        emailHtml: emailTemplate('Booking approved', [
+          `Great news! <strong>${esc(walkerName)}</strong> has approved your booking.`,
+          'You can now proceed to pay from your bookings page.',
+        ], 'Pay now', `${siteUrl}/account/payments/${payment_id}`),
+      },
     })
 
     return {
@@ -149,16 +154,21 @@ export async function handler(event) {
   const svcName = svc?.name || 'booking'
   const when = formatDateTime(updated.booking_date, updated.start_time)
   const siteUrl2 = process.env.SITE_URL || 'https://onestopdog.shop'
-  await notify(adminSupabase2, updated.client_id, {
-    type: 'booking_approved',
-    title: 'Booking approved',
-    body: `${wName} approved your ${svcName} on ${when}`,
-    link: updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`,
-    emailSubject: `Your booking with ${wName} has been approved`,
-    emailHtml: emailTemplate('Booking approved', [
-      `Great news! <strong>${esc(wName)}</strong> has approved your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
-      'You can now proceed to pay from your bookings page.',
-    ], 'Pay now', `${siteUrl2}${updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`}`),
+  await notify(adminSupabase2, {
+    walkerId: updated.walker_id,
+    clientId: updated.client_id,
+    recipientUserId: updated.client_id,
+    event: {
+      type: 'booking_approved',
+      title: 'Booking approved',
+      body: `${wName} approved your ${svcName} on ${when}`,
+      link: updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`,
+      emailSubject: `Your booking with ${wName} has been approved`,
+      emailHtml: emailTemplate('Booking approved', [
+        `Great news! <strong>${esc(wName)}</strong> has approved your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
+        'You can now proceed to pay from your bookings page.',
+      ], 'Pay now', `${siteUrl2}${updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`}`),
+    },
   })
 
   return {

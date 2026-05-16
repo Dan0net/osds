@@ -57,16 +57,21 @@ export async function handler(event) {
     const adminSupabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const { data: wp } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
     const walkerName = wp?.business_name || 'Your walker'
-    await notify(adminSupabase, bookings[0].client_id, {
-      type: 'booking_declined',
-      title: 'Booking declined',
-      body: `${walkerName} declined your booking request`,
-      link: `/account/payments/${payment_id}`,
-      emailSubject: `${walkerName} declined your booking request`,
-      emailHtml: emailTemplate('Booking declined', [
-        `Unfortunately, <strong>${esc(walkerName)}</strong> was unable to accept your booking request.`,
-        'You can browse other walkers or try different dates.',
-      ]),
+    await notify(adminSupabase, {
+      walkerId: bookings[0].walker_id,
+      clientId: bookings[0].client_id,
+      recipientUserId: bookings[0].client_id,
+      event: {
+        type: 'booking_declined',
+        title: 'Booking declined',
+        body: `${walkerName} declined your booking request`,
+        link: `/account/payments/${payment_id}`,
+        emailSubject: `${walkerName} declined your booking request`,
+        emailHtml: emailTemplate('Booking declined', [
+          `Unfortunately, <strong>${esc(walkerName)}</strong> was unable to accept your booking request.`,
+          'You can browse other walkers or try different dates.',
+        ]),
+      },
     })
 
     return {
@@ -113,16 +118,21 @@ export async function handler(event) {
   const wName = wp?.business_name || 'Your walker'
   const svcName = svc?.name || 'booking'
   const when = formatDateTime(updated.booking_date, updated.start_time)
-  await notify(adminSupabase, updated.client_id, {
-    type: 'booking_declined',
-    title: 'Booking declined',
-    body: `${wName} declined your ${svcName} on ${when}`,
-    link: updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`,
-    emailSubject: `${wName} declined your booking request`,
-    emailHtml: emailTemplate('Booking declined', [
-      `Unfortunately, <strong>${esc(wName)}</strong> was unable to accept your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
-      'You can browse other walkers or try different dates.',
-    ]),
+  await notify(adminSupabase, {
+    walkerId: updated.walker_id,
+    clientId: updated.client_id,
+    recipientUserId: updated.client_id,
+    event: {
+      type: 'booking_declined',
+      title: 'Booking declined',
+      body: `${wName} declined your ${svcName} on ${when}`,
+      link: updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`,
+      emailSubject: `${wName} declined your booking request`,
+      emailHtml: emailTemplate('Booking declined', [
+        `Unfortunately, <strong>${esc(wName)}</strong> was unable to accept your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
+        'You can browse other walkers or try different dates.',
+      ]),
+    },
   })
 
   return {

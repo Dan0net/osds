@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, useLocation } from 'react-router-dom'
-import { User, PawPrint, Scissors, CreditCard, Trash2, Map } from 'lucide-react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { User, PawPrint, Scissors, CreditCard, Trash2, Map, MessageCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { createCheckout, cancelBooking, apiFetch } from '../../lib/api'
 import { bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
+import { ensureConversation } from '../../lib/messaging'
 import DetailHeader from '../../components/account/DetailHeader'
 import LinkRow from '../../components/account/LinkRow'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -12,6 +13,7 @@ import ConfirmModal from '../../components/ConfirmModal'
 export default function BookingDetail() {
   const { bookingId } = useParams()
   const { user, walkerProfile } = useAuth()
+  const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from
   const backHref = from || '/account/bookings'
@@ -175,6 +177,19 @@ export default function BookingDetail() {
             icon={User}
             label="Walker"
             value={booking.walker_profiles.business_name || 'Walker'}
+          />
+        )}
+        {booking.walker_id && booking.client_id && (
+          <LinkRow
+            icon={MessageCircle}
+            value="Message"
+            secondary={isWalker
+              ? (booking.users?.name || 'Customer')
+              : (booking.walker_profiles?.business_name || 'Walker')}
+            onClick={async () => {
+              const id = await ensureConversation(booking.walker_id, booking.client_id)
+              if (id) navigate(`/account/messages/${id}`)
+            }}
           />
         )}
         {booking.pets && (

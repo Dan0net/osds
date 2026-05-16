@@ -233,28 +233,38 @@ export async function handler(event) {
   const when = formatSlots(slots)
 
   if (isCash) {
-    await notify(adminSupabase, client_id, {
-      type: 'booking_confirmed',
-      title: 'Booking confirmed',
-      body: `${wp.business_name} booked ${serviceNames} for you on ${when}`,
-      link: `/account/payments/${payment.id}`,
-      emailSubject: `Booking confirmed with ${wp.business_name}`,
-      emailHtml: emailTemplate('Booking confirmed', [
-        `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
-        'Your booking is confirmed.',
-      ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
+    await notify(adminSupabase, {
+      walkerId: wp.id,
+      clientId: client_id,
+      recipientUserId: client_id,
+      event: {
+        type: 'booking_confirmed',
+        title: 'Booking confirmed',
+        body: `${wp.business_name} booked ${serviceNames} for you on ${when}`,
+        link: `/account/payments/${payment.id}`,
+        emailSubject: `Booking confirmed with ${wp.business_name}`,
+        emailHtml: emailTemplate('Booking confirmed', [
+          `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
+          'Your booking is confirmed.',
+        ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
+      },
     })
   } else {
-    await notify(adminSupabase, client_id, {
-      type: 'booking_payment_link',
-      title: 'Payment requested',
-      body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,
-      link: checkoutUrl || `/account/payments/${payment.id}`,
-      emailSubject: `Payment requested from ${wp.business_name}`,
-      emailHtml: emailTemplate('Payment requested', [
-        `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
-        'Please complete payment to confirm your booking. You don\'t need to sign in first — the link below opens the secure Stripe checkout.',
-      ], 'Pay now', checkoutUrl || 'https://onestopdog.shop/account/bookings'),
+    await notify(adminSupabase, {
+      walkerId: wp.id,
+      clientId: client_id,
+      recipientUserId: client_id,
+      event: {
+        type: 'booking_payment_link',
+        title: 'Payment requested',
+        body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,
+        link: checkoutUrl || `/account/payments/${payment.id}`,
+        emailSubject: `Payment requested from ${wp.business_name}`,
+        emailHtml: emailTemplate('Payment requested', [
+          `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
+          'Please complete payment to confirm your booking. You don\'t need to sign in first — the link below opens the secure Stripe checkout.',
+        ], 'Pay now', checkoutUrl || 'https://onestopdog.shop/account/bookings'),
+      },
     })
   }
 

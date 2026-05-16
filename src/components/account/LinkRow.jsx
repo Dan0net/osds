@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-export default function LinkRow({ icon: Icon, label, value, secondary, to, href, state, right }) {
+export default function LinkRow({ icon: Icon, label, value, secondary, to, href, state, onClick, right }) {
   const inner = (
     <>
       {Icon && (
@@ -15,7 +15,7 @@ export default function LinkRow({ icon: Icon, label, value, secondary, to, href,
         {secondary && <p className="text-xs text-gray-500 truncate">{secondary}</p>}
       </div>
       {right}
-      {(to || href) && <ChevronRight size={18} className="text-gray-400 shrink-0" />}
+      {(to || href || onClick) && <ChevronRight size={18} className="text-gray-400 shrink-0" />}
     </>
   )
 
@@ -36,6 +36,13 @@ export default function LinkRow({ icon: Icon, label, value, secondary, to, href,
       <Link to={to} state={state} className={`${className}${hoverClassName}`}>
         {inner}
       </Link>
+    )
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${className}${hoverClassName} cursor-pointer text-left w-full`}>
+        {inner}
+      </button>
     )
   }
   return <div className={className}>{inner}</div>

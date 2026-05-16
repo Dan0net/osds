@@ -77,16 +77,21 @@ export async function handler(event) {
       if (walkerProfile) {
         const bookingLink = paidBookings?.id ? `/account/bookings/${paidBookings.id}` : '/account/money'
         const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-        await notify(supabase, walkerProfile.user_id, {
-          type: 'payment_confirmed',
-          title: 'Payment received',
-          body: `${clientName} paid ${amount} for ${svcName}${when ? ` on ${when}` : ''}`,
-          link: bookingLink,
-          emailSubject: `Payment received — ${amount} from ${clientName}`,
-          emailHtml: emailTemplate('Payment received', [
-            `<strong>${esc(clientName)}</strong> has paid <strong>${esc(amount)}</strong> for <strong>${esc(svcName)}</strong>${when ? ` on ${esc(when)}` : ''}.`,
-            'The booking is now confirmed.',
-          ], 'View booking', `${siteUrl}${bookingLink}`),
+        await notify(supabase, {
+          walkerId: paymentRow.walker_id,
+          clientId: paymentRow.client_id,
+          recipientUserId: walkerProfile.user_id,
+          event: {
+            type: 'payment_confirmed',
+            title: 'Payment received',
+            body: `${clientName} paid ${amount} for ${svcName}${when ? ` on ${when}` : ''}`,
+            link: bookingLink,
+            emailSubject: `Payment received — ${amount} from ${clientName}`,
+            emailHtml: emailTemplate('Payment received', [
+              `<strong>${esc(clientName)}</strong> has paid <strong>${esc(amount)}</strong> for <strong>${esc(svcName)}</strong>${when ? ` on ${esc(when)}` : ''}.`,
+              'The booking is now confirmed.',
+            ], 'View booking', `${siteUrl}${bookingLink}`),
+          },
         })
       }
     }

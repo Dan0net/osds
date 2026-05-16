@@ -175,16 +175,21 @@ export async function handler(event) {
   const cancelSvcName = cancelSvc?.name || 'Booking'
   const cancelWhen = formatDateTime(bookings[0].booking_date, bookings[0].start_time)
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-  await notify(adminSupabase, otherPartyId, {
-    type: 'booking_cancelled',
-    title: 'Booking cancelled',
-    body: `${cancelSvcName} on ${cancelWhen} has been cancelled`,
-    link: bookings[0].payment_id ? `/account/payments/${bookings[0].payment_id}` : `/account/bookings/${bookings[0].id}`,
-    emailSubject: `Booking cancelled — ${cancelSvcName} on ${cancelWhen}`,
-    emailHtml: emailTemplate('Booking cancelled', [
-      `<strong>${esc(cancelSvcName)}</strong> on ${esc(cancelWhen)} has been cancelled.`,
-      'Check your bookings page for details.',
-    ], 'View bookings', `${siteUrl}${bookings[0].payment_id ? `/account/payments/${bookings[0].payment_id}` : `/account/bookings/${bookings[0].id}`}`),
+  await notify(adminSupabase, {
+    walkerId: bookings[0].walker_id,
+    clientId: bookings[0].client_id,
+    recipientUserId: otherPartyId,
+    event: {
+      type: 'booking_cancelled',
+      title: 'Booking cancelled',
+      body: `${cancelSvcName} on ${cancelWhen} has been cancelled`,
+      link: bookings[0].payment_id ? `/account/payments/${bookings[0].payment_id}` : `/account/bookings/${bookings[0].id}`,
+      emailSubject: `Booking cancelled — ${cancelSvcName} on ${cancelWhen}`,
+      emailHtml: emailTemplate('Booking cancelled', [
+        `<strong>${esc(cancelSvcName)}</strong> on ${esc(cancelWhen)} has been cancelled.`,
+        'Check your bookings page for details.',
+      ], 'View bookings', `${siteUrl}${bookings[0].payment_id ? `/account/payments/${bookings[0].payment_id}` : `/account/bookings/${bookings[0].id}`}`),
+    },
   })
 
   return {

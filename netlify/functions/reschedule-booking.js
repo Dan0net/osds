@@ -124,17 +124,22 @@ export async function handler(event) {
   const oldWhen = formatDateTime(booking.booking_date, booking.start_time)
   const newWhen = formatDateTime(new_date, new_start_time)
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-  await notify(adminSupabase, booking.client_id, {
-    type: 'booking_rescheduled',
-    title: 'Booking rescheduled',
-    body: `${walkerName} moved your ${svcName} from ${oldWhen} to ${newWhen}`,
-    link: `/account/bookings/${booking_id}`,
-    emailSubject: `${walkerName} rescheduled your booking`,
-    emailHtml: emailTemplate('Booking rescheduled', [
-      `<strong>${esc(walkerName)}</strong> has moved your <strong>${esc(svcName)}</strong>.`,
-      `<strong>From:</strong> ${esc(oldWhen)}`,
-      `<strong>To:</strong> ${esc(newWhen)}`,
-    ], 'View bookings', `${siteUrl}/account/bookings/${booking_id}`),
+  await notify(adminSupabase, {
+    walkerId: booking.walker_id,
+    clientId: booking.client_id,
+    recipientUserId: booking.client_id,
+    event: {
+      type: 'booking_rescheduled',
+      title: 'Booking rescheduled',
+      body: `${walkerName} moved your ${svcName} from ${oldWhen} to ${newWhen}`,
+      link: `/account/bookings/${booking_id}`,
+      emailSubject: `${walkerName} rescheduled your booking`,
+      emailHtml: emailTemplate('Booking rescheduled', [
+        `<strong>${esc(walkerName)}</strong> has moved your <strong>${esc(svcName)}</strong>.`,
+        `<strong>From:</strong> ${esc(oldWhen)}`,
+        `<strong>To:</strong> ${esc(newWhen)}`,
+      ], 'View bookings', `${siteUrl}/account/bookings/${booking_id}`),
+    },
   })
 
   return {

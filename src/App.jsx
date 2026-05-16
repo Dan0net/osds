@@ -42,6 +42,7 @@ import AccountCustomers from './pages/account/AccountCustomers'
 import CustomerDetail from './pages/account/CustomerDetail'
 import BookingDetail from './pages/account/BookingDetail'
 import PaymentDetail from './pages/account/PaymentDetail'
+import ConversationDetail from './pages/account/ConversationDetail'
 
 function WalkerRoutes({ walker }) {
   return (
@@ -83,6 +84,7 @@ function PlatformRoutes() {
           <Route path="payments" element={<Navigate to="/account/money" replace />} />
           <Route path="payments/:paymentId" element={<PaymentDetail />} />
           <Route path="messages" element={<AccountMessages />} />
+          <Route path="messages/:conversationId" element={<ConversationDetail />} />
           <Route path="inbox" element={<Navigate to="/account/messages" replace />} />
           <Route path="notifications" element={<Navigate to="/account/settings/notifications" replace />} />
           <Route path="services" element={<AccountServices />} />

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
-import { Mail, Phone, Map, Plus } from 'lucide-react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Mail, Phone, Map, Plus, MessageCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { ensureConversation } from '../../lib/messaging'
 import Modal from '../../components/Modal'
 import PetForm from '../../components/account/PetForm'
 import DetailHeader from '../../components/account/DetailHeader'
@@ -14,6 +15,7 @@ const PET_FORM_ID = 'customer-pet-form'
 export default function CustomerDetail() {
   const { clientId } = useParams()
   const { walkerProfile } = useAuth()
+  const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from
   const backHref = from || '/account/customers'
@@ -99,6 +101,15 @@ export default function CustomerDetail() {
       </div>
 
       <div className="space-y-2 mb-6">
+        <LinkRow
+          icon={MessageCircle}
+          value="Message"
+          secondary={client.name ? `Chat with ${client.name.split(' ')[0]}` : null}
+          onClick={async () => {
+            const id = await ensureConversation(walkerProfile.id, clientId)
+            if (id) navigate(`/account/messages/${id}`)
+          }}
+        />
         {client.email && (
           <LinkRow icon={Mail} value={client.email} href={`mailto:${client.email}`} />
         )}

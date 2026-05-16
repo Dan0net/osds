@@ -221,16 +221,21 @@ export async function handler(event) {
   const when = formatSlots(slots)
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
 
-  await notify(adminSupabase, walker.user_id, {
-    type: 'booking_request',
-    title: 'New booking request',
-    body: `${clientName} requested ${serviceNames} on ${when}`,
-    link: `/account/payments/${payment.id}`,
-    emailSubject: `New booking request from ${clientName}`,
-    emailHtml: emailTemplate('New booking request', [
-      `${esc(clientName)} has requested <strong>${esc(serviceNames)}</strong> on ${esc(when)}.`,
-      'Review and approve or decline from your dashboard.',
-    ], 'View request', `${siteUrl}/account/payments/${payment.id}`),
+  await notify(adminSupabase, {
+    walkerId: walker.id,
+    clientId: user.id,
+    recipientUserId: walker.user_id,
+    event: {
+      type: 'booking_request',
+      title: 'New booking request',
+      body: `${clientName} requested ${serviceNames} on ${when}`,
+      link: `/account/payments/${payment.id}`,
+      emailSubject: `New booking request from ${clientName}`,
+      emailHtml: emailTemplate('New booking request', [
+        `${esc(clientName)} has requested <strong>${esc(serviceNames)}</strong> on ${esc(when)}.`,
+        'Review and approve or decline from your dashboard.',
+      ], 'View request', `${siteUrl}/account/payments/${payment.id}`),
+    },
   })
 
   return {

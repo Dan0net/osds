@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import nodemailer from 'nodemailer'
 import webpush from 'web-push'
+import { getOrCreateConversation } from './conversations.js'
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -123,30 +124,46 @@ async function sendPushToUser(supabase, userId, payload) {
   }
 }
 
+export { sendEmail }
+
 /**
- * Send a notification to a user. Inserts into inbox, sends email + push based on preferences.
+ * Send a system message + email + push for a booking lifecycle event.
+ * Inserts a `kind=system` row into the conversation between the walker and the
+ * client, then delivers email + push to the recipient based on their prefs.
+ *
  * Best-effort — never throws, never blocks the caller's response.
  *
  * @param {object} supabase - Admin supabase client (service role)
- * @param {string} userId - Target user ID
- * @param {object} event - { type, title, body, link, emailSubject, emailHtml }
+ * @param {object} args
+ * @param {string} args.walkerId - walker_profiles.id
+ * @param {string} args.clientId - users.id of the client
+ * @param {string} args.recipientUserId - users.id who receives the email/push (the other party)
+ * @param {object} args.event - { type, title, body, link, emailSubject, emailHtml }
  */
-export async function notify(supabase, userId, event) {
+export async function notify(supabase, { walkerId, clientId, recipientUserId, event }) {
   try {
-    // Insert notification into inbox
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      type: event.type,
-      title: event.title,
-      body: event.body || '',
-      link: event.link || null,
-    })
+    const conversationId = await getOrCreateConversation(supabase, walkerId, clientId)
+    if (conversationId) {
+      const body = event.body || event.title || ''
+      // System message link defaults to the conversation itself when none provided.
+      const link = event.link || `/account/messages/${conversationId}`
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_user_id: null,
+        kind: 'system',
+        event_type: event.type,
+        body,
+        link,
+      })
+    }
 
-    // Fetch user preferences
+    if (!recipientUserId) return
+
+    // Fetch recipient preferences
     const { data: user } = await supabase
       .from('users')
       .select('email, name, notification_preferences')
-      .eq('id', userId)
+      .eq('id', recipientUserId)
       .single()
 
     if (!user) return
@@ -162,10 +179,10 @@ export async function notify(supabase, userId, event) {
 
     // Send push if enabled
     if (prefs[prefKeys.push] !== false) {
-      await sendPushToUser(supabase, userId, {
+      await sendPushToUser(supabase, recipientUserId, {
         title: event.title,
         body: event.body || '',
-        url: event.link || '/account/messages',
+        url: event.link || (conversationId ? `/account/messages/${conversationId}` : '/account/messages'),
       })
     }
   } catch (err) {

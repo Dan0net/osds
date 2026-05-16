@@ -12,14 +12,24 @@ export default function AccountLayout() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [moreOpen, setMoreOpen] = useState(false)
 
-  function refreshUnread() {
+  async function refreshUnread() {
     if (!user) return
-    supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
+    const { data: convos } = await supabase
+      .from('conversations')
+      .select('id, last_message_at')
+    if (!convos || convos.length === 0) { setUnreadCount(0); return }
+
+    const { data: reads } = await supabase
+      .from('conversation_reads')
+      .select('conversation_id, last_read_at')
       .eq('user_id', user.id)
-      .eq('read', false)
-      .then(({ count }) => setUnreadCount(count || 0))
+    const readMap = new Map((reads || []).map((r) => [r.conversation_id, r.last_read_at]))
+
+    const count = convos.filter((c) => {
+      const lastRead = readMap.get(c.id)
+      return !lastRead || c.last_message_at > lastRead
+    }).length
+    setUnreadCount(count)
   }
 
   useEffect(() => {

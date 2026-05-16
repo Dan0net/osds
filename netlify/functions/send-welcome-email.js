@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { emailTemplate, esc, notify } from './lib/notify.js'
+import { emailTemplate, esc, sendEmail } from './lib/notify.js'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -29,22 +29,27 @@ export async function handler(event) {
 
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
 
-  // Check if user is a walker
   const { data: wp } = await adminSupabase
     .from('walker_profiles')
     .select('slug')
     .eq('user_id', user.id)
     .maybeSingle()
 
+  const { data: profile } = await adminSupabase
+    .from('users')
+    .select('email')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.email) {
+    return { statusCode: 200, body: JSON.stringify({ data: { ok: true } }) }
+  }
+
   if (wp) {
-    // Walker welcome email
-    await notify(adminSupabase, user.id, {
-      type: 'booking_approved', // reuse existing pref key for welcome
-      title: 'Your page is live!',
-      body: 'Share your page with clients to start receiving bookings.',
-      link: '/account',
-      emailSubject: 'Your page is live — One Stop Dog Shop',
-      emailHtml: emailTemplate(
+    await sendEmail(
+      profile.email,
+      'Your page is live — One Stop Dog Shop',
+      emailTemplate(
         'Your page is live!',
         [
           'Your booking page is ready to share with clients. Start by creating a booking for an existing client or sharing your link.',
@@ -53,16 +58,12 @@ export async function handler(event) {
         'View your page',
         `${siteUrl}/w/${wp.slug}`,
       ),
-    })
+    )
   } else {
-    // Owner welcome email
-    await notify(adminSupabase, user.id, {
-      type: 'booking_approved', // reuse existing pref key for welcome
-      title: 'Welcome to One Stop Dog Shop!',
-      body: 'Find trusted local dog walkers near you.',
-      link: '/',
-      emailSubject: 'Welcome to One Stop Dog Shop',
-      emailHtml: emailTemplate(
+    await sendEmail(
+      profile.email,
+      'Welcome to One Stop Dog Shop',
+      emailTemplate(
         'Welcome to One Stop Dog Shop!',
         [
           "You're all set! Find trusted local dog walkers near you and book directly — no middleman.",
@@ -70,7 +71,7 @@ export async function handler(event) {
         'Find walkers near me',
         siteUrl,
       ),
-    })
+    )
   }
 
   return {
