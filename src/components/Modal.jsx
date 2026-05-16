@@ -65,7 +65,7 @@ export default function Modal({
         onClick={onClose}
       />
       <div
-        className={`relative bg-white w-full h-full lg:h-auto lg:max-h-[90vh] lg:w-full lg:max-w-lg lg:rounded-xl lg:shadow-xl flex flex-col transition-[transform,opacity] duration-200 ease-out ${
+        className={`relative bg-white w-full h-full lg:h-auto lg:max-h-[90vh] lg:w-full lg:max-w-lg lg:rounded-xl lg:shadow-xl flex flex-col transition duration-200 ease-out ${
           visible
             ? 'translate-y-0 opacity-100'
             : 'translate-y-full lg:translate-y-0 lg:opacity-0'
