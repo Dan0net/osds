@@ -69,7 +69,7 @@ export default function AccountBookings() {
     const walkerPromise = walkerProfile
       ? supabase
           .from('bookings')
-          .select('*, services(name), pets(name), payments(source), users!bookings_client_id_fkey(name)')
+          .select('*, services(name), pets(name), payments(source), users!bookings_client_id_fkey(name, phone, postcode)')
           .eq('walker_id', walkerProfile.id)
           .order('booking_date', { ascending: true })
       : Promise.resolve({ data: [] })
@@ -290,6 +290,7 @@ function toEvent(b, isWalkerSide) {
     durationLabel,
     durationMinutes,
     inactive: INACTIVE_STATUSES.has(b.status),
+    postcode: isWalkerSide ? b.users?.postcode : null,
     external: false,
   }
 }

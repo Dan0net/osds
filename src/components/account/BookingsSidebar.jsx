@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { format, parseISO, addDays, isToday, isTomorrow } from 'date-fns'
+import MapButton from './MapButton'
 
 function dayHeading(dateStr) {
   const d = parseISO(dateStr)
@@ -23,39 +24,40 @@ function EventRow({ event }) {
         style={{ backgroundColor: event.color }}
       />
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className={`text-sm font-medium truncate ${inactive ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-            {event.primaryLabel}
+        <span className={`block text-sm font-medium truncate ${inactive ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+          {event.primaryLabel}
+        </span>
+        {event.secondaryLabel && (
+          <span className={`block text-xs truncate ${inactive ? 'text-gray-400' : 'text-gray-500'}`}>
+            {event.secondaryLabel}
           </span>
+        )}
+      </div>
+      {event.postcode && <MapButton postcode={event.postcode} size={28} className="p-1" />}
+      {(event.startLabel || event.durationLabel) && (
+        <div className="flex flex-col items-end justify-center shrink-0">
           {event.startLabel && (
-            <span className={`text-xs shrink-0 ${inactive ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+            <span className={`text-xs ${inactive ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
               {event.startLabel}
             </span>
           )}
-        </div>
-        {(event.secondaryLabel || event.durationLabel) && (
-          <div className="flex items-baseline justify-between gap-2">
-            <span className={`text-xs truncate ${inactive ? 'text-gray-400' : 'text-gray-500'}`}>
-              {event.secondaryLabel}
+          {event.durationLabel && (
+            <span className="text-[11px] text-gray-400">
+              {event.durationLabel}
             </span>
-            {event.durationLabel && (
-              <span className={`text-[11px] shrink-0 ${inactive ? 'text-gray-400' : 'text-gray-400'}`}>
-                {event.durationLabel}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </>
   )
   if (event.external) {
-    return <div className="flex items-stretch gap-2.5 py-1">{inner}</div>
+    return <div className="flex items-center gap-2.5 py-1">{inner}</div>
   }
   return (
     <Link
       to={`/account/bookings/${event.id}`}
       state={{ from: '/account/bookings' }}
-      className={`flex items-stretch gap-2.5 py-1 transition-opacity ${inactive ? 'opacity-60 hover:opacity-80' : 'hover:opacity-70'}`}
+      className={`flex items-center gap-2.5 py-1 transition-opacity ${inactive ? 'opacity-60 hover:opacity-80' : 'hover:opacity-70'}`}
     >
       {inner}
     </Link>

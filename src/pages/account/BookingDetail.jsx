@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
-import { User, PawPrint, Scissors, CreditCard, Trash2 } from 'lucide-react'
+import { User, PawPrint, Scissors, CreditCard, Trash2, Map } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { createCheckout, cancelBooking, apiFetch } from '../../lib/api'
@@ -41,7 +41,7 @@ export default function BookingDetail() {
         pets(name, breed, weight, notes),
         walker_profiles(slug, business_name, theme_color, user_id),
         payments(id, status, total_cents, source),
-        users!bookings_client_id_fkey(name, email)
+        users!bookings_client_id_fkey(name, email, phone, postcode)
       `)
       .eq('id', bookingId)
       .single()
@@ -152,12 +152,20 @@ export default function BookingDetail() {
           )}
         </p>
 
+        {isWalker && booking.users?.postcode && (
+          <LinkRow
+            icon={Map}
+            value="Get directions"
+            secondary={booking.users.postcode}
+            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(booking.users.postcode)}`}
+          />
+        )}
         {isWalker && booking.users && (
           <LinkRow
             icon={User}
             label="Client"
             value={booking.users.name || 'Unknown'}
-            secondary={booking.users.email}
+            secondary={[booking.users.email, booking.users.phone].filter(Boolean).join(' · ')}
             to={booking.client_id ? `/account/customers/${booking.client_id}` : null}
             state={{ from: `/account/bookings/${booking.id}` }}
           />

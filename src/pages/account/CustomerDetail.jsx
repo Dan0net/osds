@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { Mail, Phone, Plus } from 'lucide-react'
+import { Mail, Phone, Map, Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import Modal from '../../components/Modal'
 import PetForm from '../../components/account/PetForm'
 import DetailHeader from '../../components/account/DetailHeader'
+import LinkRow from '../../components/account/LinkRow'
 import { bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
 
 const PET_FORM_ID = 'customer-pet-form'
@@ -39,12 +40,12 @@ export default function CustomerDetail() {
     const [bkRes, petsRes, userRes] = await Promise.all([
       supabase
         .from('bookings')
-        .select('*, services(name), pets(*), payments(source), users:client_id(id, name, email, phone, avatar_url)')
+        .select('*, services(name), pets(*), payments(source), users:client_id(id, name, email, phone, postcode, avatar_url)')
         .eq('walker_id', walkerProfile.id)
         .eq('client_id', clientId)
         .order('booking_date', { ascending: false }),
       supabase.from('pets').select('*').eq('user_id', clientId),
-      supabase.from('users').select('id, name, email, phone, avatar_url').eq('id', clientId).maybeSingle(),
+      supabase.from('users').select('id, name, email, phone, postcode, avatar_url').eq('id', clientId).maybeSingle(),
     ])
 
     setBookings(bkRes.data || [])
@@ -86,7 +87,7 @@ export default function CustomerDetail() {
     <>
       <DetailHeader backHref={backHref} backLabel={backLabel} />
 
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-4">
         <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold overflow-hidden shrink-0">
           {client.avatar_url ? (
             <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -94,21 +95,24 @@ export default function CustomerDetail() {
             (client.name?.charAt(0) || '?').toUpperCase()
           )}
         </div>
-        <div className="min-w-0">
-          <h1 className="text-2xl truncate">{client.name || 'Unknown'}</h1>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
-            {client.email && (
-              <a href={`mailto:${client.email}`} className="inline-flex items-center gap-1 hover:text-gray-800">
-                <Mail size={14} /> {client.email}
-              </a>
-            )}
-            {client.phone && (
-              <a href={`tel:${client.phone}`} className="inline-flex items-center gap-1 hover:text-gray-800">
-                <Phone size={14} /> {client.phone}
-              </a>
-            )}
-          </div>
-        </div>
+        <h1 className="text-2xl truncate min-w-0 flex-1">{client.name || 'Unknown'}</h1>
+      </div>
+
+      <div className="space-y-2 mb-6">
+        {client.email && (
+          <LinkRow icon={Mail} value={client.email} href={`mailto:${client.email}`} />
+        )}
+        {client.phone && (
+          <LinkRow icon={Phone} value={client.phone} href={`tel:${client.phone}`} />
+        )}
+        {client.postcode && (
+          <LinkRow
+            icon={Map}
+            value="Get directions"
+            secondary={client.postcode}
+            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.postcode)}`}
+          />
+        )}
       </div>
 
       <section className="mb-8">

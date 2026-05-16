@@ -8,6 +8,7 @@ import SearchList from '../../components/account/SearchList'
 import Modal from '../../components/Modal'
 import CustomerForm from '../../components/account/CustomerForm'
 import InviteConsentModal from '../../components/account/InviteConsentModal'
+import MapButton from '../../components/account/MapButton'
 
 export default function AccountCustomers() {
   const { walkerProfile } = useAuth()
@@ -109,6 +110,7 @@ export default function AccountCustomers() {
                     {totalSpendCents > 0 && ` · £${(totalSpendCents / 100).toFixed(2)}`}
                   </p>
                 </div>
+                <MapButton postcode={client.postcode} size={24} />
               </div>
             </Link>
           )}

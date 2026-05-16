@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 export default function DetailHeader({ backHref, backLabel = 'Back', title, right }) {
   return (
     <>
-      <div className="-mx-4 px-3 pb-3 border-b border-gray-200 mb-3 lg:mb-4 flex items-center">
+      <div className="-mx-4 px-3 pb-3 lg:pb-5 border-b border-gray-200 mb-3 lg:mb-4 flex items-center">
         <Link
           to={backHref}
           className="cursor-pointer inline-flex items-center gap-0.5 p-2 -m-1 text-gray-900 hover:text-gray-600 active:opacity-70"
