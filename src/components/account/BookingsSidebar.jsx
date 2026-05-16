@@ -2,28 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { format, parseISO, addDays, isToday, isTomorrow } from 'date-fns'
 
-const STATUS_LABELS = {
-  requested: 'Pending',
-  approved: 'Approved',
-  confirmed: 'Confirmed',
-  declined: 'Declined',
-  cancelled: 'Cancelled',
-  pending: 'Awaiting payment',
-  hold: 'On hold',
-  refunded: 'Refunded',
-}
-
-const STATUS_STYLES = {
-  requested: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-blue-100 text-blue-700',
-  confirmed: 'bg-green-100 text-green-700',
-  declined: 'bg-red-100 text-red-700',
-  cancelled: 'bg-gray-100 text-gray-600',
-  pending: 'bg-blue-100 text-blue-700',
-  hold: 'bg-purple-100 text-purple-700',
-  refunded: 'bg-gray-100 text-gray-600',
-}
-
 function dayHeading(dateStr) {
   const d = parseISO(dateStr)
   if (isToday(d)) return 'Today'
@@ -39,33 +17,32 @@ function buildDays(startStr, count) {
 function EventRow({ event }) {
   const inner = (
     <>
-      <span className="w-1 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
+      <span
+        className="w-0.5 rounded-full shrink-0 self-stretch"
+        style={{ backgroundColor: event.color }}
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-medium text-sm truncate">{event.title}</span>
-          <span className="text-xs text-gray-500 shrink-0">{event.timeLabel}</span>
+          <span className="text-sm font-medium text-gray-900 truncate">{event.primaryLabel}</span>
+          {event.startLabel && <span className="text-xs text-gray-700 shrink-0">{event.startLabel}</span>}
         </div>
-        {event.subtitle && <p className="text-xs text-gray-500 truncate mt-0.5">{event.subtitle}</p>}
-        {event.status && (
-          <span className={`inline-block mt-1.5 text-[11px] font-medium px-1.5 py-0.5 rounded ${STATUS_STYLES[event.status] || 'bg-gray-100 text-gray-600'}`}>
-            {STATUS_LABELS[event.status] || event.status}
-          </span>
+        {(event.secondaryLabel || event.durationLabel) && (
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-xs text-gray-500 truncate">{event.secondaryLabel}</span>
+            {event.durationLabel && <span className="text-[11px] text-gray-400 shrink-0">{event.durationLabel}</span>}
+          </div>
         )}
       </div>
     </>
   )
   if (event.external) {
-    return (
-      <div className="flex items-stretch gap-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
-        {inner}
-      </div>
-    )
+    return <div className="flex items-stretch gap-2.5 py-1">{inner}</div>
   }
   return (
     <Link
       to={`/account/bookings/${event.id}`}
       state={{ from: '/account/bookings' }}
-      className="flex items-stretch gap-3 bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:shadow-sm transition"
+      className="flex items-stretch gap-2.5 py-1 hover:opacity-70 transition-opacity"
     >
       {inner}
     </Link>
@@ -285,7 +262,7 @@ export default function BookingsSidebar({
             {events.length === 0 ? (
               <p className="text-xs text-gray-400">No bookings.</p>
             ) : (
-              <div className="space-y-2 mt-1">
+              <div>
                 {events.map((event, i) => (
                   <EventRow key={event.id + '-' + i} event={event} />
                 ))}

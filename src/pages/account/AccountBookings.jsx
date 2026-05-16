@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { format, parseISO, addDays, startOfMonth } from 'date-fns'
+import { format, parseISO, addDays, startOfMonth, differenceInCalendarDays } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
@@ -216,47 +216,65 @@ export default function AccountBookings() {
   )
 }
 
+function formatDuration(start, end) {
+  if (!start || !end) return ''
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = (eh - sh) * 60 + (em - sm)
+  if (mins <= 0) return ''
+  if (mins < 60) return `${mins}m`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
 function toExternalEvent(e) {
+  const startLabel = e.allDay ? 'All day' : (e.start_time?.slice(0, 5) || '')
+  const durationLabel = !e.allDay && e.end_time && e.start_time
+    ? formatDuration(e.start_time, e.end_time)
+    : ''
   return {
     id: e.id || `ext-${e.date}-${e.start_time || 'allday'}`,
     booking_date: e.date,
     end_date: null,
     start_time: e.start_time,
-    end_time: e.end_time,
-    status: null,
     color: EXTERNAL_COLOR,
-    title: e.title || 'Busy',
-    subtitle: 'External calendar',
-    timeLabel: e.allDay ? 'All day' : (e.end_time ? `${e.start_time?.slice(0, 5) || ''} – ${e.end_time.slice(0, 5)}` : e.start_time?.slice(0, 5) || ''),
+    primaryLabel: e.title || 'Busy',
+    secondaryLabel: '',
+    startLabel,
+    durationLabel,
     external: true,
   }
 }
 
 function toEvent(b, isWalkerSide) {
   const color = colorForBooking(b, { isWalker: isWalkerSide })
-  const title = b.services?.name || 'Booking'
+  const service = b.services?.name || 'Booking'
   const counterpartyName = isWalkerSide
     ? (b.users?.name || 'Customer')
     : (b.walker_profiles?.business_name || 'Walker')
   const petName = b.pets?.name
-  const subtitle = petName ? `${counterpartyName} · ${petName}` : counterpartyName
+  const primaryLabel = petName ? `${counterpartyName} · ${petName}` : counterpartyName
   const startTime = b.start_time?.slice(0, 5) || ''
-  const endTime = b.end_time?.slice(0, 5) || ''
   const isOvernight = !!b.end_date && b.end_date !== b.booking_date
-  let timeLabel = startTime
-  if (isOvernight) timeLabel = `${startTime || ''} → ${b.end_date}`
-  else if (endTime) timeLabel = `${startTime} – ${endTime}`
+  const startLabel = startTime
+  let durationLabel = ''
+  if (isOvernight) {
+    const nights = differenceInCalendarDays(parseISO(b.end_date), parseISO(b.booking_date))
+    durationLabel = `${nights}n stay`
+  } else if (b.end_time) {
+    durationLabel = formatDuration(b.start_time, b.end_time)
+  }
   return {
     id: b.id,
     booking_date: b.booking_date,
     end_date: b.end_date,
     start_time: b.start_time,
-    end_time: b.end_time,
-    status: b.status,
     color,
-    title,
-    subtitle,
-    timeLabel,
+    primaryLabel,
+    secondaryLabel: service,
+    startLabel,
+    durationLabel,
     external: false,
   }
 }
