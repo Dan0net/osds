@@ -41,7 +41,7 @@ const PX_PER_HOUR_DESKTOP = 48
 const PX_PER_HOUR_MOBILE = 64
 const TOP_PAD = 10
 const MOBILE_PANE_DAYS = 3
-const MOBILE_GRID_MAX_HEIGHT = 'min(calc(100dvh - 280px), 480px)'
+const MOBILE_GRID_MAX_HEIGHT = 'calc(100dvh - 200px)'
 
 function colCSS(colIndex, gridCols, inset = 1) {
   return {
@@ -499,7 +499,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   function DayPane({ dates, paneRef, interactive }) {
     const bodyHeight = Math.max(hours.length, 10) * PX_PER_HOUR + 2 * TOP_PAD
     return (
-      <div className="border border-gray-200 rounded-lg bg-white">
+      <div className="bg-white">
         <div
           className="grid border-b border-gray-200 bg-white sticky top-0 z-10"
           style={{ gridTemplateColumns: `2.5rem repeat(${dates.length}, 1fr)` }}
@@ -605,11 +605,13 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
       {/* Time grid */}
       {isMobile ? (
-        <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}>
+        <div className="border border-gray-200 rounded-lg overflow-y-auto overscroll-contain bg-white" style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}>
           <DayPane dates={currentPaneDates} paneRef={gridRef} interactive />
         </div>
       ) : (
-        <DayPane dates={weekDates} paneRef={gridRef} interactive />
+        <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+          <DayPane dates={weekDates} paneRef={gridRef} interactive />
+        </div>
       )}
 
       {/* Footer */}

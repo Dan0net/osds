@@ -12,6 +12,7 @@ import AvailabilityCalendar from '../AvailabilityCalendar'
 import EntityPicker from './EntityPicker'
 import CustomerForm from './CustomerForm'
 import PetForm from './PetForm'
+import ServiceForm from './ServiceForm'
 import InviteConsentModal from './InviteConsentModal'
 import SelectionButton from './SelectionButton'
 
@@ -34,6 +35,8 @@ export default function BookingForm({ open, onClose, onCreated }) {
   const [customerPets, setCustomerPets] = useState([])
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false)
   const [petPickerOpen, setPetPickerOpen] = useState(false)
+  const [servicePickerOpen, setServicePickerOpen] = useState(false)
+  const [bookingService, setBookingService] = useState(null)
   const [consentOpen, setConsentOpen] = useState(false)
 
   // Reset on open/close
@@ -44,6 +47,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
     setSelectedPets([])
     setSelectedSlots([])
     setMode('online')
+    setBookingService(null)
     setError(null)
     setSubmitting(false)
   }, [open])
@@ -77,7 +81,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
 
   async function loadCustomers() {
     const list = await loadWalkerCustomers(walkerProfile.id)
-    setCustomers(list.map((c) => c.client))
+    setCustomers(list.map((c) => ({ ...c.client, _petCount: c.petCount, _lastBookingDate: c.lastBookingDate })))
   }
 
   async function loadServices() {
@@ -139,6 +143,20 @@ export default function BookingForm({ open, onClose, onCreated }) {
     return data
   }
 
+  async function handleCreateService(payload) {
+    const { data, error: err } = await supabase
+      .from('services')
+      .insert({ ...payload, walker_id: walkerProfile.id, active: true })
+      .select()
+      .single()
+    if (err) {
+      setError(err.message)
+      return null
+    }
+    setServices((prev) => [data, ...prev])
+    return data
+  }
+
   const serviceMap = useMemo(() => {
     const m = {}
     for (const s of services) m[s.id] = s
@@ -149,8 +167,15 @@ export default function BookingForm({ open, onClose, onCreated }) {
   const petCount = selectedPets.length
 
   const step1Valid = !!(customer && selectedPets.length > 0)
-  const step2Valid = selectedSlots.length > 0
+  const step2Valid = !!bookingService && selectedSlots.length > 0
   const step3Valid = mode === 'cash_on_arrival' || stripeReady
+
+  const sortedSlots = useMemo(
+    () => selectedSlots
+      .map((slot, i) => ({ slot, i }))
+      .sort((a, b) => a.slot.date.localeCompare(b.slot.date) || (a.slot.time || '').localeCompare(b.slot.time || '')),
+    [selectedSlots],
+  )
 
   function slotNet(slot) {
     const svc = serviceMap[slot.serviceId]
@@ -261,26 +286,35 @@ export default function BookingForm({ open, onClose, onCreated }) {
         )}
 
         {step === 2 && (
-          services.length === 0 ? (
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
-              You need to add at least one service before booking.{' '}
-              <Link to="/account/services" className="underline font-semibold">Go to Services</Link>
-            </div>
-          ) : (
-            <AvailabilityCalendar
-              walkerId={walkerProfile.id}
-              services={services}
-              value={selectedSlots}
-              onChange={setSelectedSlots}
-              hideFooter
+          <div className="space-y-4 h-full flex flex-col">
+            <SelectionButton
+              empty={!bookingService}
+              emptyLabel="Add service"
+              onClick={() => setServicePickerOpen(true)}
+              primary={bookingService?.name}
+              secondary={bookingService
+                ? `£${(clientPriceCents(bookingService.price_cents) / 100).toFixed(2)} · ${bookingService.duration_minutes} min`
+                : null}
             />
-          )
+            {bookingService && (
+              <div className="flex-1 min-h-0">
+                <AvailabilityCalendar
+                  walkerId={walkerProfile.id}
+                  services={services}
+                  initialServiceId={bookingService.id}
+                  value={selectedSlots}
+                  onChange={setSelectedSlots}
+                  hideFooter
+                />
+              </div>
+            )}
+          </div>
         )}
 
         {step === 3 && (
           <div className="space-y-4">
             <ul className="space-y-2">
-              {selectedSlots.map((slot, i) => {
+              {sortedSlots.map(({ slot, i }) => {
                 const svc = serviceMap[slot.serviceId]
                 return (
                   <li key={i} className="bg-white border border-gray-200 rounded-lg p-3">
@@ -371,10 +405,13 @@ export default function BookingForm({ open, onClose, onCreated }) {
             key={c.id}
             type="button"
             onClick={onSelect}
-            className="cursor-pointer w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:bg-indigo-50/40 transition"
+            className="cursor-pointer w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:bg-indigo-50/40 transition flex items-center gap-3"
           >
-            <p className="text-sm font-medium">{c.name || 'Unnamed'}</p>
-            {c.email && <p className="text-xs text-gray-500">{c.email}</p>}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{c.name || 'Unnamed'}</p>
+              {c.email && <p className="text-xs text-gray-500 truncate">{c.email}</p>}
+            </div>
+            <p className="text-xs text-gray-500 shrink-0">{c._petCount || 0} {c._petCount === 1 ? 'pet' : 'pets'}</p>
           </button>
         )}
         FormComponent={CustomerForm}
@@ -382,6 +419,33 @@ export default function BookingForm({ open, onClose, onCreated }) {
         onCreate={handleInviteCustomer}
         addLabel="Add new"
         emptyState="No customers yet."
+      />
+
+      <EntityPicker
+        open={servicePickerOpen}
+        onClose={() => setServicePickerOpen(false)}
+        title="Service"
+        items={services}
+        searchFields={['name', 'description']}
+        renderItem={(s, onSelect) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={onSelect}
+            className="cursor-pointer w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:bg-indigo-50/40 transition"
+          >
+            <p className="text-sm font-medium">{s.name}</p>
+            <p className="text-xs text-gray-500">
+              £{(clientPriceCents(s.price_cents) / 100).toFixed(2)} · {s.duration_minutes} min
+              {s.service_type === 'overnight' && ' · overnight'}
+            </p>
+          </button>
+        )}
+        FormComponent={ServiceForm}
+        onSelect={(s) => { setBookingService(s); setSelectedSlots([]) }}
+        onCreate={handleCreateService}
+        addLabel="Add new"
+        emptyState="No services yet. Tap Add new to create one."
       />
 
       <EntityPicker
