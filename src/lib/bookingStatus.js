@@ -8,6 +8,7 @@
 
 const TONE_CLASSES = {
   yellow: 'bg-yellow-100 text-yellow-700',
+  amber: 'bg-amber-100 text-amber-700',
   blue: 'bg-blue-100 text-blue-700',
   green: 'bg-green-100 text-green-700',
   indigo: 'bg-indigo-100 text-indigo-700',
@@ -21,6 +22,7 @@ const TONE_CLASSES = {
 // stand out on the coloured bar on event rows and calendar dots.
 const TONE_COLORS = {
   yellow: '#eab308',
+  amber: '#f59e0b',
   blue: '#3b82f6',
   green: '#22c55e',
   indigo: '#6366f1',
@@ -44,10 +46,10 @@ export function bookingStatusBadge(booking) {
   const source = booking.payments?.source
   switch (status) {
     case 'requested':
-      return { label: 'Requested', tone: 'yellow' }
+      return { label: 'Requested', tone: 'amber' }
     case 'approved':
     case 'pending':
-      return { label: 'Awaiting payment', tone: 'orange' }
+      return { label: 'Awaiting payment', tone: 'blue' }
     case 'confirmed':
       return source === 'cash'
         ? { label: 'Cash on arrival', tone: 'indigo' }
@@ -56,7 +58,7 @@ export function bookingStatusBadge(booking) {
       return { label: 'Declined', tone: 'red' }
     case 'cancelled':
     case 'refunded':
-      return { label: 'Cancelled', tone: 'gray' }
+      return { label: 'Cancelled', tone: 'red' }
     case 'hold':
       return { label: 'On hold', tone: 'purple' }
     default:
@@ -72,7 +74,7 @@ export function paymentStatusBadge(payment) {
     case 'pending_approval':
       return { label: 'Awaiting approval', tone: 'yellow' }
     case 'awaiting_payment':
-      return { label: 'Awaiting payment', tone: 'orange' }
+      return { label: 'Awaiting payment', tone: 'blue' }
     case 'paid':
       return source === 'cash'
         ? { label: 'Cash on arrival', tone: 'indigo' }

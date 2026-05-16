@@ -15,6 +15,7 @@ function buildDays(startStr, count) {
 }
 
 function EventRow({ event }) {
+  const inactive = event.inactive
   const inner = (
     <>
       <span
@@ -23,13 +24,25 @@ function EventRow({ event }) {
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-sm font-medium text-gray-900 truncate">{event.primaryLabel}</span>
-          {event.startLabel && <span className="text-xs text-gray-700 shrink-0">{event.startLabel}</span>}
+          <span className={`text-sm font-medium truncate ${inactive ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+            {event.primaryLabel}
+          </span>
+          {event.startLabel && (
+            <span className={`text-xs shrink-0 ${inactive ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+              {event.startLabel}
+            </span>
+          )}
         </div>
         {(event.secondaryLabel || event.durationLabel) && (
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xs text-gray-500 truncate">{event.secondaryLabel}</span>
-            {event.durationLabel && <span className="text-[11px] text-gray-400 shrink-0">{event.durationLabel}</span>}
+            <span className={`text-xs truncate ${inactive ? 'text-gray-400' : 'text-gray-500'}`}>
+              {event.secondaryLabel}
+            </span>
+            {event.durationLabel && (
+              <span className={`text-[11px] shrink-0 ${inactive ? 'text-gray-400' : 'text-gray-400'}`}>
+                {event.durationLabel}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -42,7 +55,7 @@ function EventRow({ event }) {
     <Link
       to={`/account/bookings/${event.id}`}
       state={{ from: '/account/bookings' }}
-      className="flex items-stretch gap-2.5 py-1 hover:opacity-70 transition-opacity"
+      className={`flex items-stretch gap-2.5 py-1 transition-opacity ${inactive ? 'opacity-60 hover:opacity-80' : 'hover:opacity-70'}`}
     >
       {inner}
     </Link>
@@ -108,13 +121,15 @@ export default function BookingsSidebar({
   }, [])
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const [days, setDays] = useState(() => buildDays(todayStr, 90))
+  const PAST_DAYS = 30
+  const [days, setDays] = useState(() => buildDays(format(addDays(new Date(), -PAST_DAYS), 'yyyy-MM-dd'), PAST_DAYS + 90))
 
   const scrollRef = useRef(null)
   const dayRefs = useRef({})
   const sentinelRef = useRef(null)
   const suppressScrollUntilRef = useRef(0)
   const fromScrollRef = useRef(false)
+  const initialScrollDoneRef = useRef(false)
 
   // Update selected day to the section currently at the top of the scroll viewport
   useEffect(() => {
@@ -201,10 +216,12 @@ export default function BookingsSidebar({
     const elRect = el.getBoundingClientRect()
     const rootRect = root.getBoundingClientRect()
     const offsetWithin = elRect.top - rootRect.top
-    if (Math.abs(offsetWithin) < 100) return // already close to top — don't fight user scroll
+    if (initialScrollDoneRef.current && Math.abs(offsetWithin) < 100) return // already close to top — don't fight user scroll
 
+    const behavior = initialScrollDoneRef.current ? 'smooth' : 'auto'
+    initialScrollDoneRef.current = true
     suppressScrollUntilRef.current = Date.now() + 600
-    el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    el.scrollIntoView({ block: 'start', behavior })
   }, [selectedDate, days])
 
   const [dragActive, setDragActive] = useState(false)
@@ -246,6 +263,7 @@ export default function BookingsSidebar({
       <SetupSection items={setupItems} />
       {days.map((date) => {
         const events = eventsByDay[date] || []
+        const dateIsToday = isToday(parseISO(date))
         return (
           <section
             key={date}
@@ -256,7 +274,8 @@ export default function BookingsSidebar({
             data-date={date}
             className="mb-4"
           >
-            <h3 className="text-sm font-semibold text-gray-900 sticky top-0 bg-white py-1.5 z-[1]">
+            <h3 className="text-sm font-semibold text-gray-900 sticky top-0 bg-white py-1.5 z-[1] flex items-center gap-1.5">
+              {dateIsToday && <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
               {dayHeading(date)}
             </h3>
             {events.length === 0 ? (

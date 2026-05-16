@@ -247,6 +247,8 @@ function toExternalEvent(e) {
   }
 }
 
+const INACTIVE_STATUSES = new Set(['cancelled', 'declined', 'refunded'])
+
 function toEvent(b, isWalkerSide) {
   const color = toneColor(bookingStatusBadge(b).tone)
   const service = b.services?.name || 'Booking'
@@ -275,6 +277,7 @@ function toEvent(b, isWalkerSide) {
     secondaryLabel: service,
     startLabel,
     durationLabel,
+    inactive: INACTIVE_STATUSES.has(b.status),
     external: false,
   }
 }
