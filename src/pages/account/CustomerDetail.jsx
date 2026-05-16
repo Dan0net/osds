@@ -5,14 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import Modal from '../../components/Modal'
 import PetForm from '../../components/account/PetForm'
-
-const STATUS_STYLES = {
-  requested: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-blue-100 text-blue-700',
-  confirmed: 'bg-green-100 text-green-700',
-  declined: 'bg-red-100 text-red-700',
-  cancelled: 'bg-gray-100 text-gray-600',
-}
+import { bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
 
 const PET_FORM_ID = 'customer-pet-form'
 
@@ -37,7 +30,7 @@ export default function CustomerDetail() {
     const [bkRes, petsRes, userRes] = await Promise.all([
       supabase
         .from('bookings')
-        .select('*, services(name), pets(*), users:client_id(id, name, email, phone, avatar_url)')
+        .select('*, services(name), pets(*), payments(source), users:client_id(id, name, email, phone, avatar_url)')
         .eq('walker_id', walkerProfile.id)
         .eq('client_id', clientId)
         .order('booking_date', { ascending: false }),
@@ -154,9 +147,14 @@ export default function CustomerDetail() {
                     {b.pets?.name && ` · ${b.pets.name}`}
                   </p>
                 </div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATUS_STYLES[b.status] || 'bg-gray-100 text-gray-600'}`}>
-                  {b.status}
-                </span>
+                {(() => {
+                  const badge = bookingStatusBadge(b)
+                  return (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${toneClass(badge.tone)}`}>
+                      {badge.label}
+                    </span>
+                  )
+                })()}
               </Link>
             ))}
           </div>

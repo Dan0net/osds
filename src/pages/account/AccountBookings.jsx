@@ -5,7 +5,7 @@ import { format, parseISO, addDays, startOfMonth, differenceInCalendarDays } fro
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
-import { colorForBooking } from '../../lib/eventColor'
+import { bookingStatusBadge, toneColor } from '../../lib/bookingStatus'
 import { loadWalkerCustomers } from '../../lib/customers'
 import BookingForm from '../../components/account/BookingForm'
 import MonthCalendar from '../../components/account/MonthCalendar'
@@ -62,14 +62,14 @@ export default function AccountBookings() {
 
     const clientPromise = supabase
       .from('bookings')
-      .select('*, services(name), pets(name), walker_profiles(slug, business_name, theme_color), payments(status)')
+      .select('*, services(name), pets(name), walker_profiles(slug, business_name, theme_color), payments(status, source)')
       .eq('client_id', user.id)
       .order('booking_date', { ascending: true })
 
     const walkerPromise = walkerProfile
       ? supabase
           .from('bookings')
-          .select('*, services(name), pets(name), users!bookings_client_id_fkey(name)')
+          .select('*, services(name), pets(name), payments(source), users!bookings_client_id_fkey(name)')
           .eq('walker_id', walkerProfile.id)
           .order('booking_date', { ascending: true })
       : Promise.resolve({ data: [] })
@@ -248,7 +248,7 @@ function toExternalEvent(e) {
 }
 
 function toEvent(b, isWalkerSide) {
-  const color = colorForBooking(b, { isWalker: isWalkerSide })
+  const color = toneColor(bookingStatusBadge(b).tone)
   const service = b.services?.name || 'Booking'
   const counterpartyName = isWalkerSide
     ? (b.users?.name || 'Customer')

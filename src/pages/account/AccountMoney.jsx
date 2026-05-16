@@ -2,14 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { stripeDashboardLink, createCheckout } from '../../lib/api'
-
-const STATUS_COLORS = {
-  pending_approval: 'bg-yellow-100 text-yellow-700',
-  awaiting_payment: 'bg-blue-100 text-blue-700',
-  paid: 'bg-green-100 text-green-700',
-  refunded: 'bg-gray-100 text-gray-600',
-  partially_refunded: 'bg-orange-100 text-orange-700',
-}
+import { paymentStatusBadge, toneClass } from '../../lib/bookingStatus'
 
 export default function AccountMoney() {
   const { user, walkerProfile: wp } = useAuth()
@@ -76,19 +69,18 @@ export default function AccountMoney() {
         <p className="text-gray-400 text-center py-8">No payments yet.</p>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg divide-y">
-          {payments.map((p) => (
+          {payments.map((p) => {
+            const badge = paymentStatusBadge(p)
+            return (
             <div key={p.id} className="p-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{p.counterpart}</p>
-                <p className="text-xs text-gray-400">
-                  {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  <span className="mx-1">·</span>
-                  {p.source}
-                  <span className="mx-1">·</span>
-                  <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-600'}`}>
-                    {p.status.replace(/_/g, ' ')}
+                <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <span>{new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  <span className={`inline-block font-medium px-1.5 py-0.5 rounded ${toneClass(badge.tone)}`}>
+                    {badge.label}
                   </span>
-                </p>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 {p.type === 'paid' && p.status === 'awaiting_payment' && (
@@ -113,7 +105,8 @@ export default function AccountMoney() {
                 </span>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

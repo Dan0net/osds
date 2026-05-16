@@ -4,17 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { createCheckout, cancelBooking, apiFetch } from '../../lib/api'
-
-const STATUS_STYLES = {
-  requested: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-blue-100 text-blue-700',
-  confirmed: 'bg-green-100 text-green-700',
-  declined: 'bg-red-100 text-red-700',
-  pending: 'bg-blue-100 text-blue-700',
-  cancelled: 'bg-gray-100 text-gray-600',
-  hold: 'bg-purple-100 text-purple-700',
-  refunded: 'bg-gray-100 text-gray-600',
-}
+import { bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
 
 export default function BookingDetail() {
   const { bookingId } = useParams()
@@ -163,9 +153,14 @@ export default function BookingDetail() {
                 booking.services?.name || 'Booking'
               )}
             </h1>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[booking.status] || 'bg-gray-100 text-gray-600'}`}>
-              {booking.status}
-            </span>
+            {(() => {
+              const badge = bookingStatusBadge(booking)
+              return (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${toneClass(badge.tone)}`}>
+                  {badge.label}
+                </span>
+              )
+            })()}
           </div>
           <p className="text-gray-500 text-sm">
             {formatDate(booking.booking_date)}
@@ -228,17 +223,9 @@ export default function BookingDetail() {
           {booking.payments && (
             <div className="text-sm">
               <span className="text-gray-500 block mb-0.5">Payment</span>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-indigo-600">
-                  £{(booking.payments.total_cents / 100).toFixed(2)}
-                </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[booking.payments.status] || 'bg-gray-100 text-gray-600'}`}>
-                  {booking.payments.status?.replace(/_/g, ' ')}
-                </span>
-                {booking.payments.source === 'cash' && (
-                  <span className="text-xs text-gray-400">Cash</span>
-                )}
-              </div>
+              <span className="font-semibold text-indigo-600">
+                £{(booking.payments.total_cents / 100).toFixed(2)}
+              </span>
             </div>
           )}
         </div>
