@@ -3,7 +3,7 @@ import IcalExpander from 'ical-expander'
 
 const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
 const FETCH_TIMEOUT_MS = 10_000
-const MAX_BODY_BYTES = 1_000_000 // 1MB
+const MAX_BODY_BYTES = 10_000_000 // 10MB
 const WINDOW_DAYS = 30
 
 // Private IP ranges to reject (SSRF protection)
