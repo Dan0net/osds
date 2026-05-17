@@ -6,7 +6,7 @@ export default function BottomBar({ onMore, unreadCount = 0 }) {
   const bottomItems = BOTTOM_BAR_KEYS.map((key) => NAV_ITEMS.find((i) => i.key === key))
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
+    <nav className="lg:hidden fixed bottom-[var(--install-prompt-h,0px)] left-0 right-0 z-40 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
       <div className="flex">
         {bottomItems.map((item) => (
           <BottomTab key={item.key} item={item} badge={item.key === 'messages' ? unreadCount : 0} />

@@ -21,10 +21,30 @@ export default function ConversationDetail() {
     if (!user) return
     load()
 
-    function refresh() { loadMessages() }
-    window.addEventListener('focus', refresh)
-    return () => window.removeEventListener('focus', refresh)
+    function handleIncoming(e) {
+      const msg = e.detail
+      if (!msg || msg.conversation_id !== conversationId) return
+      if (msg.sender_user_id === user.id) return
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev
+        return [...prev, msg]
+      })
+      markRead()
+    }
+    window.addEventListener('message-received', handleIncoming)
+    return () => window.removeEventListener('message-received', handleIncoming)
   }, [user?.id, conversationId])
+
+  async function markRead() {
+    await supabase
+      .from('conversation_reads')
+      .upsert({
+        conversation_id: conversationId,
+        user_id: user.id,
+        last_read_at: new Date().toISOString(),
+      })
+    window.dispatchEvent(new Event('notifications-read'))
+  }
 
   async function load() {
     setLoading(true)
@@ -47,33 +67,7 @@ export default function ConversationDetail() {
     setConversation(convoRes.data)
     setMessages(messagesRes.data || [])
     setLoading(false)
-
-    // Mark conversation as read
-    await supabase
-      .from('conversation_reads')
-      .upsert({
-        conversation_id: conversationId,
-        user_id: user.id,
-        last_read_at: new Date().toISOString(),
-      })
-    window.dispatchEvent(new Event('notifications-read'))
-  }
-
-  async function loadMessages() {
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
-    setMessages(data || [])
-    await supabase
-      .from('conversation_reads')
-      .upsert({
-        conversation_id: conversationId,
-        user_id: user.id,
-        last_read_at: new Date().toISOString(),
-      })
-    window.dispatchEvent(new Event('notifications-read'))
+    markRead()
   }
 
   // Auto-scroll to bottom when messages change
@@ -118,7 +112,7 @@ export default function ConversationDetail() {
   const counterpartyTarget = !isWalker ? '_blank' : undefined
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-56px-env(safe-area-inset-bottom))] lg:h-[calc(100vh-3rem)]">
+    <div className="flex flex-col h-full lg:h-[calc(100vh-3rem-var(--install-prompt-h,0px))]">
       <DetailHeader
         backHref="/account/messages"
         backLabel="Messages"

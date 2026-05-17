@@ -297,7 +297,7 @@ export default function BookingsSidebar({
   )
 
   if (isMobile) {
-    const fullMax = `calc(100dvh - 56px - env(safe-area-inset-bottom) - 4rem)`
+    const fullMax = `calc(100dvh - 56px - env(safe-area-inset-bottom) - 4rem - var(--install-prompt-h, 0px))`
     const baseHeight = drawerHeight === 'full' ? fullMax : '50dvh'
     const height = dragActive
       ? `${Math.max(80, Math.min(window.innerHeight - 56 - 64, dragStartRef.current.h - dragOffset))}px`
@@ -306,7 +306,7 @@ export default function BookingsSidebar({
       <div
         className="lg:hidden fixed left-0 right-0 z-30 bg-white border-t border-gray-200 rounded-t-2xl shadow-xl flex flex-col"
         style={{
-          bottom: 'calc(56px + env(safe-area-inset-bottom))',
+          bottom: 'calc(56px + env(safe-area-inset-bottom) + var(--install-prompt-h, 0px))',
           height,
           transition: dragActive ? 'none' : 'height 200ms ease-out',
         }}
@@ -330,7 +330,7 @@ export default function BookingsSidebar({
 
   return (
     <aside
-      className="hidden lg:flex lg:flex-col w-80 bg-white border-t border-l border-gray-200 lg:fixed lg:right-0 lg:bottom-0 lg:top-[5.25rem] lg:rounded-tl-xl lg:shadow-sm"
+      className="hidden lg:flex lg:flex-col w-80 bg-white border-t border-l border-gray-200 lg:fixed lg:right-0 lg:bottom-[var(--install-prompt-h,0px)] lg:top-[5.25rem] lg:rounded-tl-xl lg:shadow-sm"
     >
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
         {list}

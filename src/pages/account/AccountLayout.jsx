@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
+import { getUnreadCounts } from '../../lib/messaging'
+import { requestNotificationPermission, notifyNewMessage } from '../../lib/notifications'
 import InstallPrompt from '../../components/InstallPrompt'
 import Sidebar from '../../components/account/Sidebar'
 import BottomBar from '../../components/account/BottomBar'
@@ -11,46 +13,107 @@ export default function AccountLayout() {
   const { user } = useAuth()
   const [unreadCount, setUnreadCount] = useState(0)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [installPromptVisible, setInstallPromptVisible] = useState(false)
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null)
 
   async function refreshUnread() {
     if (!user) return
-    const { data: convos } = await supabase
-      .from('conversations')
-      .select('id, last_message_at')
-    if (!convos || convos.length === 0) { setUnreadCount(0); return }
-
-    const { data: reads } = await supabase
-      .from('conversation_reads')
-      .select('conversation_id, last_read_at')
-      .eq('user_id', user.id)
-    const readMap = new Map((reads || []).map((r) => [r.conversation_id, r.last_read_at]))
-
-    const count = convos.filter((c) => {
-      const lastRead = readMap.get(c.id)
-      return !lastRead || c.last_message_at > lastRead
-    }).length
-    setUnreadCount(count)
+    const counts = await getUnreadCounts(user.id)
+    let total = 0
+    for (const n of counts.values()) total += n
+    setUnreadCount(total)
   }
 
   useEffect(() => {
+    if (!user) return
     refreshUnread()
+    requestNotificationPermission()
     window.addEventListener('notifications-read', refreshUnread)
-    return () => window.removeEventListener('notifications-read', refreshUnread)
+
+    const channel = supabase
+      .channel(`messages-for-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const msg = payload.new
+          window.dispatchEvent(new CustomEvent('message-received', { detail: msg }))
+          if (msg.sender_user_id === user.id) return
+          refreshUnread()
+          const onConversation = window.location.pathname === `/account/messages/${msg.conversation_id}`
+          if (!onConversation) {
+            notifyNewMessage({
+              title: 'New message',
+              body: msg.body || '',
+              conversationId: msg.conversation_id,
+            })
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      window.removeEventListener('notifications-read', refreshUnread)
+      supabase.removeChannel(channel)
+    }
   }, [user?.id])
 
+  useEffect(() => {
+    if (localStorage.getItem('install-prompt-dismissed')) return
+
+    const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    const isStandalone = window.navigator.standalone === true
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+
+    if (isIos && !isStandalone && isSafari) {
+      setInstallPromptVisible(true)
+      return
+    }
+
+    function handlePrompt(e) {
+      e.preventDefault()
+      setDeferredInstallPrompt(e)
+      setInstallPromptVisible(true)
+    }
+    window.addEventListener('beforeinstallprompt', handlePrompt)
+    return () => window.removeEventListener('beforeinstallprompt', handlePrompt)
+  }, [])
+
+  function dismissInstallPrompt() {
+    localStorage.setItem('install-prompt-dismissed', '1')
+    setInstallPromptVisible(false)
+  }
+
+  async function handleInstall() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt()
+      await deferredInstallPrompt.userChoice
+      setDeferredInstallPrompt(null)
+    }
+    dismissInstallPrompt()
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen bg-gray-50"
+      style={{ '--install-prompt-h': installPromptVisible ? 'calc(5rem + env(safe-area-inset-bottom))' : '0px' }}
+    >
       <Sidebar unreadCount={unreadCount} />
       <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} />
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
-      <main className="lg:ml-64 lg:pb-8 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom))] lg:h-auto flex flex-col lg:block">
+      <main className="lg:ml-64 lg:min-h-screen lg:pb-[calc(2rem+var(--install-prompt-h))] h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block">
         <div className="max-w-5xl mx-auto w-full px-4 py-3 lg:py-5 flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible lg:min-h-0">
           <Outlet />
         </div>
       </main>
 
-      <InstallPrompt />
+      <InstallPrompt
+        visible={installPromptVisible}
+        deferredPrompt={deferredInstallPrompt}
+        onDismiss={dismissInstallPrompt}
+        onInstall={handleInstall}
+      />
     </div>
   )
 }
