@@ -7,6 +7,7 @@ async function fetchBookingRowsForEmail(adminSupabase, paymentId) {
     .from('bookings')
     .select('booking_date, start_time, end_time, end_date, services(name, price_cents)')
     .eq('payment_id', paymentId)
+    .in('status', ['approved', 'pending', 'hold', 'confirmed'])
     .order('booking_date', { ascending: true })
   if (!bks) return []
   return bks.map((b) => {
