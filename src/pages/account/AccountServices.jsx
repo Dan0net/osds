@@ -6,10 +6,11 @@ import { useAuth } from '../../hooks/useAuth'
 import { clientPriceCents } from '../../lib/utils'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
+import SearchInput from '../../components/account/SearchInput'
 import Modal from '../../components/Modal'
 import ServiceForm from '../../components/account/ServiceForm'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
-import ListPaneHeader from '../../components/account/ListPaneHeader'
+import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
 import ListItem from '../../components/account/ListItem'
 
 export default function AccountServices() {
@@ -20,6 +21,7 @@ export default function AccountServices() {
   const [addOpen, setAddOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [formValid, setFormValid] = useState(false)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     if (!walkerProfile) return
@@ -70,15 +72,22 @@ export default function AccountServices() {
     </button>
   )
 
-  const listHeader = <ListPaneHeader title="Services" right={addButton} />
+  const listHeader = (
+    <>
+      <ListPaneHeader title="Services" right={addButton} />
+      <ListPaneSubrow>
+        <SearchInput value={query} onChange={setQuery} placeholder="Search services…" />
+      </ListPaneSubrow>
+    </>
+  )
 
   const list = loading ? (
     <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
   ) : (
     <SearchList
       items={services}
+      query={query}
       searchFields={['name', 'description']}
-      placeholder="Search services…"
       emptyState="No services yet. Add your first one to start accepting bookings."
       renderItem={(svc) => (
         <ListItem key={svc.id} to={`/account/services/${svc.id}`}>

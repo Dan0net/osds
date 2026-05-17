@@ -7,6 +7,7 @@ import { inviteCustomer } from '../../lib/api'
 import { loadWalkerCustomers } from '../../lib/customers'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
+import SearchInput from '../../components/account/SearchInput'
 import Modal from '../../components/Modal'
 import CustomerForm from '../../components/account/CustomerForm'
 import InviteConsentModal from '../../components/account/InviteConsentModal'
@@ -50,6 +51,7 @@ export default function AccountCustomers() {
   const [addError, setAddError] = useState(null)
   const [formValid, setFormValid] = useState(false)
   const [sortKey, setSortKey] = useState('recent_booking')
+  const [query, setQuery] = useState('')
 
   function handleAddClick() {
     if (walkerProfile?.customer_invite_consent_at) {
@@ -125,15 +127,18 @@ export default function AccountCustomers() {
     <>
       <ListPaneHeader title="Customers" right={addButton} />
       <ListPaneSubrow>
-        <select
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value)}
-          className="w-full h-9 px-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-        >
-          {Object.entries(SORTS).map(([k, v]) => (
-            <option key={k} value={k}>Sort: {v.label}</option>
-          ))}
-        </select>
+        <div className="space-y-2">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search customers…" />
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            className="w-full h-9 px-3 bg-gray-100 rounded-full text-sm border-0 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            {Object.entries(SORTS).map(([k, v]) => (
+              <option key={k} value={k}>Sort: {v.label}</option>
+            ))}
+          </select>
+        </div>
       </ListPaneSubrow>
     </>
   )
@@ -143,8 +148,8 @@ export default function AccountCustomers() {
   ) : (
     <SearchList
       items={sorted}
+      query={query}
       searchFields={['client.name', 'client.email']}
-      placeholder="Search customers…"
       emptyState="No customers yet. Customers appear here once they've booked with you, or you can add one manually."
       renderItem={({ client, totalBookings, lastBookingDate, totalSpendCents }) => (
         <ListItem key={client.id} to={`/account/customers/${client.id}`}>

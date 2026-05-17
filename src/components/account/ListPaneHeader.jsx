@@ -11,7 +11,7 @@ export default function ListPaneHeader({ title, right }) {
 
 export function ListPaneSubrow({ children }) {
   return (
-    <div className="shrink-0 -mx-4 lg:mx-0 px-3 py-2">
+    <div className="shrink-0 p-3">
       {children}
     </div>
   )
