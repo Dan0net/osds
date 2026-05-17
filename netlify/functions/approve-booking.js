@@ -1,5 +1,30 @@
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
+import { notify, emailTemplate, esc, formatDateTime, bookingsListHtml } from './lib/notify.js'
+import { grossUp } from './lib/pricing.js'
+
+async function fetchBookingRowsForEmail(adminSupabase, paymentId) {
+  const { data: bks } = await adminSupabase
+    .from('bookings')
+    .select('booking_date, start_time, end_time, end_date, services(name, price_cents)')
+    .eq('payment_id', paymentId)
+    .order('booking_date', { ascending: true })
+  if (!bks) return []
+  return bks.map((b) => {
+    const isOvernight = b.end_date && b.end_date !== b.booking_date
+    const nights = isOvernight
+      ? Math.round((new Date(b.end_date) - new Date(b.booking_date)) / (1000 * 60 * 60 * 24))
+      : 1
+    return {
+      serviceName: b.services?.name,
+      date: b.booking_date,
+      time: b.start_time,
+      endTime: b.end_time,
+      endDate: b.end_date,
+      isOvernight,
+      grossCents: grossUp((b.services?.price_cents || 0)) * nights,
+    }
+  })
+}
 
 function createAdminClient() {
   return createClient(
@@ -72,6 +97,8 @@ export async function handler(event) {
     const { data: walkerUser } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
     const walkerName = walkerUser?.business_name || 'Your walker'
     const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
+    const emailRows = await fetchBookingRowsForEmail(adminSupabase, payment_id)
+    const bookingsTable = bookingsListHtml(emailRows)
     await notify(adminSupabase, {
       walkerId: bookings[0].walker_id,
       clientId: bookings[0].client_id,
@@ -83,7 +110,8 @@ export async function handler(event) {
         link: `/account/payments/${payment_id}`,
         emailSubject: `Your booking with ${walkerName} has been approved`,
         emailHtml: emailTemplate('Booking approved', [
-          `Great news! <strong>${esc(walkerName)}</strong> has approved your booking.`,
+          `Great news! <strong>${esc(walkerName)}</strong> has approved the following:`,
+          bookingsTable,
           'Tap below to complete payment securely on Stripe.',
         ], 'Pay now', `${siteUrl}/.netlify/functions/pay-redirect?payment_id=${payment_id}`),
       },
@@ -154,6 +182,8 @@ export async function handler(event) {
   const svcName = svc?.name || 'booking'
   const when = formatDateTime(updated.booking_date, updated.start_time)
   const siteUrl2 = process.env.SITE_URL || 'https://onestopdog.shop'
+  const emailRows2 = await fetchBookingRowsForEmail(adminSupabase2, updated.payment_id)
+  const bookingsTable2 = bookingsListHtml(emailRows2)
   await notify(adminSupabase2, {
     walkerId: updated.walker_id,
     clientId: updated.client_id,
@@ -165,7 +195,8 @@ export async function handler(event) {
       link: `/account/payments/${updated.payment_id}`,
       emailSubject: `Your booking with ${wName} has been approved`,
       emailHtml: emailTemplate('Booking approved', [
-        `Great news! <strong>${esc(wName)}</strong> has approved your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
+        `Great news! <strong>${esc(wName)}</strong> has approved the following:`,
+        bookingsTable2,
         'Tap below to complete payment securely on Stripe.',
       ], 'Pay now', `${siteUrl2}/.netlify/functions/pay-redirect?payment_id=${updated.payment_id}`),
     },

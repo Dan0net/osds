@@ -59,6 +59,35 @@ export function formatSlots(slots) {
   return `${first} (+${slots.length - 1} more)`
 }
 
+/**
+ * Render a list of bookings as an HTML table for inclusion in email bodies.
+ * rows: [{ serviceName, date, time, endTime, endDate, isOvernight, grossCents }]
+ */
+export function bookingsListHtml(rows) {
+  if (!rows || rows.length === 0) return ''
+  const { esc: escFn } = { esc: (v) => (v == null ? '' : String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')) }
+  const items = rows.map((r) => {
+    const dateStr = formatDate(r.date)
+    let timeStr = ''
+    if (r.isOvernight && r.endDate) {
+      const endDateStr = formatDate(r.endDate)
+      timeStr = `${(r.time || '').slice(0, 5)} → ${endDateStr} ${(r.endTime || '').slice(0, 5)}`.trim()
+    } else if (r.time && r.endTime) {
+      timeStr = `${r.time.slice(0, 5)}–${r.endTime.slice(0, 5)}`
+    } else if (r.time) {
+      timeStr = r.time.slice(0, 5)
+    }
+    const price = r.grossCents != null ? `£${(r.grossCents / 100).toFixed(2)}` : ''
+    return `<tr>
+      <td style="padding:10px 8px 10px 0;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6"><div style="font-weight:600;color:#111827">${escFn(r.serviceName || 'Service')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px">${escFn(dateStr)}${timeStr ? ' · ' + escFn(timeStr) : ''}</div></td>
+      <td style="padding:10px 0;font-size:13px;color:#111827;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;vertical-align:top">${escFn(price)}</td>
+    </tr>`
+  }).join('')
+  const total = rows.reduce((sum, r) => sum + (r.grossCents || 0), 0)
+  const totalRow = `<tr><td style="padding:12px 0 0;font-size:13px;color:#6b7280">Total</td><td style="padding:12px 0 0;font-size:15px;color:#111827;text-align:right;font-weight:700">£${(total / 100).toFixed(2)}</td></tr>`
+  return `<table style="width:100%;border-collapse:collapse;margin:8px 0 4px"><tbody>${items}${totalRow}</tbody></table>`
+}
+
 // Map event type to notification preference keys
 const PREF_MAP = {
   booking_request: { email: 'email_new_request', push: 'push_new_request' },

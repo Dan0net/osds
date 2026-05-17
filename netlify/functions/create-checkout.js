@@ -1,12 +1,8 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { grossUp } from './lib/pricing.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-const OSDS_FEE_RATE = 0.05
-const STRIPE_PERCENT_RATE = 0.034
-const STRIPE_FIXED_PENCE = 20
-const COMBINED_RATE = OSDS_FEE_RATE + STRIPE_PERCENT_RATE
-function grossUp(netCents) { return Math.ceil((netCents + STRIPE_FIXED_PENCE) / (1 - COMBINED_RATE)) }
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {

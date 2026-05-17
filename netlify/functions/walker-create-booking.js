@@ -1,14 +1,9 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { notify, emailTemplate, esc, formatSlots } from './lib/notify.js'
-import { slotNetCents } from './lib/pricing.js'
+import { notify, emailTemplate, esc, formatSlots, bookingsListHtml } from './lib/notify.js'
+import { slotNetCents, grossUp } from './lib/pricing.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-const OSDS_FEE_RATE = 0.05
-const STRIPE_PERCENT_RATE = 0.034
-const STRIPE_FIXED_PENCE = 20
-const COMBINED_RATE = OSDS_FEE_RATE + STRIPE_PERCENT_RATE
-function grossUp(netCents) { return Math.ceil((netCents + STRIPE_FIXED_PENCE) / (1 - COMBINED_RATE)) }
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -232,6 +227,17 @@ export async function handler(event) {
   const serviceNames = [...new Set(slots.map((s) => serviceMap[s.serviceId]?.name || 'a service'))].join(', ')
   const when = formatSlots(slots)
 
+  const emailRows = slots.map((slot) => ({
+    serviceName: serviceMap[slot.serviceId]?.name,
+    date: slot.date,
+    time: slot.time,
+    endTime: slot.endTime,
+    endDate: slot.endDate,
+    isOvernight: !!slot.isOvernight,
+    grossCents: grossUp(netForSlot(slot)),
+  }))
+  const bookingsTable = bookingsListHtml(emailRows)
+
   if (isCash) {
     await notify(adminSupabase, {
       walkerId: wp.id,
@@ -244,8 +250,9 @@ export async function handler(event) {
         link: `/account/payments/${payment.id}`,
         emailSubject: `Booking confirmed with ${wp.business_name}`,
         emailHtml: emailTemplate('Booking confirmed', [
-          `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
-          'Your booking is confirmed.',
+          `<strong>${esc(wp.business_name)}</strong> has booked the following for you:`,
+          bookingsTable,
+          'Your booking is confirmed — pay in cash on arrival.',
         ], 'View bookings', 'https://onestopdog.shop/account/bookings'),
       },
     })
@@ -261,8 +268,9 @@ export async function handler(event) {
         link: `/account/payments/${payment.id}`,
         emailSubject: `Payment requested from ${wp.business_name}`,
         emailHtml: emailTemplate('Payment requested', [
-          `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
-          'Please complete payment to confirm your booking. You don\'t need to sign in first — the link below opens the secure Stripe checkout.',
+          `<strong>${esc(wp.business_name)}</strong> has booked the following for you:`,
+          bookingsTable,
+          'Tap below to complete payment securely on Stripe — you don\'t need to sign in first.',
         ], 'Pay now', checkoutUrl),
       },
     })
