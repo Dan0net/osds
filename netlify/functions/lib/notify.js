@@ -69,6 +69,7 @@ const PREF_MAP = {
   payment_confirmed: { email: 'email_new_request', push: 'push_new_request' },
   booking_confirmed: { email: 'email_approval', push: 'push_approval' },
   booking_payment_link: { email: 'email_approval', push: 'push_approval' },
+  chat_message: { email: 'email_chat_message', push: 'push_chat_message' },
 }
 
 export { emailTemplate, esc } from './email-template.js'
@@ -124,7 +125,44 @@ async function sendPushToUser(supabase, userId, payload) {
   }
 }
 
-export { sendEmail }
+export { sendEmail, sendPushToUser }
+
+/**
+ * Deliver email + web push for a new chat message. Best-effort — never throws.
+ * Email defaults OFF (opt-in), push defaults ON (opt-out).
+ */
+export async function notifyChatMessage(supabase, { recipientUserId, senderName, preview, conversationId }) {
+  if (!recipientUserId) return
+  try {
+    const { data: user } = await supabase
+      .from('users')
+      .select('email, notification_preferences')
+      .eq('id', recipientUserId)
+      .single()
+    if (!user) return
+
+    const prefs = user.notification_preferences || {}
+    const url = `/account/messages/${conversationId}`
+    const body = preview || ''
+
+    if (prefs.push_chat_message !== false) {
+      await sendPushToUser(supabase, recipientUserId, { title: senderName, body, url })
+    }
+
+    if (prefs.email_chat_message === true && user.email) {
+      const { emailTemplate, esc } = await import('./email-template.js')
+      const html = emailTemplate(
+        `New message from ${esc(senderName)}`,
+        [`<p style="white-space:pre-wrap">${esc(body)}</p>`],
+        'Reply',
+        `${process.env.SITE_URL || 'https://onestopdog.shop'}${url}`,
+      )
+      await sendEmail(user.email, `New message from ${senderName}`, html)
+    }
+  } catch (err) {
+    console.error('notifyChatMessage failed:', err.message)
+  }
+}
 
 /**
  * Send a system message + email + push for a booking lifecycle event.

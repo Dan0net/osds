@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { sendChatMessage } from '../../lib/api'
 import { useAuth } from '../../hooks/useAuth'
 import DetailHeader from '../../components/account/DetailHeader'
 import ConversationHeader from '../../components/account/ConversationHeader'
@@ -88,12 +89,8 @@ export default function ConversationDetail() {
       _pending: true,
     }
     setMessages((prev) => [...prev, optimistic])
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({ conversation_id: conversationId, sender_user_id: user.id, kind: 'chat', body })
-      .select('*')
-      .single()
-    if (error) {
+    const { data, error } = await sendChatMessage({ conversation_id: conversationId, body })
+    if (error || !data) {
       setMessages((prev) => prev.map((m) => m.id === optimistic.id ? { ...m, _failed: true, _pending: false } : m))
       return
     }

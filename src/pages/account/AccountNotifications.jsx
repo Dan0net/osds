@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { usePushSubscription } from '../../hooks/usePushSubscription'
 
 const PREF_ITEMS = [
+  { label: 'New chat message', emailKey: 'email_chat_message', pushKey: 'push_chat_message' },
   { label: 'New booking request', emailKey: 'email_new_request', pushKey: 'push_new_request' },
   { label: 'Booking approved / declined', emailKey: 'email_approval', pushKey: 'push_approval' },
   { label: 'Cancellation', emailKey: 'email_cancellation', pushKey: 'push_cancellation' },
@@ -11,10 +12,12 @@ const PREF_ITEMS = [
 ]
 
 const DEFAULT_PREFS = {
+  email_chat_message: false,
   email_new_request: true,
   email_approval: true,
   email_cancellation: true,
   email_reminders: true,
+  push_chat_message: true,
   push_new_request: true,
   push_approval: true,
   push_cancellation: true,

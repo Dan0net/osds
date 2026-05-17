@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { getUnreadCounts } from '../../lib/messaging'
-import { requestNotificationPermission, notifyNewMessage } from '../../lib/notifications'
 import InstallPrompt from '../../components/InstallPrompt'
 import Sidebar from '../../components/account/Sidebar'
 import BottomBar from '../../components/account/BottomBar'
@@ -27,7 +26,6 @@ export default function AccountLayout() {
   useEffect(() => {
     if (!user) return
     refreshUnread()
-    requestNotificationPermission()
     window.addEventListener('notifications-read', refreshUnread)
 
     const channel = supabase
@@ -38,16 +36,7 @@ export default function AccountLayout() {
         (payload) => {
           const msg = payload.new
           window.dispatchEvent(new CustomEvent('message-received', { detail: msg }))
-          if (msg.sender_user_id === user.id) return
-          refreshUnread()
-          const onConversation = window.location.pathname === `/account/messages/${msg.conversation_id}`
-          if (!onConversation) {
-            notifyNewMessage({
-              title: 'New message',
-              body: msg.body || '',
-              conversationId: msg.conversation_id,
-            })
-          }
+          if (msg.sender_user_id !== user.id) refreshUnread()
         },
       )
       .subscribe()

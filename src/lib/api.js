@@ -58,3 +58,10 @@ export const inviteCustomer = (params) =>
     method: 'POST',
     body: JSON.stringify(params),
   })
+
+// Chat: insert message server-side so we can fan out push + email to the recipient.
+export const sendChatMessage = (params) =>
+  apiFetch('send-chat-message', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })

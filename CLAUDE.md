@@ -14,6 +14,7 @@ See `README.md` for project overview, schema, stack, and flows. See `BUILD_PHASE
 - One function per Netlify function file
 - Functions return `{ data }` or `{ error }` — consistent shapes
 - Validate at system boundaries, trust internal code
+- **Notifications go through the server push pipeline.** VAPID + service worker ([public/sw.js](public/sw.js)) + `push_subscriptions` table + [notify.js](netlify/functions/lib/notify.js) (`sendPushToUser`, `sendEmail`, `notifyChatMessage`, `notify`) + per-user prefs on `users.notification_preferences`. Never use client-side `new Notification()` — it's flaky in non-PWA browser tabs. New event types: add a key to `PREF_MAP`, a row to `PREF_ITEMS` in [AccountNotifications.jsx](src/pages/account/AccountNotifications.jsx), and a default in `DEFAULT_PREFS`.
 
 ## Security (non-negotiable)
 
