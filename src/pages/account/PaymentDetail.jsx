@@ -206,7 +206,7 @@ export default function PaymentDetail() {
   ) : null
 
   const approveButtons = canApproveAll ? (
-    <div className="flex flex-col gap-1.5 items-stretch">
+    <div className="flex items-center gap-3">
       <button
         onClick={handleApproveAll}
         disabled={!!actionLoading}
@@ -347,30 +347,38 @@ export default function PaymentDetail() {
 
       </div>
 
-      {anyCancellable && (
-        <button
-          onClick={() => setCancelAllOpen(true)}
-          disabled={!!actionLoading}
-          className="cursor-pointer mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-red-600 border border-red-200 bg-white hover:bg-red-50 px-4 py-2 rounded-lg disabled:opacity-50"
-        >
-          <Trash2 size={16} />
-          {someAlreadyCancelled ? 'Cancel remaining' : 'Cancel all'}
-        </button>
-      )}
+      {(() => {
+        if (!anyCancellable) return null
+        const isPaid = payment.status === 'paid'
+        const action = isPaid ? 'Refund' : anyRequested ? 'Decline' : 'Cancel'
+        const label = `${action} ${someAlreadyCancelled ? 'remaining' : 'all'}`
+        return (
+          <>
+            <button
+              onClick={() => setCancelAllOpen(true)}
+              disabled={!!actionLoading}
+              className="cursor-pointer mt-4 self-start w-fit inline-flex items-center gap-1.5 text-sm font-medium text-red-600 border border-red-200 bg-white hover:bg-red-50 px-4 py-2 rounded-lg disabled:opacity-50"
+            >
+              <Trash2 size={16} />
+              {label}
+            </button>
 
-      <ConfirmModal
-        open={cancelAllOpen}
-        onClose={() => setCancelAllOpen(false)}
-        onConfirm={handleCancelAll}
-        title={someAlreadyCancelled ? 'Cancel remaining bookings?' : 'Cancel all bookings?'}
-        body={payment.status === 'paid'
-          ? 'The remaining amount will be refunded to the client.'
-          : 'This will free up the slot(s). You can rebook later if needed.'}
-        confirmLabel="Yes, cancel"
-        cancelLabel="Keep"
-        confirmTone="danger"
-        loading={actionLoading === 'cancel'}
-      />
+            <ConfirmModal
+              open={cancelAllOpen}
+              onClose={() => setCancelAllOpen(false)}
+              onConfirm={handleCancelAll}
+              title={`${label}?`}
+              body={isPaid
+                ? 'The remaining amount will be refunded to the client.'
+                : 'This will free up the slot(s). You can rebook later if needed.'}
+              confirmLabel={`Yes, ${action.toLowerCase()}`}
+              cancelLabel="Keep"
+              confirmTone="danger"
+              loading={actionLoading === 'cancel'}
+            />
+          </>
+        )
+      })()}
 
       <ConfirmModal
         open={!!cancelBookingTarget}
@@ -392,6 +400,8 @@ export default function PaymentDetail() {
         open={paySuccessOpen}
         onClose={() => setPaySuccessOpen(false)}
       />
+
+      <div aria-hidden className="h-8 shrink-0" />
     </>
   )
 }

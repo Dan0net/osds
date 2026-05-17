@@ -171,21 +171,72 @@ export default function BookingDetail() {
       </Link>
       <DetailHeader backHref={backHref} backLabel={backLabel} />
 
-      <DetailHero
-        icon={Calendar}
-        tone={badge.tone}
-        primary={heroPrimary}
-        status={badge.label}
-        secondary={booking.services?.name || 'Booking'}
-        extra={siblings.length > 1 && (
+      {(() => {
+        const isMulti = siblings.length > 1
+        const showApproveDecline = canApprove && !isMulti
+        const showPayNow = canPay && !isMulti
+        const showReviewAll = (canApprove || canPay) && isMulti
+
+        const approveButtons = showApproveDecline ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleApprove}
+              disabled={!!actionLoading}
+              className="cursor-pointer bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {actionLoading === 'approve' ? 'Approving…' : 'Approve'}
+            </button>
+            <button
+              onClick={handleDecline}
+              disabled={!!actionLoading}
+              className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+            >
+              {actionLoading === 'decline' ? 'Declining…' : 'Decline'}
+            </button>
+          </div>
+        ) : null
+        const payNowButton = showPayNow ? (
+          <button
+            onClick={handlePayNow}
+            disabled={actionLoading === 'pay'}
+            className="cursor-pointer bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
+          </button>
+        ) : null
+        const reviewAllButton = showReviewAll ? (
           <Link
             to={`/account/money/${booking.payment_id}`}
-            className="inline-flex items-center gap-1 text-xs font-medium underline opacity-80 hover:opacity-100"
+            className="inline-flex items-center bg-white text-gray-900 text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50"
           >
-            1 of {siblings.length} bookings on payment →
+            Review all bookings ({siblings.length}) →
           </Link>
-        )}
-      />
+        ) : null
+        const heroAction = approveButtons || payNowButton || reviewAllButton
+
+        let heroExtra = null
+        if (isMulti && !heroAction) {
+          heroExtra = (
+            <Link
+              to={`/account/money/${booking.payment_id}`}
+              className="inline-flex items-center gap-1 text-xs font-medium underline opacity-80 hover:opacity-100"
+            >
+              1 of {siblings.length} bookings on payment →
+            </Link>
+          )
+        }
+        return (
+          <DetailHero
+            icon={Calendar}
+            tone={badge.tone}
+            primary={heroPrimary}
+            status={badge.label}
+            secondary={booking.services?.name || 'Booking'}
+            extra={heroExtra}
+            action={heroAction}
+          />
+        )
+      })()}
 
       <div className="space-y-3">
         {isWalker && booking.users?.postcode && (
@@ -274,37 +325,6 @@ export default function BookingDetail() {
           />
         )}
 
-        {(canPay || canApprove) && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 lg:p-5 flex flex-wrap gap-2">
-            {canPay && (
-              <button
-                onClick={handlePayNow}
-                disabled={actionLoading === 'pay'}
-                className="cursor-pointer bg-indigo-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
-              </button>
-            )}
-            {canApprove && (
-              <>
-                <button
-                  onClick={handleApprove}
-                  disabled={!!actionLoading}
-                  className="cursor-pointer bg-green-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
-                >
-                  {actionLoading === 'approve' ? 'Approving…' : 'Approve'}
-                </button>
-                <button
-                  onClick={handleDecline}
-                  disabled={!!actionLoading}
-                  className="cursor-pointer bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
-                >
-                  {actionLoading === 'decline' ? 'Declining…' : 'Decline'}
-                </button>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       {cancellable && (
