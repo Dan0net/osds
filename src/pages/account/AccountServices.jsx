@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { clientPriceCents } from '../../lib/utils'
@@ -8,6 +9,8 @@ import SearchList from '../../components/account/SearchList'
 import Modal from '../../components/Modal'
 import ServiceForm from '../../components/account/ServiceForm'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
+import ListPaneHeader from '../../components/account/ListPaneHeader'
+import ListItem from '../../components/account/ListItem'
 
 export default function AccountServices() {
   const { walkerProfile } = useAuth()
@@ -57,40 +60,43 @@ export default function AccountServices() {
     return <p className="text-sm text-gray-500">Services are only available for walkers.</p>
   }
 
+  const addButton = (
+    <button
+      onClick={() => setAddOpen(true)}
+      aria-label="Add service"
+      className="cursor-pointer h-8 w-8 inline-flex items-center justify-center bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+    >
+      <Plus size={16} />
+    </button>
+  )
+
+  const listHeader = <ListPaneHeader title="Services" right={addButton} />
+
   const list = loading ? (
-    <p className="text-sm text-gray-400">Loading…</p>
+    <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
   ) : (
     <SearchList
       items={services}
       searchFields={['name', 'description']}
       placeholder="Search services…"
-      addLabel="Add service"
       emptyState="No services yet. Add your first one to start accepting bookings."
-      onAdd={() => setAddOpen(true)}
       renderItem={(svc) => (
-        <Link
-          key={svc.id}
-          to={`/account/services/${svc.id}`}
-          className={`block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition ${!svc.active ? 'opacity-60' : ''}`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold">{svc.name}</span>
-                {svc.service_type === 'overnight' && (
-                  <span className="text-xs font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">overnight</span>
-                )}
-                {!svc.active && (
-                  <span className="text-xs font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">inactive</span>
-                )}
-              </div>
-              <div className="text-sm text-gray-500 mt-1">
-                Client pays £{(clientPriceCents(svc.price_cents) / 100).toFixed(2)}
-                {svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes} min
-              </div>
+        <ListItem key={svc.id} to={`/account/services/${svc.id}`}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-sm font-medium truncate ${!svc.active ? 'opacity-60' : ''}`}>{svc.name}</span>
+              {svc.service_type === 'overnight' && (
+                <span className="text-[10px] font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">overnight</span>
+              )}
+              {!svc.active && (
+                <span className="text-[10px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">inactive</span>
+              )}
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5 truncate">
+              £{(clientPriceCents(svc.price_cents) / 100).toFixed(2)}{svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes}m
             </div>
           </div>
-        </Link>
+        </ListItem>
       )}
     />
   )
@@ -99,6 +105,7 @@ export default function AccountServices() {
     <>
       <ListDetailLayout
         list={list}
+        listHeader={listHeader}
         emptyDetail={<p className="text-sm text-gray-400">Select a service.</p>}
       />
 

@@ -27,7 +27,7 @@ export default function Sidebar({ unreadCount = 0 }) {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-200 z-30">
+    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-white border-r border-gray-200 z-30">
       <div className="px-4 py-4 border-b border-gray-200">
         <ProfileChip />
       </div>

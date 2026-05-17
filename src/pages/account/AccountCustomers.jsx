@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { Plus } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { inviteCustomer } from '../../lib/api'
@@ -11,6 +12,8 @@ import CustomerForm from '../../components/account/CustomerForm'
 import InviteConsentModal from '../../components/account/InviteConsentModal'
 import MapButton from '../../components/account/MapButton'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
+import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
+import ListItem from '../../components/account/ListItem'
 
 const SORTS = {
   recent_booking: {
@@ -108,53 +111,60 @@ export default function AccountCustomers() {
     return <p className="text-sm text-gray-500">Customers are only available for walkers.</p>
   }
 
-  const listHeader = (
-    <select
-      value={sortKey}
-      onChange={(e) => setSortKey(e.target.value)}
-      className="w-full h-9 px-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+  const addButton = (
+    <button
+      onClick={handleAddClick}
+      aria-label="Add customer"
+      className="cursor-pointer h-8 w-8 inline-flex items-center justify-center bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
     >
-      {Object.entries(SORTS).map(([k, v]) => (
-        <option key={k} value={k}>Sort: {v.label}</option>
-      ))}
-    </select>
+      <Plus size={16} />
+    </button>
+  )
+
+  const listHeader = (
+    <>
+      <ListPaneHeader title="Customers" right={addButton} />
+      <ListPaneSubrow>
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value)}
+          className="w-full h-9 px-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+        >
+          {Object.entries(SORTS).map(([k, v]) => (
+            <option key={k} value={k}>Sort: {v.label}</option>
+          ))}
+        </select>
+      </ListPaneSubrow>
+    </>
   )
 
   const list = loading ? (
-    <p className="text-sm text-gray-400">Loading…</p>
+    <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
   ) : (
     <SearchList
       items={sorted}
       searchFields={['client.name', 'client.email']}
       placeholder="Search customers…"
-      addLabel="Add customer"
-      onAdd={handleAddClick}
       emptyState="No customers yet. Customers appear here once they've booked with you, or you can add one manually."
       renderItem={({ client, totalBookings, lastBookingDate, totalSpendCents }) => (
-        <Link
-          key={client.id}
-          to={`/account/customers/${client.id}`}
-          className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
-              {client.avatar_url ? (
-                <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                (client.name?.charAt(0) || '?').toUpperCase()
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold truncate">{client.name || 'Unknown'}</p>
-              <p className="text-sm text-gray-500 truncate">
-                {totalBookings} booking{totalBookings !== 1 ? 's' : ''}
-                {lastBookingDate && ` · last ${new Date(lastBookingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
-                {totalSpendCents > 0 && ` · £${(totalSpendCents / 100).toFixed(2)}`}
-              </p>
-            </div>
-            <MapButton postcode={client.postcode} size={24} />
+        <ListItem key={client.id} to={`/account/customers/${client.id}`}>
+          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
+            {client.avatar_url ? (
+              <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              (client.name?.charAt(0) || '?').toUpperCase()
+            )}
           </div>
-        </Link>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{client.name || 'Unknown'}</p>
+            <p className="text-xs text-gray-500 truncate">
+              {totalBookings} booking{totalBookings !== 1 ? 's' : ''}
+              {lastBookingDate && ` · ${new Date(lastBookingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+              {totalSpendCents > 0 && ` · £${(totalSpendCents / 100).toFixed(2)}`}
+            </p>
+          </div>
+          <MapButton postcode={client.postcode} size={20} />
+        </ListItem>
       )}
     />
   )

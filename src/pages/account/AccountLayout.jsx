@@ -105,13 +105,16 @@ export default function AccountLayout() {
   return (
     <div
       className="min-h-screen bg-gray-50"
-      style={{ '--install-prompt-h': installPromptVisible ? 'calc(5rem + env(safe-area-inset-bottom))' : '0px' }}
+      style={{
+        '--install-prompt-h': installPromptVisible ? 'calc(5rem + env(safe-area-inset-bottom))' : '0px',
+        '--list-sidebar-w': '21rem',
+      }}
     >
       <Sidebar unreadCount={unreadCount} />
       <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} />
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
-      <main className={`lg:ml-64 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block ${isConversation ? 'lg:pb-[var(--install-prompt-h)]' : 'lg:pb-[calc(2rem+var(--install-prompt-h))]'}`}>
+      <main className={`lg:ml-56 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block ${isConversation ? 'lg:pb-[var(--install-prompt-h)]' : 'lg:pb-[calc(2rem+var(--install-prompt-h))]'}`}>
         <div className={`max-w-5xl mx-auto w-full px-4 flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible lg:min-h-0 ${isConversation ? '' : 'py-3 lg:py-5'}`}>
           <Outlet />
         </div>

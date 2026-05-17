@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
 import { format, isToday, isYesterday, parseISO } from 'date-fns'
+import ListItem from './ListItem'
 
 function formatTimestamp(iso) {
   if (!iso) return ''
@@ -14,11 +14,8 @@ export default function ConversationRow({ conversation, counterpartyName, avatar
   const initial = (counterpartyName?.charAt(0) || '?').toUpperCase()
 
   return (
-    <Link
-      to={`/account/messages/${conversation.id}`}
-      className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:bg-indigo-50/40 transition"
-    >
-      <div className="w-11 h-11 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
+    <ListItem to={`/account/messages/${conversation.id}`}>
+      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
         {avatarUrl ? (
           <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -26,7 +23,7 @@ export default function ConversationRow({ conversation, counterpartyName, avatar
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm truncate ${hasUnread ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'}`}>
+        <p className={`text-sm truncate ${hasUnread ? 'font-semibold' : 'font-medium'}`}>
           {counterpartyName || 'Unknown'}
         </p>
         <p className={`text-xs truncate ${hasUnread ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
@@ -34,7 +31,7 @@ export default function ConversationRow({ conversation, counterpartyName, avatar
         </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <span className={`text-[11px] ${hasUnread ? 'text-indigo-600 font-medium' : 'text-gray-400'}`}>
+        <span className={`text-[11px] ${hasUnread ? 'font-medium' : 'text-gray-400'}`}>
           {formatTimestamp(conversation.last_message_at)}
         </span>
         {hasUnread && (
@@ -43,6 +40,6 @@ export default function ConversationRow({ conversation, counterpartyName, avatar
           </span>
         )}
       </div>
-    </Link>
+    </ListItem>
   )
 }

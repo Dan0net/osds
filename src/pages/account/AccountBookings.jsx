@@ -11,6 +11,7 @@ import BookingForm from '../../components/account/BookingForm'
 import MonthCalendar from '../../components/account/MonthCalendar'
 import BookingsSidebar from '../../components/account/BookingsSidebar'
 import BookingsList from '../../components/account/BookingsList'
+import ListPaneHeader from '../../components/account/ListPaneHeader'
 
 const EXTERNAL_COLOR = '#9ca3af'
 
@@ -210,11 +211,11 @@ export default function AccountBookings() {
         )}
       </div>
 
-      <div className="hidden lg:flex lg:fixed lg:left-64 lg:right-0 lg:top-0 lg:bottom-[var(--install-prompt-h,0px)] lg:bg-white">
-        <aside className="w-64 border-r border-gray-200 bg-white flex flex-col">
-          <div className="shrink-0 px-3 py-2.5 border-b border-gray-200 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-900">Bookings</span>
-            {isWalker && (
+      <div className="hidden lg:flex lg:fixed lg:left-56 lg:right-0 lg:top-0 lg:bottom-[var(--install-prompt-h,0px)] lg:bg-white">
+        <aside className="w-[var(--list-sidebar-w,14rem)] border-r border-gray-200 bg-white flex flex-col">
+          <ListPaneHeader
+            title="Bookings"
+            right={isWalker ? (
               <button
                 onClick={() => setCreateBookingModal(true)}
                 aria-label="Add booking"
@@ -222,8 +223,8 @@ export default function AccountBookings() {
               >
                 <Plus size={16} />
               </button>
-            )}
-          </div>
+            ) : null}
+          />
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />

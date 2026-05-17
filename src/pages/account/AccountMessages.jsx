@@ -5,6 +5,7 @@ import { getUnreadCounts } from '../../lib/messaging'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ConversationRow from '../../components/account/ConversationRow'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
+import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
 import FilterPills from '../../components/account/FilterPills'
 
 export default function AccountMessages() {
@@ -48,39 +49,42 @@ export default function AccountMessages() {
   const unreadTotal = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations])
 
   const listHeader = (
-    <FilterPills
-      value={unreadOnly}
-      onChange={setUnreadOnly}
-      options={[
-        { value: false, label: 'All', count: conversations.length },
-        { value: true, label: 'Unread', count: unreadTotal },
-      ]}
-    />
+    <>
+      <ListPaneHeader title="Messages" />
+      <ListPaneSubrow>
+        <FilterPills
+          value={unreadOnly}
+          onChange={setUnreadOnly}
+          options={[
+            { value: false, label: 'All', count: conversations.length },
+            { value: true, label: 'Unread', count: unreadTotal },
+          ]}
+        />
+      </ListPaneSubrow>
+    </>
   )
 
   const list = loading ? (
-    <p className="text-sm text-gray-400">Loading…</p>
+    <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
   ) : filtered.length === 0 ? (
-    <p className="text-sm text-gray-400">{unreadOnly ? 'No unread conversations.' : 'No conversations yet.'}</p>
+    <p className="text-sm text-gray-400 px-3 py-3">{unreadOnly ? 'No unread conversations.' : 'No conversations yet.'}</p>
   ) : (
-    <div className="space-y-2">
-      {filtered.map((c) => {
-        const counterpartyName = isWalker
-          ? (c.users?.name || 'Customer')
-          : (c.walker_profiles?.business_name || 'Walker')
-        const avatarUrl = isWalker ? c.users?.avatar_url : null
-        return (
-          <ConversationRow
-            key={c.id}
-            conversation={c}
-            counterpartyName={counterpartyName}
-            avatarUrl={avatarUrl}
-            preview={c.last_message_preview}
-            unreadCount={c.unread_count}
-          />
-        )
-      })}
-    </div>
+    filtered.map((c) => {
+      const counterpartyName = isWalker
+        ? (c.users?.name || 'Customer')
+        : (c.walker_profiles?.business_name || 'Walker')
+      const avatarUrl = isWalker ? c.users?.avatar_url : null
+      return (
+        <ConversationRow
+          key={c.id}
+          conversation={c}
+          counterpartyName={counterpartyName}
+          avatarUrl={avatarUrl}
+          preview={c.last_message_preview}
+          unreadCount={c.unread_count}
+        />
+      )
+    })
   )
 
   return (
