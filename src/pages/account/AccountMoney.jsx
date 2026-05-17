@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
-import { stripeDashboardLink, createCheckout } from '../../lib/api'
+import { stripeDashboardLink } from '../../lib/api'
 import { paymentStatusBadge, toneClass } from '../../lib/bookingStatus'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
@@ -20,7 +20,6 @@ export default function AccountMoney() {
   const { user, walkerProfile: wp } = useAuth()
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
@@ -28,7 +27,7 @@ export default function AccountMoney() {
     async function load() {
       const { data: clientPayments } = await supabase
         .from('payments')
-        .select('*, walker_profiles(business_name)')
+        .select('*, walker_profiles(business_name), bookings(services(name))')
         .eq('client_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -36,7 +35,7 @@ export default function AccountMoney() {
       if (wp) {
         const { data } = await supabase
           .from('payments')
-          .select('*, users!payments_client_id_fkey(name)')
+          .select('*, users!payments_client_id_fkey(name), bookings(services(name))')
           .eq('walker_id', wp.id)
           .order('created_at', { ascending: false })
         walkerPayments = data || []
@@ -76,7 +75,7 @@ export default function AccountMoney() {
 
   const listHeader = (
     <>
-      <ListPaneHeader title="Payments" />
+      <ListPaneHeader title="Money" />
       <ListPaneSubrow>
         <FilterPills
           value={statusFilter}
@@ -97,6 +96,10 @@ export default function AccountMoney() {
     <>
       {filtered.map((p) => {
         const badge = paymentStatusBadge(p)
+        const bookingsCount = p.bookings?.length || 0
+        const firstService = p.bookings?.[0]?.services?.name
+        const title = firstService ? `${p.counterpart} · ${firstService}` : p.counterpart
+        const amount = `${p.type === 'received' ? '+' : '−'}£${((p.type === 'received' ? p.total_cents - (p.platform_fee_cents || 0) : p.total_cents) / 100).toFixed(2)}`
         return (
           <ListItem
             key={p.id}
@@ -104,36 +107,18 @@ export default function AccountMoney() {
             state={{ from: '/account/money' }}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{p.counterpart}</p>
-              <div className="text-xs mt-0.5 flex items-center gap-1.5 flex-wrap">
-                <span className="text-gray-400">{new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-                <span className={`inline-block font-medium px-1.5 py-0.5 rounded ${toneClass(badge.tone)}`}>
-                  {badge.label}
-                </span>
-              </div>
+              <p className="text-sm font-medium truncate">{title}</p>
+              <p className="text-xs text-gray-400 truncate mt-0.5">
+                {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                {bookingsCount > 1 && ` · ${bookingsCount} bookings`}
+              </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {p.type === 'paid' && p.status === 'awaiting_payment' && (
-                <button
-                  onClick={async (e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setActionLoading(p.id)
-                    const res = await createCheckout(p.id)
-                    if (res.data?.url) {
-                      window.location.href = res.data.url
-                    } else {
-                      setActionLoading(null)
-                    }
-                  }}
-                  disabled={!!actionLoading}
-                  className="cursor-pointer bg-indigo-600 text-white text-xs font-medium px-2.5 py-1 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {actionLoading === p.id ? '…' : 'Pay'}
-                </button>
-              )}
+            <div className="flex flex-col items-end gap-1 shrink-0">
               <span className={`text-sm font-semibold ${p.type === 'received' ? 'text-green-600' : ''}`}>
-                {p.type === 'received' ? '+' : '−'}£{((p.type === 'received' ? p.total_cents - (p.platform_fee_cents || 0) : p.total_cents) / 100).toFixed(2)}
+                {amount}
+              </span>
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${toneClass(badge.tone)}`}>
+                {badge.label}
               </span>
             </div>
           </ListItem>
