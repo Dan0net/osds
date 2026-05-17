@@ -48,7 +48,7 @@ function EventRow({ event, activeId }) {
     </>
   )
   if (event.external) {
-    return <div className="flex items-center gap-2.5 px-2 py-1.5">{inner}</div>
+    return <div className="flex items-center gap-2.5 px-2 py-1.5 opacity-60">{inner}</div>
   }
   const base = 'flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition'
   const className = isActive
