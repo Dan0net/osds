@@ -184,6 +184,16 @@ export default function PaymentDetail() {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   })
 
+  const payNowButton = canPay ? (
+    <button
+      onClick={handlePayNow}
+      disabled={actionLoading === 'pay'}
+      className="cursor-pointer bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+    >
+      {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
+    </button>
+  ) : null
+
   return (
     <>
       <DetailHeader backHref={backHref} backLabel={backLabel} />
@@ -201,6 +211,7 @@ export default function PaymentDetail() {
             </p>
           )
         }
+        action={payNowButton}
       />
 
       <div className="space-y-3">
@@ -302,35 +313,22 @@ export default function PaymentDetail() {
           </div>
         </div>
 
-        {(canPay || canApproveAll) && (
+        {canApproveAll && (
           <div className="bg-white border border-gray-200 rounded-lg p-4 lg:p-5 flex flex-wrap gap-2">
-            {canPay && (
-              <button
-                onClick={handlePayNow}
-                disabled={actionLoading === 'pay'}
-                className="cursor-pointer bg-indigo-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
-              </button>
-            )}
-            {canApproveAll && (
-              <>
-                <button
-                  onClick={handleApproveAll}
-                  disabled={!!actionLoading}
-                  className="cursor-pointer bg-green-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
-                >
-                  {actionLoading === 'approve' ? 'Approving…' : 'Approve all'}
-                </button>
-                <button
-                  onClick={handleDeclineAll}
-                  disabled={!!actionLoading}
-                  className="cursor-pointer bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
-                >
-                  {actionLoading === 'decline' ? 'Declining…' : 'Decline all'}
-                </button>
-              </>
-            )}
+            <button
+              onClick={handleApproveAll}
+              disabled={!!actionLoading}
+              className="cursor-pointer bg-green-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {actionLoading === 'approve' ? 'Approving…' : 'Approve all'}
+            </button>
+            <button
+              onClick={handleDeclineAll}
+              disabled={!!actionLoading}
+              className="cursor-pointer bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {actionLoading === 'decline' ? 'Declining…' : 'Decline all'}
+            </button>
           </div>
         )}
       </div>

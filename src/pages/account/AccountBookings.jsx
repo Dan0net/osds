@@ -12,6 +12,7 @@ import MonthCalendar from '../../components/account/MonthCalendar'
 import BookingsSidebar from '../../components/account/BookingsSidebar'
 import BookingsList from '../../components/account/BookingsList'
 import ListPaneHeader from '../../components/account/ListPaneHeader'
+import PaidSuccessModal from '../../components/account/PaidSuccessModal'
 
 const EXTERNAL_COLOR = '#9ca3af'
 
@@ -147,12 +148,6 @@ export default function AccountBookings() {
 
   const banner = (
     <>
-      {paymentBanner === 'success' && (
-        <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
-          <span>Payment successful! Your booking is now confirmed.</span>
-          <button onClick={() => setPaymentBanner(null)} className="text-green-700 hover:text-green-900 font-bold">×</button>
-        </div>
-      )}
       {paymentBanner === 'cancelled' && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
           <span>Payment was cancelled. You can try again from your bookings.</span>
@@ -269,6 +264,11 @@ export default function AccountBookings() {
         open={createBookingModal}
         onClose={() => setCreateBookingModal(false)}
         onCreated={() => { setCreateBookingModal(false); loadBookings() }}
+      />
+
+      <PaidSuccessModal
+        open={paymentBanner === 'success'}
+        onClose={() => setPaymentBanner(null)}
       />
     </>
   )

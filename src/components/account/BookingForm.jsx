@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, AlertTriangle, X, Sparkles } from 'lucide-react'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { inviteCustomer, walkerCreateBooking } from '../../lib/api'
@@ -34,6 +35,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
   const [servicePickerOpen, setServicePickerOpen] = useState(false)
   const [bookingService, setBookingService] = useState(null)
   const [consentOpen, setConsentOpen] = useState(false)
+  const [createdData, setCreatedData] = useState(null)
 
   // Reset on open/close
   useEffect(() => {
@@ -46,7 +48,14 @@ export default function BookingForm({ open, onClose, onCreated }) {
     setBookingService(null)
     setError(null)
     setSubmitting(false)
+    setCreatedData(null)
   }, [open])
+
+  useEffect(() => {
+    if (step !== 4) return
+    const id = setTimeout(() => onCreated?.(createdData), 3000)
+    return () => clearTimeout(id)
+  }, [step])
 
   useEffect(() => {
     if (!walkerProfile || !open) return
@@ -223,17 +232,18 @@ export default function BookingForm({ open, onClose, onCreated }) {
       setError(res.error)
       return
     }
-    onCreated?.(res.data)
+    setCreatedData(res.data)
+    setStep(4)
   }
 
-  const title = step === 1 ? 'New booking' : step === 2 ? 'Choose slots' : 'Review & pay'
+  const title = step === 1 ? 'New booking' : step === 2 ? 'Choose slots' : step === 3 ? 'Review & pay' : 'Booking sent'
   const saveLabel = step < 3 ? 'Next' : 'Create booking'
-  const stepValid = step === 1 ? step1Valid : step === 2 ? step2Valid : step3Valid
+  const stepValid = step === 1 ? step1Valid : step === 2 ? step2Valid : step === 3 ? step3Valid : false
 
   function handleSave() {
     if (step === 1) setStep(2)
     else if (step === 2) setStep(3)
-    else handleSubmit()
+    else if (step === 3) handleSubmit()
   }
 
   const petPrimary = selectedPets.map((p) => p.name).filter(Boolean).join(' · ')
@@ -248,9 +258,9 @@ export default function BookingForm({ open, onClose, onCreated }) {
       <Modal
         open={open}
         onClose={onClose}
-        onBack={step > 1 ? () => setStep(step - 1) : undefined}
+        onBack={step > 1 && step < 4 ? () => setStep(step - 1) : undefined}
         title={title}
-        onSave={handleSave}
+        onSave={step < 4 ? handleSave : undefined}
         saveLabel={saveLabel}
         saveDisabled={!stepValid}
         saveLoading={submitting}
@@ -388,6 +398,23 @@ export default function BookingForm({ open, onClose, onCreated }) {
               <span className="text-sm text-gray-500">Total</span>
               <span className="text-lg font-semibold text-gray-900">£{(totalDisplay / 100).toFixed(2)}</span>
             </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="flex flex-col items-center justify-center text-center py-12 px-6 min-h-[20rem]">
+            <DotLottieReact
+              src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f389/lottie.json"
+              autoplay
+              loop
+              className="w-40 h-40"
+            />
+            <h3 className="mt-6 text-xl font-semibold text-gray-900">Booking sent!</h3>
+            <p className="mt-2 text-sm text-gray-500 max-w-xs">
+              {mode === 'online'
+                ? `${customer?.name || 'Your customer'} will get a notification to approve and pay.`
+                : `${customer?.name || 'Your customer'} has been notified.`}
+            </p>
           </div>
         )}
       </Modal>

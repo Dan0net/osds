@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.19.2",
     "@supabase/supabase-js": "^2.99.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",

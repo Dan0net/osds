@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, useLocation, matchPath } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { getUnreadCounts } from '../../lib/messaging'
 import { getUnreadPaymentIds } from '../../lib/payments'
+import { walkerTakeFromPayment } from '../../lib/utils'
 import InstallPrompt from '../../components/InstallPrompt'
 import Sidebar from '../../components/account/Sidebar'
 import BottomBar from '../../components/account/BottomBar'
 import MoreDrawer from '../../components/account/MoreDrawer'
+import PaidCelebrationModal from '../../components/account/PaidCelebrationModal'
 
 export default function AccountLayout() {
-  const { user } = useAuth()
+  const { user, walkerProfile } = useAuth()
   const location = useLocation()
   const isConversation = !!matchPath('/account/messages/:conversationId', location.pathname)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -18,6 +20,8 @@ export default function AccountLayout() {
   const [moreOpen, setMoreOpen] = useState(false)
   const [installPromptVisible, setInstallPromptVisible] = useState(false)
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null)
+  const [paidCelebration, setPaidCelebration] = useState(null)
+  const seenPaidIds = useRef(new Set())
 
   async function refreshUnread() {
     if (!user) return
@@ -36,6 +40,16 @@ export default function AccountLayout() {
     if (!user) return
     refreshUnread()
     refreshUnreadPayments()
+    if (walkerProfile?.id) {
+      supabase
+        .from('payments')
+        .select('id')
+        .eq('walker_id', walkerProfile.id)
+        .eq('status', 'paid')
+        .then(({ data }) => {
+          for (const p of data || []) seenPaidIds.current.add(p.id)
+        })
+    }
     window.addEventListener('notifications-read', refreshUnread)
     window.addEventListener('payments-read', refreshUnreadPayments)
 
@@ -57,9 +71,28 @@ export default function AccountLayout() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'payments' },
-        () => {
+        async (payload) => {
           refreshUnreadPayments()
           window.dispatchEvent(new Event('account-data-mutated'))
+
+          const row = payload.new
+          if (
+            walkerProfile?.id &&
+            row?.walker_id === walkerProfile.id &&
+            row?.status === 'paid' &&
+            !seenPaidIds.current.has(row.id)
+          ) {
+            seenPaidIds.current.add(row.id)
+            const { data } = await supabase
+              .from('payments')
+              .select('id, total_cents, platform_fee_cents, refunded_amount_cents, users!payments_client_id_fkey(name)')
+              .eq('id', row.id)
+              .maybeSingle()
+            setPaidCelebration({
+              amountCents: walkerTakeFromPayment(data || row),
+              counterpart: data?.users?.name || null,
+            })
+          }
         },
       )
       .subscribe()
@@ -70,7 +103,7 @@ export default function AccountLayout() {
       supabase.removeChannel(messagesChannel)
       supabase.removeChannel(paymentsChannel)
     }
-  }, [user?.id])
+  }, [user?.id, walkerProfile?.id])
 
   useEffect(() => {
     if (localStorage.getItem('install-prompt-dismissed')) return
@@ -148,6 +181,13 @@ export default function AccountLayout() {
         deferredPrompt={deferredInstallPrompt}
         onDismiss={dismissInstallPrompt}
         onInstall={handleInstall}
+      />
+
+      <PaidCelebrationModal
+        open={!!paidCelebration}
+        onClose={() => setPaidCelebration(null)}
+        amountCents={paidCelebration?.amountCents}
+        counterpart={paidCelebration?.counterpart}
       />
     </div>
   )
