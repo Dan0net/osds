@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { stripeDashboardLink } from '../../lib/api'
 import { paymentStatusBadge, toneClass, toneColor } from '../../lib/bookingStatus'
 import { displayPaymentAmount } from '../../lib/utils'
-import { getUnreadPaymentIds } from '../../lib/payments'
+import { getUnreadPaymentIds, markAllPaymentsRead } from '../../lib/payments'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
@@ -91,15 +91,33 @@ export default function AccountMoney() {
     return f ? payments.filter(f.match) : payments
   }, [payments, statusFilter])
 
+  async function handleMarkAllRead() {
+    const ids = [...unreadIds]
+    if (!ids.length) return
+    setUnreadIds(new Set())
+    await markAllPaymentsRead(user.id, ids)
+  }
+
   const listHeader = (
     <>
       <ListPaneHeader title="Money" />
       <ListPaneSubrow>
-        <FilterPills
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={STATUS_FILTERS.map(({ value, label }) => ({ value, label, count: counts[value] }))}
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <FilterPills
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={STATUS_FILTERS.map(({ value, label }) => ({ value, label, count: counts[value] }))}
+          />
+          {unreadIds.size > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="cursor-pointer ml-auto h-10 lg:h-8 px-4 lg:px-3 inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm lg:text-xs font-medium rounded-full"
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
       </ListPaneSubrow>
     </>
   )

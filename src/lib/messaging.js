@@ -27,6 +27,14 @@ export async function getUnreadCounts(userId) {
   return new Map(entries)
 }
 
+export async function markAllConversationsRead(userId, conversationIds) {
+  if (!userId || !conversationIds?.length) return
+  const now = new Date().toISOString()
+  const rows = conversationIds.map((id) => ({ conversation_id: id, user_id: userId, last_read_at: now }))
+  await supabase.from('conversation_reads').upsert(rows)
+  window.dispatchEvent(new Event('notifications-read'))
+}
+
 // Return the existing conversation id for this walker↔client pair, or create one.
 // RLS allows either party to insert.
 export async function ensureConversation(walkerId, clientId) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { getUnreadCounts } from '../../lib/messaging'
+import { getUnreadCounts, markAllConversationsRead } from '../../lib/messaging'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ConversationRow from '../../components/account/ConversationRow'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
@@ -48,18 +48,36 @@ export default function AccountMessages() {
   )
   const unreadTotal = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations])
 
+  async function handleMarkAllRead() {
+    const ids = conversations.filter((c) => c.unread_count > 0).map((c) => c.id)
+    if (!ids.length) return
+    setConversations((prev) => prev.map((c) => ({ ...c, unread_count: 0 })))
+    await markAllConversationsRead(user.id, ids)
+  }
+
   const listHeader = (
     <>
       <ListPaneHeader title="Messages" />
       <ListPaneSubrow>
-        <FilterPills
-          value={unreadOnly}
-          onChange={setUnreadOnly}
-          options={[
-            { value: false, label: 'All', count: conversations.length },
-            { value: true, label: 'Unread', count: unreadTotal },
-          ]}
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <FilterPills
+            value={unreadOnly}
+            onChange={setUnreadOnly}
+            options={[
+              { value: false, label: 'All', count: conversations.length },
+              { value: true, label: 'Unread', count: unreadTotal },
+            ]}
+          />
+          {unreadTotal > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="cursor-pointer ml-auto h-10 lg:h-8 px-4 lg:px-3 inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm lg:text-xs font-medium rounded-full"
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
       </ListPaneSubrow>
     </>
   )

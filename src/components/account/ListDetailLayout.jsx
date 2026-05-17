@@ -21,7 +21,7 @@ export default function ListDetailLayout({ list, listHeader, emptyDetail = null 
         {outlet || (
           <>
             {listHeader}
-            <div className="space-y-1">{list}</div>
+            <div className="space-y-1 -mx-4">{list}</div>
           </>
         )}
       </div>

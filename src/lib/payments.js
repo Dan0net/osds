@@ -30,3 +30,11 @@ export async function markPaymentRead(paymentId, userId) {
     .upsert({ payment_id: paymentId, user_id: userId, last_seen_at: new Date().toISOString() })
   window.dispatchEvent(new Event('payments-read'))
 }
+
+export async function markAllPaymentsRead(userId, paymentIds) {
+  if (!userId || !paymentIds?.length) return
+  const now = new Date().toISOString()
+  const rows = paymentIds.map((id) => ({ payment_id: id, user_id: userId, last_seen_at: now }))
+  await supabase.from('payment_reads').upsert(rows)
+  window.dispatchEvent(new Event('payments-read'))
+}

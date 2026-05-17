@@ -15,6 +15,7 @@ import MapButton from '../../components/account/MapButton'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
 import ListItem from '../../components/account/ListItem'
+import PillSelect from '../../components/account/PillSelect'
 
 const SORTS = {
   recent_booking: {
@@ -130,15 +131,12 @@ export default function AccountCustomers() {
       <ListPaneSubrow>
         <div className="space-y-2">
           <SearchInput value={query} onChange={setQuery} placeholder="Search customers…" />
-          <select
+          <PillSelect
             value={sortKey}
-            onChange={(e) => setSortKey(e.target.value)}
-            className="w-full h-9 px-3 bg-gray-100 rounded-full text-sm border-0 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-          >
-            {Object.entries(SORTS).map(([k, v]) => (
-              <option key={k} value={k}>Sort: {v.label}</option>
-            ))}
-          </select>
+            onChange={setSortKey}
+            options={Object.entries(SORTS).map(([k, v]) => ({ value: k, label: `Sort: ${v.label}` }))}
+            fullWidth
+          />
         </div>
       </ListPaneSubrow>
     </>
