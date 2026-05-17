@@ -23,42 +23,47 @@ export default function AccountMoney() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
 
+  async function load() {
+    if (!user) return
+    const { data: clientPayments } = await supabase
+      .from('payments')
+      .select('*, walker_profiles(business_name), bookings(services(name))')
+      .eq('client_id', user.id)
+      .order('created_at', { ascending: false })
+
+    let walkerPayments = []
+    if (wp) {
+      const { data } = await supabase
+        .from('payments')
+        .select('*, users!payments_client_id_fkey(name), bookings(services(name))')
+        .eq('walker_id', wp.id)
+        .order('created_at', { ascending: false })
+      walkerPayments = data || []
+    }
+
+    const merged = [
+      ...(clientPayments || []).map((p) => ({
+        ...p,
+        type: 'paid',
+        counterpart: p.walker_profiles?.business_name || 'Walker',
+      })),
+      ...walkerPayments.map((p) => ({
+        ...p,
+        type: 'received',
+        counterpart: p.users?.name || 'Client',
+      })),
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+    setPayments(merged)
+    setLoading(false)
+  }
+
   useEffect(() => {
     if (!user) return
-    async function load() {
-      const { data: clientPayments } = await supabase
-        .from('payments')
-        .select('*, walker_profiles(business_name), bookings(services(name))')
-        .eq('client_id', user.id)
-        .order('created_at', { ascending: false })
-
-      let walkerPayments = []
-      if (wp) {
-        const { data } = await supabase
-          .from('payments')
-          .select('*, users!payments_client_id_fkey(name), bookings(services(name))')
-          .eq('walker_id', wp.id)
-          .order('created_at', { ascending: false })
-        walkerPayments = data || []
-      }
-
-      const merged = [
-        ...(clientPayments || []).map((p) => ({
-          ...p,
-          type: 'paid',
-          counterpart: p.walker_profiles?.business_name || 'Walker',
-        })),
-        ...walkerPayments.map((p) => ({
-          ...p,
-          type: 'received',
-          counterpart: p.users?.name || 'Client',
-        })),
-      ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-
-      setPayments(merged)
-      setLoading(false)
-    }
     load()
+    const refresh = () => load()
+    window.addEventListener('account-data-mutated', refresh)
+    return () => window.removeEventListener('account-data-mutated', refresh)
   }, [user?.id, wp?.id])
 
   useAutoSelectFirst({ items: payments, getHref: (p) => `/account/money/${p.id}` })

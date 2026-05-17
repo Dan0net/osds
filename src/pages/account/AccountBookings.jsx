@@ -55,7 +55,11 @@ export default function AccountBookings() {
   }, [isWalker])
 
   useEffect(() => {
-    if (user) loadBookings()
+    if (!user) return
+    loadBookings()
+    const refresh = () => loadBookings()
+    window.addEventListener('account-data-mutated', refresh)
+    return () => window.removeEventListener('account-data-mutated', refresh)
   }, [user?.id, walkerProfile?.id])
 
   async function loadBookings() {

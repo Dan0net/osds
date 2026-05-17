@@ -57,9 +57,9 @@ export function bookingStatusBadge(booking) {
     case 'declined':
       return { label: 'Declined', tone: 'red' }
     case 'cancelled':
-      return { label: 'Cancelled', tone: 'red' }
+      return { label: 'Cancelled', tone: 'gray' }
     case 'refunded':
-      return { label: 'Refunded', tone: 'gray' }
+      return { label: 'Refunded', tone: 'red' }
     case 'hold':
       return { label: 'On hold', tone: 'purple' }
     default:
@@ -111,9 +111,11 @@ export function paymentStatusBadge(payment) {
         ? { label: 'Cash on arrival', tone: 'indigo' }
         : { label: 'Paid', tone: 'green' }
     case 'refunded':
-      return { label: 'Refunded', tone: 'gray' }
+      return { label: 'Refunded', tone: 'red' }
     case 'partially_refunded':
       return { label: 'Partially refunded', tone: 'orange' }
+    case 'cancelled':
+      return { label: 'Cancelled', tone: 'gray' }
     default:
       return { label: status || '', tone: 'gray' }
   }

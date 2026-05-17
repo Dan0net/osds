@@ -154,7 +154,7 @@ export async function handler(event) {
 
     const newTotal = (active || []).reduce((sum, b) => sum + grossUp(b.services?.price_cents || 0), 0)
     const update = { total_cents: newTotal }
-    if (newTotal === 0) update.status = 'refunded'
+    if (newTotal === 0) update.status = 'cancelled'
     await adminSupabase.from('payments').update(update).eq('id', payment.id)
   }
   // ---- Cash or no payment row: just mark cancelled. ----
@@ -170,7 +170,7 @@ export async function handler(event) {
         .eq('payment_id', payment.id)
         .not('status', 'in', '(cancelled,declined,refunded)')
       if (!active || active.length === 0) {
-        await adminSupabase.from('payments').update({ status: 'refunded' }).eq('id', payment.id)
+        await adminSupabase.from('payments').update({ status: 'cancelled' }).eq('id', payment.id)
       }
     }
   }

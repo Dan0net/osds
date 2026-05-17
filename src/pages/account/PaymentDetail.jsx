@@ -88,7 +88,10 @@ export default function PaymentDetail() {
       method: 'POST',
       body: JSON.stringify({ payment_id: paymentId }),
     })
-    if (!res.error) await load()
+    if (!res.error) {
+      window.dispatchEvent(new Event('account-data-mutated'))
+      await load()
+    }
     setActionLoading(null)
   }
 
@@ -98,14 +101,20 @@ export default function PaymentDetail() {
       method: 'POST',
       body: JSON.stringify({ payment_id: paymentId }),
     })
-    if (!res.error) await load()
+    if (!res.error) {
+      window.dispatchEvent(new Event('account-data-mutated'))
+      await load()
+    }
     setActionLoading(null)
   }
 
   async function handleCancelAll() {
     setActionLoading('cancel')
     const res = await cancelBooking({ payment_id: paymentId })
-    if (!res.error) await load()
+    if (!res.error) {
+      window.dispatchEvent(new Event('account-data-mutated'))
+      await load()
+    }
     setActionLoading(null)
     setCancelAllOpen(false)
   }
@@ -114,7 +123,10 @@ export default function PaymentDetail() {
     if (!cancelBookingTarget) return
     setActionLoading('cancel')
     const res = await cancelBooking({ booking_id: cancelBookingTarget.id })
-    if (!res.error) await load()
+    if (!res.error) {
+      window.dispatchEvent(new Event('account-data-mutated'))
+      await load()
+    }
     setActionLoading(null)
     setCancelBookingTarget(null)
   }

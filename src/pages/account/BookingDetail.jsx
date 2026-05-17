@@ -86,6 +86,7 @@ export default function BookingDetail() {
     setActionLoading('cancel')
     const res = await cancelBooking({ booking_id: booking.id })
     if (!res.error) {
+      window.dispatchEvent(new Event('account-data-mutated'))
       await loadBooking()
     }
     setActionLoading(null)
@@ -99,6 +100,7 @@ export default function BookingDetail() {
       body: JSON.stringify({ booking_id: booking.id }),
     })
     if (!res.error) {
+      window.dispatchEvent(new Event('account-data-mutated'))
       await loadBooking()
     }
     setActionLoading(null)
@@ -111,6 +113,7 @@ export default function BookingDetail() {
       body: JSON.stringify({ booking_id: booking.id }),
     })
     if (!res.error) {
+      window.dispatchEvent(new Event('account-data-mutated'))
       await loadBooking()
     }
     setActionLoading(null)
