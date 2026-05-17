@@ -1,6 +1,8 @@
 import { useState, useEffect, useId } from 'react'
+import { Plus } from 'lucide-react'
 import Modal from '../Modal'
 import SearchList from './SearchList'
+import SearchInput from './SearchInput'
 
 function keyOf(item) {
   return item?.id ?? item?.__tempId
@@ -41,6 +43,7 @@ export default function EntityPicker({
   const [submitting, setSubmitting] = useState(false)
   const [localItems, setLocalItems] = useState([])
   const [selected, setSelected] = useState(initialSelected)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     if (open) {
@@ -48,6 +51,7 @@ export default function EntityPicker({
       setFormValid(false)
       setLocalItems([])
       setSelected(initialSelected)
+      setQuery('')
     }
   }, [open])
 
@@ -114,30 +118,48 @@ export default function EntityPicker({
           onValidityChange={setFormValid}
         />
       ) : (
-        <SearchList
-          items={allItems}
-          searchFields={searchFields}
-          renderItem={multiple
-            ? (item) => (
-                <label
-                  key={keyOf(item) ?? item.name}
-                  className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.some((x) => keyOf(x) === keyOf(item))}
-                    onChange={() => toggleItem(item)}
-                    className="w-4 h-4 accent-indigo-600"
-                  />
-                  <div className="flex-1 min-w-0">{renderItemContent(item)}</div>
-                </label>
-              )
-            : (item) => renderItem(item, () => { onSelect(item); handleClose() })
-          }
-          onAdd={() => setMode('add')}
-          addLabel={addLabel}
-          emptyState={emptyState}
-        />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <SearchInput value={query} onChange={setQuery} />
+            </div>
+            {onCreate && (
+              <button
+                type="button"
+                onClick={() => setMode('add')}
+                className="cursor-pointer h-9 px-3 inline-flex items-center justify-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 shrink-0"
+              >
+                <Plus size={16} />
+                <span className="hidden sm:inline">{addLabel}</span>
+              </button>
+            )}
+          </div>
+          <div className="space-y-2">
+            <SearchList
+              items={allItems}
+              query={query}
+              searchFields={searchFields}
+              renderItem={multiple
+                ? (item) => (
+                    <label
+                      key={keyOf(item) ?? item.name}
+                      className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.some((x) => keyOf(x) === keyOf(item))}
+                        onChange={() => toggleItem(item)}
+                        className="w-4 h-4 accent-indigo-600"
+                      />
+                      <div className="flex-1 min-w-0">{renderItemContent(item)}</div>
+                    </label>
+                  )
+                : (item) => renderItem(item, () => { onSelect(item); handleClose() })
+              }
+              emptyState={emptyState}
+            />
+          </div>
+        </div>
       )}
     </Modal>
   )
