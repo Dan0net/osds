@@ -86,7 +86,9 @@ export async function handler(event) {
   const scope = payment_id ? 'payment' : 'booking'
 
   // ---- Paid path: Stripe refund first, then mark bookings cancelled. ----
-  if (payment && payment.status === 'paid') {
+  // Includes 'partially_refunded' so subsequent cancels on a multi-booking
+  // payment still refund the remaining balance instead of silently no-op'ing.
+  if (payment && (payment.status === 'paid' || payment.status === 'partially_refunded')) {
     // Resolve payment intent: prefer cached, fall back to session lookup
     let paymentIntentId = payment.stripe_payment_intent_id
     if (!paymentIntentId && payment.stripe_session_id) {
