@@ -65,9 +65,10 @@ export default function AccountServices() {
     <button
       onClick={() => setAddOpen(true)}
       aria-label="Add service"
-      className="cursor-pointer h-8 w-8 inline-flex items-center justify-center bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+      className="cursor-pointer h-8 px-3 inline-flex items-center justify-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
     >
       <Plus size={16} />
+      Add service
     </button>
   )
 

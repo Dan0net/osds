@@ -139,7 +139,7 @@ export default function ConversationDetail() {
     const map = new Map()
     for (const m of messages) {
       if (m.kind !== 'system') continue
-      const paymentId = m.link?.match(/^\/account\/payments\/([^/?#]+)/)?.[1]
+      const paymentId = m.link?.match(/^\/account\/(?:payments|money)\/([^/?#]+)/)?.[1]
       if (paymentId) map.set(paymentId, m.id)
     }
     return map

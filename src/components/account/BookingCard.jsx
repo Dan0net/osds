@@ -11,6 +11,7 @@ export default function BookingCard({
   state,
   right,
   statusBadge,
+  accentColor,
   onCancel,
   children,
 }) {
@@ -21,15 +22,19 @@ export default function BookingCard({
 
   const inner = (
     <>
-      <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+      <div className="flex items-stretch gap-3">
+        {accentColor && (
+          <span
+            className="w-0.5 rounded-full shrink-0 self-stretch"
+            style={{ backgroundColor: accentColor }}
+            aria-hidden
+          />
+        )}
+        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 self-center">
           <Icon size={14} className="text-gray-500" />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium text-gray-900 truncate">{serviceName || 'Booking'}</p>
-            {statusBadge}
-          </div>
+        <div className="flex-1 min-w-0 self-center">
+          <p className="text-sm font-medium text-gray-900 truncate">{serviceName || 'Booking'}</p>
           {(dateLabel || timeLabel) && (
             <p className="text-xs text-gray-500 truncate">
               {dateLabel}
@@ -38,15 +43,20 @@ export default function BookingCard({
             </p>
           )}
         </div>
-        {right && <div className="shrink-0">{right}</div>}
+        {(right || statusBadge) && (
+          <div className="flex flex-col items-end justify-center gap-1 shrink-0 self-center">
+            {right}
+            {statusBadge}
+          </div>
+        )}
         {onCancel && (
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCancel() }}
             aria-label="Cancel booking"
-            className="cursor-pointer shrink-0 p-1.5 -m-1.5 text-gray-400 hover:text-red-600 transition"
+            className="cursor-pointer shrink-0 self-center p-2 text-gray-400 hover:text-red-600 transition"
           >
-            <Trash2 size={16} />
+            <Trash2 size={20} />
           </button>
         )}
         {to && !onCancel && <ChevronRight size={18} className="text-gray-400 shrink-0 self-center" />}

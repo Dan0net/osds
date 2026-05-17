@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { NAV_ITEMS, filterForRole } from './nav'
 import ProfileChip from './ProfileChip'
 
-export default function Sidebar({ unreadCount = 0 }) {
+export default function Sidebar({ unreadCount = 0, unreadPaymentsCount = 0 }) {
   const { walkerProfile } = useAuth()
   const location = useLocation()
   const isWalker = !!walkerProfile
@@ -46,7 +46,14 @@ export default function Sidebar({ unreadCount = 0 }) {
                   onToggle={() => toggleExpanded(item.key)}
                 />
               ) : (
-                <SidebarRow item={item} badge={item.key === 'messages' ? unreadCount : 0} />
+                <SidebarRow
+                  item={item}
+                  badge={
+                    item.key === 'messages' ? unreadCount
+                      : item.key === 'money' ? unreadPaymentsCount
+                      : 0
+                  }
+                />
               )}
               {hasChildren && isOpen && (
                 <div className="mt-1 space-y-1">

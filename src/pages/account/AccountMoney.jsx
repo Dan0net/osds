@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { stripeDashboardLink } from '../../lib/api'
-import { paymentStatusBadge, toneClass } from '../../lib/bookingStatus'
+import { paymentStatusBadge, toneClass, toneColor } from '../../lib/bookingStatus'
 import { displayPaymentAmount } from '../../lib/utils'
+import { getUnreadPaymentIds } from '../../lib/payments'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
@@ -22,6 +23,7 @@ export default function AccountMoney() {
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [unreadIds, setUnreadIds] = useState(() => new Set())
 
   async function load() {
     if (!user) return
@@ -58,12 +60,22 @@ export default function AccountMoney() {
     setLoading(false)
   }
 
+  async function refreshUnread() {
+    if (!user) return
+    setUnreadIds(await getUnreadPaymentIds(user.id))
+  }
+
   useEffect(() => {
     if (!user) return
     load()
-    const refresh = () => load()
-    window.addEventListener('account-data-mutated', refresh)
-    return () => window.removeEventListener('account-data-mutated', refresh)
+    refreshUnread()
+    const onMutated = () => { load(); refreshUnread() }
+    window.addEventListener('account-data-mutated', onMutated)
+    window.addEventListener('payments-read', refreshUnread)
+    return () => {
+      window.removeEventListener('account-data-mutated', onMutated)
+      window.removeEventListener('payments-read', refreshUnread)
+    }
   }, [user?.id, wp?.id])
 
   useAutoSelectFirst({ items: payments, getHref: (p) => `/account/money/${p.id}` })
@@ -110,14 +122,16 @@ export default function AccountMoney() {
         const viewerIsWalker = p.type === 'received'
         const amountCents = displayPaymentAmount(p, viewerIsWalker)
         const amount = `${viewerIsWalker ? '+' : '−'}£${(amountCents / 100).toFixed(2)}`
+        const isUnread = unreadIds.has(p.id)
         return (
           <ListItem
             key={p.id}
             to={`/account/money/${p.id}`}
             state={{ from: '/account/money' }}
+            accentColor={toneColor(badge.tone)}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{title}</p>
+              <p className={`text-sm truncate ${isUnread ? 'font-semibold' : 'font-medium'}`}>{title}</p>
               <p className="text-xs text-gray-400 truncate mt-0.5">
                 {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
               </p>
@@ -130,6 +144,9 @@ export default function AccountMoney() {
                 {badge.label}
               </span>
             </div>
+            {isUnread && (
+              <span aria-label="Unread" className="w-2 h-2 rounded-full bg-indigo-600 shrink-0 self-center" />
+            )}
           </ListItem>
         )
       })}

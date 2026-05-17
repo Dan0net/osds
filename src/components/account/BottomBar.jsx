@@ -2,14 +2,22 @@ import { NavLink } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { NAV_ITEMS, BOTTOM_BAR_KEYS } from './nav'
 
-export default function BottomBar({ onMore, unreadCount = 0 }) {
+export default function BottomBar({ onMore, unreadCount = 0, unreadPaymentsCount = 0 }) {
   const bottomItems = BOTTOM_BAR_KEYS.map((key) => NAV_ITEMS.find((i) => i.key === key))
 
   return (
     <nav className="lg:hidden fixed bottom-[var(--install-prompt-h,0px)] left-0 right-0 z-40 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
       <div className="flex">
         {bottomItems.map((item) => (
-          <BottomTab key={item.key} item={item} badge={item.key === 'messages' ? unreadCount : 0} />
+          <BottomTab
+            key={item.key}
+            item={item}
+            badge={
+              item.key === 'messages' ? unreadCount
+                : item.key === 'money' ? unreadPaymentsCount
+                : 0
+            }
+          />
         ))}
         <button
           onClick={onMore}

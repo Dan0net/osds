@@ -3,6 +3,7 @@ import { Outlet, useLocation, matchPath } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { getUnreadCounts } from '../../lib/messaging'
+import { getUnreadPaymentIds } from '../../lib/payments'
 import InstallPrompt from '../../components/InstallPrompt'
 import Sidebar from '../../components/account/Sidebar'
 import BottomBar from '../../components/account/BottomBar'
@@ -13,6 +14,7 @@ export default function AccountLayout() {
   const location = useLocation()
   const isConversation = !!matchPath('/account/messages/:conversationId', location.pathname)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadPayments, setUnreadPayments] = useState(() => new Set())
   const [moreOpen, setMoreOpen] = useState(false)
   const [installPromptVisible, setInstallPromptVisible] = useState(false)
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null)
@@ -25,12 +27,19 @@ export default function AccountLayout() {
     setUnreadCount(total)
   }
 
+  async function refreshUnreadPayments() {
+    if (!user) return
+    setUnreadPayments(await getUnreadPaymentIds(user.id))
+  }
+
   useEffect(() => {
     if (!user) return
     refreshUnread()
+    refreshUnreadPayments()
     window.addEventListener('notifications-read', refreshUnread)
+    window.addEventListener('payments-read', refreshUnreadPayments)
 
-    const channel = supabase
+    const messagesChannel = supabase
       .channel(`messages-for-${user.id}`)
       .on(
         'postgres_changes',
@@ -43,9 +52,23 @@ export default function AccountLayout() {
       )
       .subscribe()
 
+    const paymentsChannel = supabase
+      .channel(`payments-for-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        () => {
+          refreshUnreadPayments()
+          window.dispatchEvent(new Event('account-data-mutated'))
+        },
+      )
+      .subscribe()
+
     return () => {
       window.removeEventListener('notifications-read', refreshUnread)
-      supabase.removeChannel(channel)
+      window.removeEventListener('payments-read', refreshUnreadPayments)
+      supabase.removeChannel(messagesChannel)
+      supabase.removeChannel(paymentsChannel)
     }
   }, [user?.id])
 
@@ -110,8 +133,8 @@ export default function AccountLayout() {
         '--list-sidebar-w': '21rem',
       }}
     >
-      <Sidebar unreadCount={unreadCount} />
-      <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} />
+      <Sidebar unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.size} />
+      <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.size} />
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
       <main className={`lg:ml-56 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block ${isConversation ? 'lg:pb-[var(--install-prompt-h)]' : 'lg:pb-[calc(2rem+var(--install-prompt-h))]'}`}>

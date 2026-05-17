@@ -4,8 +4,9 @@ import { User, PawPrint, CreditCard, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { createCheckout, cancelBooking, apiFetch } from '../../lib/api'
-import { paymentStatusBadge, bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
+import { paymentStatusBadge, bookingStatusBadge, toneClass, toneColor } from '../../lib/bookingStatus'
 import { displayPaymentAmount, displayServicePrice } from '../../lib/utils'
+import { markPaymentRead } from '../../lib/payments'
 import DetailHeader from '../../components/account/DetailHeader'
 import DetailHero from '../../components/account/DetailHero'
 import LinkRow from '../../components/account/LinkRow'
@@ -37,6 +38,7 @@ export default function PaymentDetail() {
   useEffect(() => {
     if (!user) return
     load()
+    markPaymentRead(paymentId, user.id)
   }, [user?.id, paymentId])
 
   async function load() {
@@ -252,6 +254,7 @@ export default function PaymentDetail() {
                   endTime={b.end_time}
                   to={`/account/bookings/${b.id}`}
                   state={stateBack}
+                  accentColor={toneColor(bookingBadge.tone)}
                   statusBadge={
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${toneClass(bookingBadge.tone)}`}>
                       {bookingBadge.label}
@@ -267,7 +270,7 @@ export default function PaymentDetail() {
                   onCancel={cancellable ? () => setCancelBookingTarget(b) : undefined}
                 >
                   {bRefunds.length > 0 && (
-                    <div className="mt-2 pl-11 space-y-0.5">
+                    <div className="mt-2 pl-[3.5rem] space-y-0.5">
                       {bRefunds.map((r) => (
                         <p key={r.id} className="text-xs text-gray-500">
                           Refunded £{(r.amount_cents / 100).toFixed(2)} on {new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
@@ -299,7 +302,7 @@ export default function PaymentDetail() {
           </div>
         </div>
 
-        {(canPay || canApproveAll || anyCancellable) && (
+        {(canPay || canApproveAll) && (
           <div className="bg-white border border-gray-200 rounded-lg p-4 lg:p-5 flex flex-wrap gap-2">
             {canPay && (
               <button
@@ -328,19 +331,20 @@ export default function PaymentDetail() {
                 </button>
               </>
             )}
-            {anyCancellable && (
-              <button
-                onClick={() => setCancelAllOpen(true)}
-                disabled={!!actionLoading}
-                className="cursor-pointer inline-flex items-center gap-1.5 text-sm font-medium text-red-600 border border-red-200 bg-white hover:bg-red-50 px-4 py-2 rounded-lg disabled:opacity-50"
-              >
-                <Trash2 size={16} />
-                {someAlreadyCancelled ? 'Cancel remaining' : 'Cancel all'}
-              </button>
-            )}
           </div>
         )}
       </div>
+
+      {anyCancellable && (
+        <button
+          onClick={() => setCancelAllOpen(true)}
+          disabled={!!actionLoading}
+          className="cursor-pointer mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-red-600 border border-red-200 bg-white hover:bg-red-50 px-4 py-2 rounded-lg disabled:opacity-50"
+        >
+          <Trash2 size={16} />
+          {someAlreadyCancelled ? 'Cancel remaining' : 'Cancel all'}
+        </button>
+      )}
 
       <ConfirmModal
         open={cancelAllOpen}
