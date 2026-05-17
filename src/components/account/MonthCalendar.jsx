@@ -6,6 +6,7 @@ import {
 } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import DaySegments from './DaySegments'
+import { isEventPast } from '../../lib/eventTime'
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const SWIPE_THRESHOLD = 40
@@ -34,11 +35,12 @@ function MonthGrid({ month, days, eventsByDay, selectedDate, onSelect, suppressC
         const inMonth = isSameMonth(day, month)
         const isSelected = inMonth && selectedDate && isSameDay(day, selectedDate)
         const isTodayCell = inMonth && isToday(day) && !isSelected
-        const isPast = day < today && !isSameDay(day, today)
+        const isPastDay = day < today && !isSameDay(day, today)
+        const isPast = isPastDay || (events.length > 0 && events.every((e) => isEventPast(e, today)))
         const rowIndex = Math.floor(i / 7)
 
         let numberClass = 'text-gray-700'
-        if (isPast) numberClass = 'text-gray-400'
+        if (isPastDay) numberClass = 'text-gray-400'
         if (isTodayCell) numberClass = 'text-indigo-600 font-semibold'
 
         function handleClick() {
@@ -66,7 +68,9 @@ function MonthGrid({ month, days, eventsByDay, selectedDate, onSelect, suppressC
             ) : (
               <span className="w-7 h-7" aria-hidden />
             )}
-            <DaySegments events={inMonth ? events : []} />
+            <div className={isPast ? 'opacity-40' : ''}>
+              <DaySegments events={inMonth ? events : []} />
+            </div>
           </button>
         )
       })}

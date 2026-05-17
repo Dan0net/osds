@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, useLocation, useNavigate, matchPath } from 'react-router-dom'
 import { format, parseISO, addDays, isToday, isTomorrow } from 'date-fns'
 import MapButton from './MapButton'
+import { isEventPast } from '../../lib/eventTime'
 
 function dayHeading(dateStr) {
   const d = parseISO(dateStr)
@@ -17,6 +18,7 @@ function buildDays(startStr, count) {
 
 function EventRow({ event, activeId }) {
   const inactive = event.inactive
+  const past = isEventPast(event)
   const navigate = useNavigate()
   const isActive = activeId === event.id
   const inner = (
@@ -48,14 +50,16 @@ function EventRow({ event, activeId }) {
     </>
   )
   if (event.external) {
-    return <div className="flex items-center gap-2.5 px-2 py-1.5 opacity-60">{inner}</div>
+    return <div className={`flex items-center gap-2.5 px-2 py-1.5 ${past ? 'opacity-30' : 'opacity-60'}`}>{inner}</div>
   }
   const base = 'flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition'
   const className = isActive
     ? `${base} bg-indigo-50`
     : inactive
       ? `${base} opacity-60 hover:bg-gray-50 hover:opacity-80`
-      : `${base} hover:bg-gray-50`
+      : past
+        ? `${base} opacity-50 hover:bg-gray-50 hover:opacity-80`
+        : `${base} hover:bg-gray-50`
 
   return (
     <NavLink
