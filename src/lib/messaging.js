@@ -21,7 +21,7 @@ export async function getUnreadCounts(userId) {
       .select('id', { count: 'exact', head: true })
       .eq('conversation_id', c.id)
       .gt('created_at', lastRead)
-      .neq('sender_user_id', userId)
+      .or(`sender_user_id.is.null,sender_user_id.neq.${userId}`)
     return [c.id, count || 0]
   }))
   return new Map(entries)
