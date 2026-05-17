@@ -440,7 +440,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
           </button>
         )}
         FormComponent={ServiceForm}
-        onSelect={(s) => { setBookingService(s); setSelectedSlots([]) }}
+        onSelect={setBookingService}
         onCreate={handleCreateService}
         addLabel="Add new"
         emptyState="No services yet. Tap Add new to create one."
