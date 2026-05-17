@@ -14,6 +14,7 @@ export default function ConversationDetail() {
 
   const [conversation, setConversation] = useState(null)
   const [messages, setMessages] = useState([])
+  const [paymentMap, setPaymentMap] = useState(() => new Map())
   const [loading, setLoading] = useState(true)
   const scrollRef = useRef(null)
 
@@ -77,6 +78,40 @@ export default function ConversationDetail() {
     root.scrollTop = root.scrollHeight
   }, [messages.length, loading])
 
+  // Enrich system-message panels with payment data (price, booking count, source).
+  // Status badge is derived from event_type, not fetched, so old messages stay frozen.
+  useEffect(() => {
+    const ids = new Set()
+    for (const m of messages) {
+      if (m.kind !== 'system' || !m.link) continue
+      const match = m.link.match(/^\/account\/payments\/([^/?#]+)/)
+      if (match && !paymentMap.has(match[1])) ids.add(match[1])
+    }
+    if (ids.size === 0) return
+    let cancelled = false
+    supabase
+      .from('payments')
+      .select('id, source, total_cents, bookings(id, services(name))')
+      .in('id', Array.from(ids))
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setPaymentMap((prev) => {
+          const next = new Map(prev)
+          for (const p of data) {
+            const bookings = p.bookings || []
+            next.set(p.id, {
+              source: p.source,
+              totalCents: p.total_cents,
+              bookingCount: bookings.length,
+              firstServiceName: bookings[0]?.services?.name || null,
+            })
+          }
+          return next
+        })
+      })
+    return () => { cancelled = true }
+  }, [messages])
+
   async function sendMessage(body) {
     const optimistic = {
       id: `tmp-${Date.now()}`,
@@ -126,7 +161,13 @@ export default function ConversationDetail() {
             <p className="text-sm text-gray-400 text-center">No messages yet. Say hi.</p>
           ) : (
             messages.map((m) => (
-              <MessageBubble key={m.id} message={m} isSelf={m.sender_user_id === user.id} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                isSelf={m.sender_user_id === user.id}
+                paymentMap={paymentMap}
+                isOwner={!isWalker}
+              />
             ))
           )}
         </div>

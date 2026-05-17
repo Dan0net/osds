@@ -132,13 +132,13 @@ export async function handler(event) {
       type: 'booking_rescheduled',
       title: 'Booking rescheduled',
       body: `${walkerName} moved your ${svcName} from ${oldWhen} to ${newWhen}`,
-      link: `/account/bookings/${booking_id}`,
+      link: `/account/payments/${booking.payment_id}`,
       emailSubject: `${walkerName} rescheduled your booking`,
       emailHtml: emailTemplate('Booking rescheduled', [
         `<strong>${esc(walkerName)}</strong> has moved your <strong>${esc(svcName)}</strong>.`,
         `<strong>From:</strong> ${esc(oldWhen)}`,
         `<strong>To:</strong> ${esc(newWhen)}`,
-      ], 'View bookings', `${siteUrl}/account/bookings/${booking_id}`),
+      ], 'View payment', `${siteUrl}/account/payments/${booking.payment_id}`),
     },
   })
 

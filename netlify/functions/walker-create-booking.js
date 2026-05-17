@@ -258,12 +258,12 @@ export async function handler(event) {
         type: 'booking_payment_link',
         title: 'Payment requested',
         body: `${wp.business_name} requests payment for ${serviceNames} on ${when}`,
-        link: checkoutUrl || `/account/payments/${payment.id}`,
+        link: `/account/payments/${payment.id}`,
         emailSubject: `Payment requested from ${wp.business_name}`,
         emailHtml: emailTemplate('Payment requested', [
           `<strong>${esc(wp.business_name)}</strong> has booked <strong>${esc(serviceNames)}</strong> for you on ${esc(when)}.`,
           'Please complete payment to confirm your booking. You don\'t need to sign in first — the link below opens the secure Stripe checkout.',
-        ], 'Pay now', checkoutUrl || 'https://onestopdog.shop/account/bookings'),
+        ], 'Pay now', checkoutUrl),
       },
     })
   }

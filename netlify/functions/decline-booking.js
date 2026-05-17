@@ -126,7 +126,7 @@ export async function handler(event) {
       type: 'booking_declined',
       title: 'Booking declined',
       body: `${wName} declined your ${svcName} on ${when}`,
-      link: updated.payment_id ? `/account/payments/${updated.payment_id}` : `/account/bookings/${booking_id}`,
+      link: `/account/payments/${updated.payment_id}`,
       emailSubject: `${wName} declined your booking request`,
       emailHtml: emailTemplate('Booking declined', [
         `Unfortunately, <strong>${esc(wName)}</strong> was unable to accept your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,

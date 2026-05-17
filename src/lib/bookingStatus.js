@@ -66,6 +66,36 @@ export function bookingStatusBadge(booking) {
   }
 }
 
+// Frozen-in-time badge for system message lifecycle events. Drives the
+// pill + bar colour on conversation system messages. Reading the live
+// payments.status would mutate old messages as the payment progresses.
+export function eventStatusBadge(eventType, paymentSource) {
+  const isCash = paymentSource === 'cash'
+  switch (eventType) {
+    case 'booking_request':
+      return { label: 'Pending approval', tone: 'yellow' }
+    case 'booking_approved':
+    case 'booking_payment_link':
+      return isCash
+        ? { label: 'Cash on arrival', tone: 'indigo' }
+        : { label: 'Awaiting payment', tone: 'blue' }
+    case 'payment_confirmed':
+      return { label: 'Paid', tone: 'green' }
+    case 'booking_confirmed':
+      return isCash
+        ? { label: 'Cash on arrival', tone: 'indigo' }
+        : { label: 'Paid', tone: 'green' }
+    case 'booking_declined':
+      return { label: 'Declined', tone: 'red' }
+    case 'booking_cancelled':
+      return { label: 'Cancelled', tone: 'red' }
+    case 'booking_rescheduled':
+      return { label: 'Rescheduled', tone: 'orange' }
+    default:
+      return null
+  }
+}
+
 export function paymentStatusBadge(payment) {
   if (!payment) return { label: '', tone: 'gray' }
   const status = payment.status
