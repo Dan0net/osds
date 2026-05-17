@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { sendChatMessage } from '../../lib/api'
@@ -131,6 +131,18 @@ export default function ConversationDetail() {
     setMessages((prev) => prev.map((m) => m.id === optimistic.id ? data : m))
   }
 
+  // For each payment_id referenced by a system message, find the id of the
+  // latest message — older system messages for the same payment are stale.
+  const latestMessageIdByPayment = useMemo(() => {
+    const map = new Map()
+    for (const m of messages) {
+      if (m.kind !== 'system') continue
+      const paymentId = m.link?.match(/^\/account\/payments\/([^/?#]+)/)?.[1]
+      if (paymentId) map.set(paymentId, m.id)
+    }
+    return map
+  }, [messages])
+
   const counterpartyName = isWalker
     ? (conversation?.users?.name || 'Customer')
     : (conversation?.walker_profiles?.business_name || 'Walker')
@@ -166,6 +178,7 @@ export default function ConversationDetail() {
                 message={m}
                 isSelf={m.sender_user_id === user.id}
                 paymentMap={paymentMap}
+                latestMessageIdByPayment={latestMessageIdByPayment}
                 isOwner={!isWalker}
               />
             ))
