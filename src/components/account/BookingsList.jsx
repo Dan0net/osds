@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, matchPath } from 'react-router-dom'
 import { format, parseISO, addDays, isToday, isTomorrow } from 'date-fns'
 import MapButton from './MapButton'
 
@@ -15,8 +15,10 @@ function buildDays(startStr, count) {
   return Array.from({ length: count }, (_, i) => format(addDays(start, i), 'yyyy-MM-dd'))
 }
 
-function EventRow({ event }) {
+function EventRow({ event, activeId }) {
   const inactive = event.inactive
+  const navigate = useNavigate()
+  const isActive = activeId === event.id
   const inner = (
     <>
       <span className="w-0.5 rounded-full shrink-0 self-stretch" style={{ backgroundColor: event.color }} />
@@ -46,16 +48,30 @@ function EventRow({ event }) {
     </>
   )
   if (event.external) {
-    return <div className="flex items-center gap-2.5 py-1">{inner}</div>
+    return <div className="flex items-center gap-2.5 px-2 py-1.5">{inner}</div>
   }
+  const base = 'flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition'
+  const className = isActive
+    ? `${base} bg-indigo-50`
+    : inactive
+      ? `${base} opacity-60 hover:bg-gray-50 hover:opacity-80`
+      : `${base} hover:bg-gray-50`
+
   return (
-    <Link
+    <NavLink
       to={`/account/bookings/${event.id}`}
       state={{ from: '/account/bookings' }}
-      className={`flex items-center gap-2.5 py-1 transition-opacity ${inactive ? 'opacity-60 hover:opacity-80' : 'hover:opacity-70'}`}
+      end
+      onClick={(e) => {
+        if (isActive) {
+          e.preventDefault()
+          navigate('/account/bookings')
+        }
+      }}
+      className={className}
     >
       {inner}
-    </Link>
+    </NavLink>
   )
 }
 
@@ -104,6 +120,8 @@ function SetupSection({ items }) {
 const PAST_DAYS = 30
 
 export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, setupItems, scrollRef: externalScrollRef, className = '' }) {
+  const location = useLocation()
+  const activeId = matchPath('/account/bookings/:bookingId', location.pathname)?.params?.bookingId
   const [days, setDays] = useState(() => buildDays(format(addDays(new Date(), -PAST_DAYS), 'yyyy-MM-dd'), PAST_DAYS + 90))
 
   const internalScrollRef = useRef(null)
@@ -227,7 +245,7 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
             ) : (
               <div>
                 {events.map((event, i) => (
-                  <EventRow key={event.id + '-' + i} event={event} />
+                  <EventRow key={event.id + '-' + i} event={event} activeId={activeId} />
                 ))}
               </div>
             )}

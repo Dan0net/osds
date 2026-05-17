@@ -161,53 +161,57 @@ export default function AccountBookings() {
   return (
     <>
       <div className="lg:hidden">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <h1 className="text-xl truncate">{format(visibleMonth, 'MMMM yyyy')}</h1>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleTodayClick}
-              className="cursor-pointer h-9 px-3 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
-              Today
-            </button>
-            {isWalker && (
-              <button
-                onClick={() => setCreateBookingModal(true)}
-                aria-label="Add booking"
-                className="cursor-pointer h-9 w-9 sm:w-auto sm:px-4 inline-flex items-center justify-center sm:gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
-              >
-                <Plus size={16} />
-                <span className="hidden sm:inline">Add booking</span>
-              </button>
+        {outlet ? outlet : (
+          <>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <h1 className="text-xl truncate">{format(visibleMonth, 'MMMM yyyy')}</h1>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleTodayClick}
+                  className="cursor-pointer h-9 px-3 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                >
+                  Today
+                </button>
+                {isWalker && (
+                  <button
+                    onClick={() => setCreateBookingModal(true)}
+                    aria-label="Add booking"
+                    className="cursor-pointer h-9 w-9 sm:w-auto sm:px-4 inline-flex items-center justify-center sm:gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
+                  >
+                    <Plus size={16} />
+                    <span className="hidden sm:inline">Add booking</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {banner}
+
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="h-[calc(50dvh-5.5rem)]">
+                <MonthCalendar
+                  eventsByDay={eventsByDay}
+                  selectedDate={selectedDate}
+                  onSelect={handleSelectDate}
+                  onToday={handleTodayClick}
+                  month={visibleMonth}
+                  onMonthChange={setVisibleMonth}
+                />
+                <BookingsSidebar
+                  eventsByDay={eventsByDay}
+                  selectedDate={selectedDate}
+                  onSelectDate={handleSelectDate}
+                  setupItems={setupItems}
+                  drawerHeight={drawerHeight}
+                  onToggleDrawerHeight={() => setDrawerHeight((h) => (h === 'half' ? 'full' : 'half'))}
+                />
+              </div>
             )}
-          </div>
-        </div>
-
-        {banner}
-
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <div className="h-[calc(50dvh-5.5rem)]">
-            <MonthCalendar
-              eventsByDay={eventsByDay}
-              selectedDate={selectedDate}
-              onSelect={handleSelectDate}
-              onToday={handleTodayClick}
-              month={visibleMonth}
-              onMonthChange={setVisibleMonth}
-            />
-            <BookingsSidebar
-              eventsByDay={eventsByDay}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              setupItems={setupItems}
-              drawerHeight={drawerHeight}
-              onToggleDrawerHeight={() => setDrawerHeight((h) => (h === 'half' ? 'full' : 'half'))}
-            />
-          </div>
+          </>
         )}
       </div>
 
