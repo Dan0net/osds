@@ -84,8 +84,8 @@ export async function handler(event) {
         emailSubject: `Your booking with ${walkerName} has been approved`,
         emailHtml: emailTemplate('Booking approved', [
           `Great news! <strong>${esc(walkerName)}</strong> has approved your booking.`,
-          'You can now proceed to pay from your bookings page.',
-        ], 'Pay now', `${siteUrl}/account/payments/${payment_id}`),
+          'Tap below to complete payment securely on Stripe.',
+        ], 'Pay now', `${siteUrl}/.netlify/functions/pay-redirect?payment_id=${payment_id}`),
       },
     })
 
@@ -166,8 +166,8 @@ export async function handler(event) {
       emailSubject: `Your booking with ${wName} has been approved`,
       emailHtml: emailTemplate('Booking approved', [
         `Great news! <strong>${esc(wName)}</strong> has approved your <strong>${esc(svcName)}</strong> on ${esc(when)}.`,
-        'You can now proceed to pay from your bookings page.',
-      ], 'Pay now', `${siteUrl2}/account/payments/${updated.payment_id}`),
+        'Tap below to complete payment securely on Stripe.',
+      ], 'Pay now', `${siteUrl2}/.netlify/functions/pay-redirect?payment_id=${updated.payment_id}`),
     },
   })
 

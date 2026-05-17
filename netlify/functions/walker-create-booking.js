@@ -211,8 +211,8 @@ export async function handler(event) {
         application_fee_amount: platformFeeCents,
         transfer_data: { destination: wp.stripe_account_id },
       },
-      success_url: `${siteUrl}/account/bookings?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/account/bookings?payment=cancelled`,
+      success_url: `${siteUrl}/account/money/${payment.id}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/account/money/${payment.id}?payment=cancelled`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       metadata: {
         payment_id: payment.id,

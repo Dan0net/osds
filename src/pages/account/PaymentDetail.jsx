@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useLocation } from 'react-router-dom'
+import { useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { User, PawPrint, CreditCard, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -12,6 +12,7 @@ import DetailHero from '../../components/account/DetailHero'
 import LinkRow from '../../components/account/LinkRow'
 import BookingCard from '../../components/account/BookingCard'
 import ConfirmModal from '../../components/ConfirmModal'
+import PaidSuccessModal from '../../components/account/PaidSuccessModal'
 
 const CANCELLABLE = new Set(['requested', 'approved', 'hold', 'confirmed', 'pending'])
 
@@ -34,12 +35,22 @@ export default function PaymentDetail() {
   const [actionLoading, setActionLoading] = useState(null)
   const [cancelAllOpen, setCancelAllOpen] = useState(false)
   const [cancelBookingTarget, setCancelBookingTarget] = useState(null)
+  const [paySuccessOpen, setPaySuccessOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
     if (!user) return
     load()
     markPaymentRead(paymentId, user.id)
   }, [user?.id, paymentId])
+
+  useEffect(() => {
+    if (searchParams.get('payment') !== 'success') return
+    setPaySuccessOpen(true)
+    searchParams.delete('payment')
+    searchParams.delete('session_id')
+    setSearchParams(searchParams, { replace: true })
+  }, [])
 
   async function load() {
     setLoading(true)
@@ -375,6 +386,11 @@ export default function PaymentDetail() {
         cancelLabel="Keep"
         confirmTone="danger"
         loading={actionLoading === 'cancel'}
+      />
+
+      <PaidSuccessModal
+        open={paySuccessOpen}
+        onClose={() => setPaySuccessOpen(false)}
       />
     </>
   )
