@@ -44,7 +44,7 @@ function paneDatesFromAnchor(anchorStr, count = 3) {
 // --- Positioned block on the time grid ---
 const TIME_COL = 40
 const PX_PER_HOUR_DESKTOP = 48
-const PX_PER_HOUR_MOBILE = 64
+const PX_PER_HOUR_MOBILE = 96
 const TOP_PAD = 10
 const MOBILE_PANE_DAYS = 3
 const MOBILE_GRID_MAX_HEIGHT = 'calc(100dvh - 220px)'
@@ -646,8 +646,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
           ref={paneRef}
           className={`relative select-none ${interactive ? 'cursor-pointer' : ''}`}
           style={{ height: `${bodyHeight}px` }}
-          onMouseMove={interactive && !loadingSlots ? handleMouseMove : undefined}
-          onMouseLeave={interactive ? () => setHoverCell(null) : undefined}
+          onMouseMove={interactive && !loadingSlots && !isMobile ? handleMouseMove : undefined}
+          onMouseLeave={interactive && !isMobile ? () => setHoverCell(null) : undefined}
           onClick={interactive && !loadingSlots ? handleClick : undefined}
         >
           {loadingSlots && (
