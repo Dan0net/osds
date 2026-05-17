@@ -340,7 +340,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const DRAG_PX = 5
 
   function startDrag(index, cx, cy, e) {
-    e.stopPropagation(); e.preventDefault()
+    e.stopPropagation()
+    if (e.type !== 'touchstart') e.preventDefault()
     setDragging({ index, startX: cx, startY: cy, moved: false })
     setDragCell(null)
   }
@@ -369,7 +370,14 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     window.addEventListener('mouseup', end)
     window.addEventListener('touchmove', tm, { passive: true })
     window.addEventListener('touchend', end)
-    return () => { window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', end); window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', end) }
+    window.addEventListener('touchcancel', end)
+    return () => {
+      window.removeEventListener('mousemove', mm)
+      window.removeEventListener('mouseup', end)
+      window.removeEventListener('touchmove', tm)
+      window.removeEventListener('touchend', end)
+      window.removeEventListener('touchcancel', end)
+    }
   }, [dragging, dragCell])
 
   useEffect(() => { atMobileStartRef.current = atMobileStart }, [atMobileStart])
@@ -556,7 +564,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
           onMouseDown={(e) => { if (!e.target.closest('[data-remove]')) startDrag(i, e.clientX, e.clientY, e) }}
           onTouchStart={(e) => { if (!e.target.closest('[data-remove]') && e.touches.length) startDrag(i, e.touches[0].clientX, e.touches[0].clientY, e) }}
           className="absolute rounded bg-indigo-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-start justify-between group cursor-grab active:cursor-grabbing hover:bg-indigo-700 transition-colors"
-          style={{ ...topHeight(parseTime(slot.time), slot.durationMinutes, startHour), ...colCSS(ci, paneCols), zIndex: 20 }}>
+          style={{ ...topHeight(parseTime(slot.time), slot.durationMinutes, startHour), ...colCSS(ci, paneCols), zIndex: 20, touchAction: 'none' }}>
           <span className="truncate leading-tight">{slot.time} {slot.serviceName}</span>
           <RemoveBtn onClick={() => removeSlot(i)} />
         </div>
@@ -605,21 +613,6 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
       })
       return blocks
     })
-  }
-
-  function renderDragGhost(paneDates) {
-    if (!dragging?.moved || !dragCell) return null
-    const paneCols = paneDates.length
-    const slot = selectedSlots[dragging.index]
-    if (!slot) return null
-    const ci = paneDates.indexOf(dragCell.date)
-    if (ci < 0) return null
-    return (
-      <div className="absolute rounded bg-indigo-500/60 border-2 border-indigo-400 border-dashed text-white px-1.5 py-0.5 text-[10px] pointer-events-none"
-        style={{ ...topHeight(dragCell.minutes, slot.durationMinutes, startHour), ...colCSS(ci, paneCols), zIndex: 30 }}>
-        {timeStr(dragCell.minutes)} {slot.serviceName}
-      </div>
-    )
   }
 
   function DayPane({ dates, paneRef, interactive }) {
@@ -678,7 +671,6 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
           {interactive && renderHoverGhost(dates)}
           {renderStandardEvents(dates)}
           {renderOvernightEvents(dates)}
-          {interactive && renderDragGhost(dates)}
         </div>
       </div>
     )
