@@ -43,9 +43,10 @@ function computeSlotsForDate(date, { duration, isOvernight, blockedSet, availByD
     endMinutes = Math.min(endMinutes, 19 * 60)
   }
 
-  // Generate all possible slots
+  // Generate all possible 30-min slots in the walker's working window.
+  // Duration-fit is decided client-side at placement time.
   const allSlots = []
-  for (let m = startMinutes; m + duration <= endMinutes; m += 30) {
+  for (let m = startMinutes; m + 30 <= endMinutes; m += 30) {
     const h = Math.floor(m / 60)
     const min = m % 60
     allSlots.push(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`)
@@ -122,18 +123,10 @@ function computeSlotsForDate(date, { duration, isOvernight, blockedSet, availByD
     }
   }
 
-  // Filter available slots
-  const slots = allSlots.filter((slot) => {
-    if (overnightBlocked.has(slot)) return false
-    const [h, m] = slot.split(':').map(Number)
-    const startMin = h * 60 + m
-    for (let checkM = startMin; checkM < startMin + duration; checkM += 30) {
-      const checkSlot = `${String(Math.floor(checkM / 60)).padStart(2, '0')}:${String(checkM % 60).padStart(2, '0')}`
-      const usage = slotUsage[checkSlot] || 0
-      if (usage >= 1) return false
-    }
-    return true
-  })
+  // Base availability per 30-min cell — duration-fit is gated client-side.
+  const slots = allSlots.filter((slot) =>
+    !overnightBlocked.has(slot) && (slotUsage[slot] || 0) < 1,
+  )
 
   return { slots, allSlots }
 }

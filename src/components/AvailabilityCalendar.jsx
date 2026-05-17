@@ -245,6 +245,12 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const gridCols = visibleDates.length
 
   // --- Availability checks ---
+  // Base availability: is this 30-min cell free per the walker's hours / existing usage?
+  function slotIsFree(date, time) {
+    return !!weekSlots[date]?.includes(time)
+  }
+
+  // Service-fit: does the chosen service fit if started at this cell? Used to gate placement.
   function slotAvailable(date, time) {
     const slots = weekSlots[date]
     if (!slots?.includes(time)) return false
@@ -504,7 +510,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     return paneDates.map((date, ci) => {
       const ranges = []
       for (let m = startHour * 60; m < endHour * 60; m += 30) {
-        if (date < todayStr || !slotAvailable(date, timeStr(m))) {
+        if (date < todayStr || !slotIsFree(date, timeStr(m))) {
           const last = ranges[ranges.length - 1]
           if (last?.end === m) last.end = m + 30
           else ranges.push({ start: m, end: m + 30 })
