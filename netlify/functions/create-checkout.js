@@ -69,12 +69,14 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Walker has not finished Stripe onboarding' }) }
   }
 
-  // Get booking details for line items
+  // Get booking details for line items. 'hold' is included so retrying Pay-now
+  // after a cancelled Stripe session works — the previous call flipped bookings
+  // from approved/pending to hold and the customer may need a fresh session.
   const { data: bookings } = await supabase
     .from('bookings')
     .select('*, services(name, price_cents, duration_minutes, service_type)')
     .eq('payment_id', payment_id)
-    .in('status', ['approved', 'pending'])
+    .in('status', ['approved', 'pending', 'hold'])
 
   if (!bookings || bookings.length === 0) {
     return { statusCode: 400, body: JSON.stringify({ error: 'No payable bookings found' }) }
@@ -145,7 +147,7 @@ export async function handler(event) {
     .from('bookings')
     .update({ status: 'hold' })
     .eq('payment_id', payment_id)
-    .in('status', ['approved', 'pending'])
+    .in('status', ['approved', 'pending', 'hold'])
 
   return {
     statusCode: 200,
