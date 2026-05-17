@@ -4,7 +4,6 @@ import { supabase } from '../../lib/supabase'
 import { sendChatMessage } from '../../lib/api'
 import { useAuth } from '../../hooks/useAuth'
 import DetailHeader from '../../components/account/DetailHeader'
-import ConversationHeader from '../../components/account/ConversationHeader'
 import MessageBubble from '../../components/account/MessageBubble'
 import MessageComposer from '../../components/account/MessageComposer'
 
@@ -109,33 +108,31 @@ export default function ConversationDetail() {
   const counterpartyTarget = !isWalker ? '_blank' : undefined
 
   return (
-    <div className="flex flex-col h-full lg:h-[calc(100vh-3rem-var(--install-prompt-h,0px))]">
+    <div className="flex flex-col h-full pt-3 lg:pt-5 lg:h-[calc(100vh-var(--install-prompt-h,0px))]">
       <DetailHeader
         backHref="/account/messages"
         backLabel="Messages"
         title={counterpartyName}
-      />
-
-      <ConversationHeader
-        name={counterpartyName}
         avatarUrl={counterpartyAvatar}
-        to={counterpartyTo}
-        target={counterpartyTarget}
+        titleHref={counterpartyTo}
+        titleTarget={counterpartyTarget}
       />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto py-3 space-y-2">
-        {loading ? (
-          <p className="text-sm text-gray-400 text-center">Loading…</p>
-        ) : messages.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center">No messages yet. Say hi.</p>
-        ) : (
-          messages.map((m) => (
-            <MessageBubble key={m.id} message={m} isSelf={m.sender_user_id === user.id} />
-          ))
-        )}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="min-h-full flex flex-col justify-end py-3 space-y-2">
+          {loading ? (
+            <p className="text-sm text-gray-400 text-center">Loading…</p>
+          ) : messages.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center">No messages yet. Say hi.</p>
+          ) : (
+            messages.map((m) => (
+              <MessageBubble key={m.id} message={m} isSelf={m.sender_user_id === user.id} />
+            ))
+          )}
+        </div>
       </div>
 
-      <div className="-mx-4 lg:-mx-0 lg:mt-2">
+      <div className="-mx-4">
         <MessageComposer onSend={sendMessage} disabled={loading} />
       </div>
     </div>

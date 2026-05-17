@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation, matchPath } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { getUnreadCounts } from '../../lib/messaging'
@@ -10,6 +10,8 @@ import MoreDrawer from '../../components/account/MoreDrawer'
 
 export default function AccountLayout() {
   const { user } = useAuth()
+  const location = useLocation()
+  const isConversation = !!matchPath('/account/messages/:conversationId', location.pathname)
   const [unreadCount, setUnreadCount] = useState(0)
   const [moreOpen, setMoreOpen] = useState(false)
   const [installPromptVisible, setInstallPromptVisible] = useState(false)
@@ -109,8 +111,8 @@ export default function AccountLayout() {
       <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} />
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
-      <main className="lg:ml-64 lg:min-h-screen lg:pb-[calc(2rem+var(--install-prompt-h))] h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block">
-        <div className="max-w-5xl mx-auto w-full px-4 py-3 lg:py-5 flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible lg:min-h-0">
+      <main className={`lg:ml-64 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block ${isConversation ? 'lg:pb-[var(--install-prompt-h)]' : 'lg:pb-[calc(2rem+var(--install-prompt-h))]'}`}>
+        <div className={`max-w-5xl mx-auto w-full px-4 flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible lg:min-h-0 ${isConversation ? '' : 'py-3 lg:py-5'}`}>
           <Outlet />
         </div>
       </main>

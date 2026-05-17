@@ -36,7 +36,7 @@ export default function MessageComposer({ onSend, disabled }) {
   }
 
   return (
-    <div className="flex items-end gap-2 bg-white border-t border-gray-200 px-3 py-2">
+    <div className="flex items-end gap-2 bg-white border-t border-gray-200 px-3 pt-2 pb-5 lg:pb-2">
       <textarea
         ref={taRef}
         value={value}
@@ -45,7 +45,7 @@ export default function MessageComposer({ onSend, disabled }) {
         rows={1}
         placeholder="Message…"
         disabled={disabled}
-        className="flex-1 resize-none outline-none border border-gray-200 rounded-2xl px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:border-indigo-400 max-h-[120px] disabled:opacity-50"
+        className="flex-1 resize-none outline-none border border-gray-200 rounded-2xl px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:border-indigo-400 max-h-[120px] disabled:opacity-50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       />
       <button
         type="button"
