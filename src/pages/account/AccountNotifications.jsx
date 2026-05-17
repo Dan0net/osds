@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { usePushSubscription } from '../../hooks/usePushSubscription'
@@ -34,28 +34,34 @@ export default function AccountNotifications() {
     unsubscribe: unsubscribePush,
   } = usePushSubscription()
   const [prefs, setPrefs] = useState(DEFAULT_PREFS)
+  const hasInteracted = useRef(false)
 
   useEffect(() => {
     if (!user) return
+    let cancelled = false
     supabase.from('users').select('notification_preferences').eq('id', user.id).single()
       .then(({ data }) => {
-        if (data?.notification_preferences) setPrefs(data.notification_preferences)
+        if (cancelled || hasInteracted.current) return
+        setPrefs({ ...DEFAULT_PREFS, ...(data?.notification_preferences || {}) })
       })
+    return () => { cancelled = true }
   }, [user?.id])
 
-  function togglePref(key) {
+  async function togglePref(key) {
+    if (!user) return
+    hasInteracted.current = true
     const isPushKey = key.startsWith('push_')
     const turningOn = !prefs[key]
-    setPrefs((prev) => {
-      const updated = { ...prev, [key]: !prev[key] }
-      if (user) {
-        supabase.from('users').update({ notification_preferences: updated }).eq('id', user.id)
-      }
-      return updated
-    })
+    const updated = { ...prefs, [key]: !prefs[key] }
+    setPrefs(updated)
     if (isPushKey && turningOn && !pushSub && pushSupported) {
       subscribePush()
     }
+    const { error } = await supabase
+      .from('users')
+      .update({ notification_preferences: updated })
+      .eq('id', user.id)
+    if (error) console.error('Failed to save notification prefs:', error)
   }
 
   return (
