@@ -1,4 +1,4 @@
-import { Clock, Moon, ChevronRight } from 'lucide-react'
+import { Clock, Moon, ChevronRight, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function BookingCard({
@@ -10,6 +10,8 @@ export default function BookingCard({
   to,
   state,
   right,
+  statusBadge,
+  onCancel,
   children,
 }) {
   const isOvernight = !!(endDate && endDate !== date)
@@ -24,7 +26,10 @@ export default function BookingCard({
           <Icon size={14} className="text-gray-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">{serviceName || 'Booking'}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium text-gray-900 truncate">{serviceName || 'Booking'}</p>
+            {statusBadge}
+          </div>
           {(dateLabel || timeLabel) && (
             <p className="text-xs text-gray-500 truncate">
               {dateLabel}
@@ -34,7 +39,17 @@ export default function BookingCard({
           )}
         </div>
         {right && <div className="shrink-0">{right}</div>}
-        {to && <ChevronRight size={18} className="text-gray-400 shrink-0 self-center" />}
+        {onCancel && (
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCancel() }}
+            aria-label="Cancel booking"
+            className="cursor-pointer shrink-0 p-1.5 -m-1.5 text-gray-400 hover:text-red-600 transition"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+        {to && !onCancel && <ChevronRight size={18} className="text-gray-400 shrink-0 self-center" />}
       </div>
       {children}
     </>

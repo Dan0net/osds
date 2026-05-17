@@ -57,8 +57,9 @@ export function bookingStatusBadge(booking) {
     case 'declined':
       return { label: 'Declined', tone: 'red' }
     case 'cancelled':
-    case 'refunded':
       return { label: 'Cancelled', tone: 'red' }
+    case 'refunded':
+      return { label: 'Refunded', tone: 'gray' }
     case 'hold':
       return { label: 'On hold', tone: 'purple' }
     default:

@@ -5,7 +5,6 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { inviteCustomer, walkerCreateBooking } from '../../lib/api'
 import { loadWalkerCustomers } from '../../lib/customers'
-import { clientPriceCents } from '../../lib/utils'
 import { slotNetCents } from '../../lib/pricing'
 import Modal from '../Modal'
 import AvailabilityCalendar from '../AvailabilityCalendar'
@@ -186,8 +185,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
   }
 
   function slotDisplay(slot) {
-    const net = slotNet(slot)
-    return mode === 'cash_on_arrival' ? net : clientPriceCents(net)
+    return slotNet(slot)
   }
 
   const totalDisplay = selectedSlots.reduce((sum, s) => sum + slotDisplay(s), 0)
@@ -290,7 +288,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
               onClick={() => setServicePickerOpen(true)}
               primary={bookingService?.name}
               secondary={bookingService
-                ? `£${(clientPriceCents(bookingService.price_cents) / 100).toFixed(2)} · ${bookingService.duration_minutes} min`
+                ? `£${(bookingService.price_cents / 100).toFixed(2)} · ${bookingService.duration_minutes} min`
                 : null}
             />
             {bookingService && (
@@ -436,7 +434,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
           >
             <p className="text-sm font-medium">{s.name}</p>
             <p className="text-xs text-gray-500">
-              £{(clientPriceCents(s.price_cents) / 100).toFixed(2)} · {s.duration_minutes} min
+              £{(s.price_cents / 100).toFixed(2)} · {s.duration_minutes} min
               {s.service_type === 'overnight' && ' · overnight'}
             </p>
           </button>

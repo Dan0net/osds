@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { stripeDashboardLink } from '../../lib/api'
 import { paymentStatusBadge, toneClass } from '../../lib/bookingStatus'
+import { displayPaymentAmount } from '../../lib/utils'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
@@ -98,8 +99,12 @@ export default function AccountMoney() {
         const badge = paymentStatusBadge(p)
         const bookingsCount = p.bookings?.length || 0
         const firstService = p.bookings?.[0]?.services?.name
-        const title = firstService ? `${p.counterpart} · ${firstService}` : p.counterpart
-        const amount = `${p.type === 'received' ? '+' : '−'}£${((p.type === 'received' ? p.total_cents - (p.platform_fee_cents || 0) : p.total_cents) / 100).toFixed(2)}`
+        const title = bookingsCount > 1
+          ? `${p.counterpart} · ${bookingsCount} bookings`
+          : (firstService ? `${p.counterpart} · ${firstService}` : p.counterpart)
+        const viewerIsWalker = p.type === 'received'
+        const amountCents = displayPaymentAmount(p, viewerIsWalker)
+        const amount = `${viewerIsWalker ? '+' : '−'}£${(amountCents / 100).toFixed(2)}`
         return (
           <ListItem
             key={p.id}
@@ -110,11 +115,10 @@ export default function AccountMoney() {
               <p className="text-sm font-medium truncate">{title}</p>
               <p className="text-xs text-gray-400 truncate mt-0.5">
                 {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                {bookingsCount > 1 && ` · ${bookingsCount} bookings`}
               </p>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
-              <span className={`text-sm font-semibold ${p.type === 'received' ? 'text-green-600' : ''}`}>
+              <span className={`text-sm font-semibold ${viewerIsWalker ? 'text-green-600' : ''}`}>
                 {amount}
               </span>
               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${toneClass(badge.tone)}`}>

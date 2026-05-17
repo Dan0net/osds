@@ -32,7 +32,7 @@ function formatPrice(cents) {
 }
 
 function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner }) {
-  const paymentId = message.link?.match(/^\/account\/payments\/([^/?#]+)/)?.[1] || null
+  const paymentId = message.link?.match(/^\/account\/(?:payments|money)\/([^/?#]+)/)?.[1] || null
   const paymentData = paymentId ? paymentMap?.get(paymentId) : null
   const badge = eventStatusBadge(message.event_type, paymentData?.source)
 
@@ -43,7 +43,20 @@ function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner 
       ? (paymentData.firstServiceName || 'Booking')
       : `${paymentData.bookingCount} bookings`)
     : null
-  const price = paymentData ? formatPrice(paymentData.totalCents) : null
+  const viewerAmount = paymentData
+    ? (isOwner
+        ? paymentData.totalCents - paymentData.refundedAmountCents
+        : (() => {
+            const total = paymentData.totalCents || 0
+            const fee = paymentData.platformFeeCents || 0
+            const refunded = paymentData.refundedAmountCents || 0
+            const grossTake = total - fee
+            const refundedTake = total > 0 ? Math.round((refunded * grossTake) / total) : 0
+            return Math.max(0, grossTake - refundedTake)
+          })()
+      )
+    : null
+  const price = viewerAmount != null ? formatPrice(viewerAmount) : null
   const isPaymentRequest = message.event_type === 'booking_approved' || message.event_type === 'booking_payment_link'
   const isStale = latestMessageIdByPayment?.get(paymentId) !== message.id
 

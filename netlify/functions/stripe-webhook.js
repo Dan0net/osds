@@ -9,6 +9,65 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 )
 
+async function syncRefund(refund) {
+  // Locate the payment by payment_intent
+  const paymentIntentId = typeof refund.payment_intent === 'string' ? refund.payment_intent : refund.payment_intent?.id
+  if (!paymentIntentId) return
+
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('id, total_cents')
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .maybeSingle()
+  if (!payment) {
+    console.error('Refund webhook: no payment matches PI', paymentIntentId)
+    return
+  }
+
+  const bookingIds = typeof refund.metadata?.booking_ids === 'string' && refund.metadata.booking_ids
+    ? refund.metadata.booking_ids.split(',').filter(Boolean)
+    : null
+
+  // Upsert refund row (idempotent on stripe_refund_id)
+  await supabase
+    .from('refunds')
+    .upsert({
+      payment_id: payment.id,
+      stripe_refund_id: refund.id,
+      amount_cents: refund.amount,
+      status: refund.status,
+      reason: refund.reason || null,
+      booking_ids: bookingIds,
+    }, { onConflict: 'stripe_refund_id' })
+
+  // Recompute the payment's refunded_amount_cents from succeeded refunds
+  const { data: succeeded } = await supabase
+    .from('refunds')
+    .select('amount_cents')
+    .eq('payment_id', payment.id)
+    .eq('status', 'succeeded')
+  const refundedAmount = (succeeded || []).reduce((sum, r) => sum + r.amount_cents, 0)
+
+  // Derive payment.status
+  let nextStatus = 'paid'
+  if (refundedAmount >= payment.total_cents) nextStatus = 'refunded'
+  else if (refundedAmount > 0) nextStatus = 'partially_refunded'
+
+  await supabase
+    .from('payments')
+    .update({ refunded_amount_cents: refundedAmount, status: nextStatus })
+    .eq('id', payment.id)
+
+  // If the refund succeeded and we know which bookings it covers, promote them
+  if (refund.status === 'succeeded' && bookingIds && bookingIds.length > 0) {
+    await supabase
+      .from('bookings')
+      .update({ status: 'refunded' })
+      .in('id', bookingIds)
+      .eq('status', 'cancelled')
+  }
+}
+
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) }
@@ -38,7 +97,6 @@ export async function handler(event) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Missing payment_id in session metadata' }) }
     }
 
-    // Promote hold → confirmed
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({ status: 'confirmed' })
@@ -49,13 +107,14 @@ export async function handler(event) {
       console.error('Failed to confirm bookings:', bookingError)
     }
 
-    // Update payment record
+    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
     const { error: paymentError } = await supabase
       .from('payments')
       .update({
         status: 'paid',
-        receipt_url: session.payment_intent
-          ? `https://dashboard.stripe.com/payments/${session.payment_intent}`
+        stripe_payment_intent_id: paymentIntentId || null,
+        receipt_url: paymentIntentId
+          ? `https://dashboard.stripe.com/payments/${paymentIntentId}`
           : null,
       })
       .eq('id', paymentId)
@@ -64,7 +123,6 @@ export async function handler(event) {
       console.error('Failed to update payment:', paymentError)
     }
 
-    // Notify walker of payment
     const { data: paymentRow } = await supabase.from('payments').select('walker_id, client_id, total_cents').eq('id', paymentId).single()
     if (paymentRow) {
       const { data: walkerProfile } = await supabase.from('walker_profiles').select('user_id, business_name').eq('id', paymentRow.walker_id).single()
@@ -75,7 +133,7 @@ export async function handler(event) {
       const svcName = paidBookings?.services?.name || 'booking'
       const when = paidBookings ? formatDateTime(paidBookings.booking_date, paidBookings.start_time) : ''
       if (walkerProfile) {
-        const paymentLink = `/account/payments/${paymentId}`
+        const paymentLink = `/account/money/${paymentId}`
         const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
         await notify(supabase, {
           walkerId: paymentRow.walker_id,
@@ -97,6 +155,30 @@ export async function handler(event) {
     }
   }
 
+  if (stripeEvent.type === 'payment_intent.succeeded') {
+    const pi = stripeEvent.data.object
+    const paymentId = pi.metadata?.payment_id
+    if (paymentId && pi.id) {
+      await supabase
+        .from('payments')
+        .update({ stripe_payment_intent_id: pi.id })
+        .eq('id', paymentId)
+    }
+  }
+
+  if (stripeEvent.type === 'charge.refunded') {
+    const charge = stripeEvent.data.object
+    const refunds = charge.refunds?.data || []
+    for (const refund of refunds) {
+      await syncRefund(refund)
+    }
+  }
+
+  if (stripeEvent.type === 'refund.updated' || stripeEvent.type === 'refund.created' || stripeEvent.type === 'refund.failed') {
+    const refund = stripeEvent.data.object
+    await syncRefund(refund)
+  }
+
   if (stripeEvent.type === 'account.updated') {
     const account = stripeEvent.data.object
     const { error: accountError } = await supabase
@@ -113,7 +195,6 @@ export async function handler(event) {
     const paymentId = session.metadata?.payment_id
 
     if (paymentId) {
-      // Release held slots — revert to approved so walker can resend
       await supabase
         .from('bookings')
         .update({ status: 'approved' })

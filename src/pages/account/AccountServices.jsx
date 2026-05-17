@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { clientPriceCents } from '../../lib/utils'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
 import SearchInput from '../../components/account/SearchInput'
@@ -102,7 +101,7 @@ export default function AccountServices() {
               )}
             </div>
             <div className="text-xs text-gray-500 mt-0.5 truncate">
-              £{(clientPriceCents(svc.price_cents) / 100).toFixed(2)}{svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes}m
+              £{(svc.price_cents / 100).toFixed(2)}{svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes}m
             </div>
           </div>
         </ListItem>

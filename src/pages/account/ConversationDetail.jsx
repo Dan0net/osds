@@ -84,14 +84,14 @@ export default function ConversationDetail() {
     const ids = new Set()
     for (const m of messages) {
       if (m.kind !== 'system' || !m.link) continue
-      const match = m.link.match(/^\/account\/payments\/([^/?#]+)/)
+      const match = m.link.match(/^\/account\/(?:payments|money)\/([^/?#]+)/)
       if (match && !paymentMap.has(match[1])) ids.add(match[1])
     }
     if (ids.size === 0) return
     let cancelled = false
     supabase
       .from('payments')
-      .select('id, source, total_cents, bookings(id, services(name))')
+      .select('id, source, total_cents, platform_fee_cents, refunded_amount_cents, bookings(id, services(name))')
       .in('id', Array.from(ids))
       .then(({ data }) => {
         if (cancelled || !data) return
@@ -102,6 +102,8 @@ export default function ConversationDetail() {
             next.set(p.id, {
               source: p.source,
               totalCents: p.total_cents,
+              platformFeeCents: p.platform_fee_cents || 0,
+              refundedAmountCents: p.refunded_amount_cents || 0,
               bookingCount: bookings.length,
               firstServiceName: bookings[0]?.services?.name || null,
             })

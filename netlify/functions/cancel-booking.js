@@ -40,155 +40,159 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'booking_id or payment_id is required' }) }
   }
 
-  // Determine which bookings to cancel
-  let bookings
+  // Determine which bookings are in scope
+  let scopeBookings
   if (payment_id) {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, walker_profiles!inner(user_id, stripe_account_id)')
+      .select('*, walker_profiles!inner(user_id, stripe_account_id), services(price_cents)')
       .eq('payment_id', payment_id)
-
     if (error || !data || data.length === 0) {
       return { statusCode: 404, body: JSON.stringify({ error: 'No bookings found' }) }
     }
-    bookings = data
+    scopeBookings = data
   } else {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, walker_profiles!inner(user_id, stripe_account_id)')
+      .select('*, walker_profiles!inner(user_id, stripe_account_id), services(price_cents)')
       .eq('id', booking_id)
-
     if (error || !data || data.length === 0) {
       return { statusCode: 404, body: JSON.stringify({ error: 'Booking not found' }) }
     }
-    bookings = data
+    scopeBookings = data
   }
 
-  // Verify ownership: must be walker or client
-  const isWalker = bookings[0].walker_profiles.user_id === user.id
-  const isClient = bookings[0].client_id === user.id
+  const isWalker = scopeBookings[0].walker_profiles.user_id === user.id
+  const isClient = scopeBookings[0].client_id === user.id
   if (!isWalker && !isClient) {
     return { statusCode: 403, body: JSON.stringify({ error: 'Not your booking to manage' }) }
   }
 
-  const cancellableStatuses = ['requested', 'approved', 'hold', 'confirmed', 'pending']
-  const toCancelIds = bookings
-    .filter((b) => cancellableStatuses.includes(b.status))
-    .map((b) => b.id)
-
-  if (toCancelIds.length === 0) {
+  const CANCELLABLE = ['requested', 'approved', 'hold', 'confirmed', 'pending']
+  const toCancel = scopeBookings.filter((b) => CANCELLABLE.includes(b.status))
+  if (toCancel.length === 0) {
     return { statusCode: 400, body: JSON.stringify({ error: 'No cancellable bookings found' }) }
   }
+  const toCancelIds = toCancel.map((b) => b.id)
 
-  // Cancel the bookings
-  await adminSupabase
-    .from('bookings')
-    .update({ status: 'cancelled' })
-    .in('id', toCancelIds)
-
-  // Handle refund if payment was via Stripe and is paid
-  const pId = bookings[0].payment_id
+  // Load the payment row (may be null for orphaned bookings)
+  const pId = toCancel[0].payment_id
+  let payment = null
   if (pId) {
-    const { data: payment } = await adminSupabase
-      .from('payments')
-      .select('*')
-      .eq('id', pId)
-      .single()
+    const { data } = await adminSupabase.from('payments').select('*').eq('id', pId).single()
+    payment = data
+  }
 
-    if (payment && payment.status === 'paid' && payment.stripe_session_id) {
-      // Check if all bookings in this payment are now cancelled
-      const { data: remaining } = await adminSupabase
-        .from('bookings')
-        .select('id, status, service_id')
-        .eq('payment_id', pId)
+  const scope = payment_id ? 'payment' : 'booking'
 
-      const allCancelled = remaining.every((b) => b.status === 'cancelled' || b.status === 'refunded')
-      const cancelledFromPaid = remaining.filter((b) => b.status === 'cancelled')
-
+  // ---- Paid path: Stripe refund first, then mark bookings cancelled. ----
+  if (payment && payment.status === 'paid') {
+    // Resolve payment intent: prefer cached, fall back to session lookup
+    let paymentIntentId = payment.stripe_payment_intent_id
+    if (!paymentIntentId && payment.stripe_session_id) {
       try {
-        // Retrieve the checkout session to get payment intent
         const session = await stripe.checkout.sessions.retrieve(payment.stripe_session_id)
-
-        if (session.payment_intent) {
-          if (allCancelled) {
-            // Full refund
-            await stripe.refunds.create({ payment_intent: session.payment_intent })
-            await adminSupabase
-              .from('payments')
-              .update({ status: 'refunded' })
-              .eq('id', pId)
-            await adminSupabase
-              .from('bookings')
-              .update({ status: 'refunded' })
-              .in('id', toCancelIds)
-          } else if (cancelledFromPaid.length > 0 && !allCancelled) {
-            // Partial refund: compute amount for cancelled bookings
-            const cancelledServiceIds = cancelledFromPaid.map((b) => b.service_id)
-            const { data: services } = await adminSupabase
-              .from('services')
-              .select('id, price_cents')
-              .in('id', cancelledServiceIds)
-
-            const refundCents = services.reduce((sum, s) => sum + grossUp(s.price_cents), 0)
-            if (refundCents > 0) {
-              await stripe.refunds.create({
-                payment_intent: session.payment_intent,
-                amount: refundCents,
-              })
-              await adminSupabase
-                .from('payments')
-                .update({ status: 'partially_refunded' })
-                .eq('id', pId)
-              await adminSupabase
-                .from('bookings')
-                .update({ status: 'refunded' })
-                .in('id', toCancelIds)
-            }
-          }
+        paymentIntentId = session.payment_intent
+        if (paymentIntentId) {
+          await adminSupabase.from('payments').update({ stripe_payment_intent_id: paymentIntentId }).eq('id', payment.id)
         }
       } catch (err) {
-        console.error('Refund error:', err.message)
-        // Bookings still cancelled even if refund fails — manual intervention needed
+        return { statusCode: 502, body: JSON.stringify({ error: `Could not resolve Stripe session: ${err.message}` }) }
       }
     }
+    if (!paymentIntentId) {
+      return { statusCode: 422, body: JSON.stringify({ error: 'Payment has no Stripe payment intent on record; cannot refund.' }) }
+    }
 
-    // If payment is hold/awaiting, just update payment status
-    if (payment && (payment.status === 'awaiting_payment' || payment.status === 'pending_approval')) {
-      const { data: remaining } = await adminSupabase
+    // How much to refund: gross-up of cancelled bookings' net prices
+    const refundCents = toCancel.reduce((sum, b) => sum + grossUp(b.services?.price_cents || 0), 0)
+    const unrefundedBalance = (payment.total_cents || 0) - (payment.refunded_amount_cents || 0)
+
+    // If this would consume the remaining balance, omit `amount` for a clean full refund
+    const refundParams = {
+      payment_intent: paymentIntentId,
+      reverse_transfer: true,
+      refund_application_fee: true,
+      metadata: {
+        payment_id: payment.id,
+        scope,
+        booking_ids: toCancelIds.join(','),
+      },
+    }
+    if (refundCents < unrefundedBalance) {
+      refundParams.amount = refundCents
+    }
+
+    try {
+      await stripe.refunds.create(refundParams)
+    } catch (err) {
+      return { statusCode: 502, body: JSON.stringify({ error: `Stripe refund failed: ${err.message}` }) }
+    }
+
+    // Stripe accepted — mark bookings cancelled. Webhook will promote to 'refunded'
+    // and update payment.refunded_amount_cents + payment.status.
+    await adminSupabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .in('id', toCancelIds)
+  }
+  // ---- Awaiting payment / pending approval: no money to move; just recompute total. ----
+  else if (payment && (payment.status === 'awaiting_payment' || payment.status === 'pending_approval')) {
+    await adminSupabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .in('id', toCancelIds)
+
+    // Recompute payment.total_cents from active bookings
+    const { data: active } = await adminSupabase
+      .from('bookings')
+      .select('id, services(price_cents)')
+      .eq('payment_id', payment.id)
+      .not('status', 'in', '(cancelled,declined,refunded)')
+
+    const newTotal = (active || []).reduce((sum, b) => sum + grossUp(b.services?.price_cents || 0), 0)
+    const update = { total_cents: newTotal }
+    if (newTotal === 0) update.status = 'refunded'
+    await adminSupabase.from('payments').update(update).eq('id', payment.id)
+  }
+  // ---- Cash or no payment row: just mark cancelled. ----
+  else {
+    await adminSupabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .in('id', toCancelIds)
+    if (payment && payment.source === 'cash') {
+      const { data: active } = await adminSupabase
         .from('bookings')
-        .select('id, status')
-        .eq('payment_id', pId)
-
-      const allCancelled = remaining.every((b) => b.status === 'cancelled' || b.status === 'declined')
-      if (allCancelled) {
-        await adminSupabase
-          .from('payments')
-          .update({ status: 'refunded' })
-          .eq('id', pId)
+        .select('id')
+        .eq('payment_id', payment.id)
+        .not('status', 'in', '(cancelled,declined,refunded)')
+      if (!active || active.length === 0) {
+        await adminSupabase.from('payments').update({ status: 'refunded' }).eq('id', payment.id)
       }
     }
   }
 
-  // Notify the other party
-  const otherPartyId = isWalker ? bookings[0].client_id : bookings[0].walker_profiles.user_id
-  const { data: cancelSvc } = await adminSupabase.from('services').select('name').eq('id', bookings[0].service_id).single()
+  // Notify the other party (one notification per call, even for bulk cancels)
+  const otherPartyId = isWalker ? toCancel[0].client_id : toCancel[0].walker_profiles.user_id
+  const { data: cancelSvc } = await adminSupabase.from('services').select('name').eq('id', toCancel[0].service_id).single()
   const cancelSvcName = cancelSvc?.name || 'Booking'
-  const cancelWhen = formatDateTime(bookings[0].booking_date, bookings[0].start_time)
+  const cancelWhen = formatDateTime(toCancel[0].booking_date, toCancel[0].start_time)
   const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
   await notify(adminSupabase, {
-    walkerId: bookings[0].walker_id,
-    clientId: bookings[0].client_id,
+    walkerId: toCancel[0].walker_id,
+    clientId: toCancel[0].client_id,
     recipientUserId: otherPartyId,
     event: {
       type: 'booking_cancelled',
       title: 'Booking cancelled',
       body: `${cancelSvcName} on ${cancelWhen} has been cancelled`,
-      link: `/account/payments/${bookings[0].payment_id}`,
+      link: pId ? `/account/money/${pId}` : `/account/bookings/${toCancel[0].id}`,
       emailSubject: `Booking cancelled — ${cancelSvcName} on ${cancelWhen}`,
       emailHtml: emailTemplate('Booking cancelled', [
         `<strong>${esc(cancelSvcName)}</strong> on ${esc(cancelWhen)} has been cancelled.`,
         'Check your bookings page for details.',
-      ], 'View payment', `${siteUrl}/account/payments/${bookings[0].payment_id}`),
+      ], 'View payment', pId ? `${siteUrl}/account/money/${pId}` : `${siteUrl}/account/bookings/${toCancel[0].id}`),
     },
   })
 
