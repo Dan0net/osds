@@ -194,6 +194,27 @@ export default function PaymentDetail() {
     </button>
   ) : null
 
+  const approveButtons = canApproveAll ? (
+    <div className="flex flex-col gap-1.5 items-stretch">
+      <button
+        onClick={handleApproveAll}
+        disabled={!!actionLoading}
+        className="cursor-pointer bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+      >
+        {actionLoading === 'approve' ? 'Approving…' : 'Approve all'}
+      </button>
+      <button
+        onClick={handleDeclineAll}
+        disabled={!!actionLoading}
+        className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+      >
+        {actionLoading === 'decline' ? 'Declining…' : 'Decline all'}
+      </button>
+    </div>
+  ) : null
+
+  const heroAction = payNowButton || approveButtons
+
   return (
     <>
       <DetailHeader backHref={backHref} backLabel={backLabel} />
@@ -211,7 +232,7 @@ export default function PaymentDetail() {
             </p>
           )
         }
-        action={payNowButton}
+        action={heroAction}
       />
 
       <div className="space-y-3">
@@ -313,24 +334,6 @@ export default function PaymentDetail() {
           </div>
         </div>
 
-        {canApproveAll && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4 lg:p-5 flex flex-wrap gap-2">
-            <button
-              onClick={handleApproveAll}
-              disabled={!!actionLoading}
-              className="cursor-pointer bg-green-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
-            >
-              {actionLoading === 'approve' ? 'Approving…' : 'Approve all'}
-            </button>
-            <button
-              onClick={handleDeclineAll}
-              disabled={!!actionLoading}
-              className="cursor-pointer bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50"
-            >
-              {actionLoading === 'decline' ? 'Declining…' : 'Decline all'}
-            </button>
-          </div>
-        )}
       </div>
 
       {anyCancellable && (

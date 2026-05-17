@@ -18,6 +18,7 @@ export const NAV_ITEMS = [
   { key: 'messages', to: '/account/messages', label: 'Messages', icon: MessageSquare },
   { key: 'money', to: '/account/money', label: 'Money', icon: Wallet },
   { key: 'pets', to: '/account/pets', label: 'Pets', icon: PawPrint, ownerOnly: true },
+  { key: 'walkers', to: '/account/walkers', label: 'Walkers', icon: Users, ownerOnly: true },
   { key: 'services', to: '/account/services', label: 'Services', icon: Wrench, walkerOnly: true },
   { key: 'customers', to: '/account/customers', label: 'Customers', icon: Users, walkerOnly: true },
   { key: 'profile', to: '/account/profile', label: 'Profile', icon: User },

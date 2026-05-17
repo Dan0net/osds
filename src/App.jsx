@@ -45,6 +45,8 @@ import AccountServices from './pages/account/AccountServices'
 import ServiceDetail from './pages/account/ServiceDetail'
 import AccountCustomers from './pages/account/AccountCustomers'
 import CustomerDetail from './pages/account/CustomerDetail'
+import AccountWalkers from './pages/account/AccountWalkers'
+import WalkerDetail from './pages/account/WalkerDetail'
 import BookingDetail from './pages/account/BookingDetail'
 import PaymentDetail from './pages/account/PaymentDetail'
 import ConversationDetail from './pages/account/ConversationDetail'
@@ -101,6 +103,9 @@ function PlatformRoutes() {
           </Route>
           <Route path="customers" element={<AccountCustomers />}>
             <Route path=":clientId" element={<CustomerDetail />} />
+          </Route>
+          <Route path="walkers" element={<AccountWalkers />}>
+            <Route path=":walkerId" element={<WalkerDetail />} />
           </Route>
           <Route path="profile" element={<AccountProfile />} />
           <Route path="settings" element={<AccountSettingsLayout />}>

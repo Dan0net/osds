@@ -50,7 +50,15 @@ export async function handler(event) {
   }
 
   if (!walker.setup_completed_at) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'This walker has not finished setting up their account yet' }) }
+    const { data: prior } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('walker_id', walker_id)
+      .eq('client_id', user.id)
+      .limit(1)
+    if (!prior || prior.length === 0) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'This walker has not finished setting up their account yet' }) }
+    }
   }
 
   // Cannot book yourself

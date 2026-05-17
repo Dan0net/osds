@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, ArrowLeft } from 'lucide-react'
 
 const ANIM_MS = 220
@@ -56,7 +57,7 @@ export default function Modal({
 
   if (!mounted) return null
 
-  return (
+  return createPortal((
     <div className="fixed inset-0 z-50 flex lg:items-center lg:justify-center lg:p-4" role="dialog" aria-modal="true">
       <div
         className={`absolute inset-0 bg-black/40 hidden lg:block transition-opacity duration-200 ${
@@ -100,5 +101,5 @@ export default function Modal({
         )}
       </div>
     </div>
-  )
+  ), document.body)
 }

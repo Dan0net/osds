@@ -8,11 +8,13 @@ import { apiFetch } from '../../lib/api'
 import { bookingStatusBadge, toneColor } from '../../lib/bookingStatus'
 import { loadWalkerCustomers } from '../../lib/customers'
 import BookingForm from '../../components/account/BookingForm'
+import OwnerBookingForm from '../../components/account/OwnerBookingForm'
 import MonthCalendar from '../../components/account/MonthCalendar'
 import BookingsSidebar from '../../components/account/BookingsSidebar'
 import BookingsList from '../../components/account/BookingsList'
 import ListPaneHeader from '../../components/account/ListPaneHeader'
 import PaidSuccessModal from '../../components/account/PaidSuccessModal'
+import { loadOwnerWalkers } from '../../lib/walkers'
 
 const EXTERNAL_COLOR = '#9ca3af'
 
@@ -29,6 +31,7 @@ export default function AccountBookings() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [paymentBanner, setPaymentBanner] = useState(null)
   const [createBookingModal, setCreateBookingModal] = useState(false)
+  const [ownerWalkersCount, setOwnerWalkersCount] = useState(0)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const [drawerHeight, setDrawerHeight] = useState('half')
@@ -62,6 +65,11 @@ export default function AccountBookings() {
     window.addEventListener('account-data-mutated', refresh)
     return () => window.removeEventListener('account-data-mutated', refresh)
   }, [user?.id, walkerProfile?.id])
+
+  useEffect(() => {
+    if (!user || isWalker) { setOwnerWalkersCount(0); return }
+    loadOwnerWalkers(user.id).then((list) => setOwnerWalkersCount(list.length))
+  }, [user?.id, isWalker])
 
   async function loadBookings() {
     setLoading(true)
@@ -171,14 +179,14 @@ export default function AccountBookings() {
                 >
                   Today
                 </button>
-                {isWalker && (
+                {(isWalker || ownerWalkersCount > 0) && (
                   <button
                     onClick={() => setCreateBookingModal(true)}
-                    aria-label="Add booking"
+                    aria-label={isWalker ? 'Add booking' : 'Request booking'}
                     className="cursor-pointer h-9 w-9 sm:w-auto sm:px-4 inline-flex items-center justify-center sm:gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
                   >
                     <Plus size={16} />
-                    <span className="hidden sm:inline">Add booking</span>
+                    <span className="hidden sm:inline">{isWalker ? 'Add booking' : 'Request booking'}</span>
                   </button>
                 )}
               </div>
@@ -218,14 +226,14 @@ export default function AccountBookings() {
         <aside className="w-[var(--list-sidebar-w,14rem)] border-r border-gray-200 bg-white flex flex-col">
           <ListPaneHeader
             title="Bookings"
-            right={isWalker ? (
+            right={(isWalker || ownerWalkersCount > 0) ? (
               <button
                 onClick={() => setCreateBookingModal(true)}
-                aria-label="Add booking"
+                aria-label={isWalker ? 'Add booking' : 'Request booking'}
                 className="cursor-pointer h-8 px-3 inline-flex items-center justify-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
               >
                 <Plus size={16} />
-                Add booking
+                {isWalker ? 'Add booking' : 'Request booking'}
               </button>
             ) : null}
           />
@@ -260,11 +268,19 @@ export default function AccountBookings() {
         </section>
       </div>
 
-      <BookingForm
-        open={createBookingModal}
-        onClose={() => setCreateBookingModal(false)}
-        onCreated={() => { setCreateBookingModal(false); loadBookings() }}
-      />
+      {isWalker ? (
+        <BookingForm
+          open={createBookingModal}
+          onClose={() => setCreateBookingModal(false)}
+          onCreated={() => { setCreateBookingModal(false); loadBookings() }}
+        />
+      ) : (
+        <OwnerBookingForm
+          open={createBookingModal}
+          onClose={() => setCreateBookingModal(false)}
+          onCreated={() => { setCreateBookingModal(false); loadBookings() }}
+        />
+      )}
 
       <PaidSuccessModal
         open={paymentBanner === 'success'}
