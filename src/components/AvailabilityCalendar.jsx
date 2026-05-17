@@ -1,20 +1,34 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { clientPriceCents } from '../lib/utils'
 import Modal from './Modal'
 
-function getWeekDates(baseDate) {
-  const d = new Date(baseDate)
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(d)
-    date.setDate(d.getDate() + i)
-    return date.toISOString().split('T')[0]
-  })
+function localDateStr(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function toDateStr(d) {
+  return localDateStr(d)
+}
+
+function shiftDate(dateStr, n) {
+  const d = new Date(dateStr + 'T12:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
   return d.toISOString().split('T')[0]
+}
+
+function nextDate(dateStr) {
+  return shiftDate(dateStr, 1)
+}
+
+function getWeekDates(baseDate) {
+  const startStr = localDateStr(baseDate)
+  return Array.from({ length: 7 }, (_, i) => shiftDate(startStr, i))
 }
 
 function timeStr(min) {
@@ -22,14 +36,6 @@ function timeStr(min) {
 }
 
 function parseTime(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
-
-function nextDate(d) { const x = new Date(d); x.setDate(x.getDate() + 1); return x.toISOString().split('T')[0] }
-
-function shiftDate(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() + n)
-  return d.toISOString().split('T')[0]
-}
 
 function paneDatesFromAnchor(anchorStr, count = 3) {
   return Array.from({ length: count }, (_, i) => shiftDate(anchorStr, i))
@@ -92,9 +98,12 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const [dragging, setDragging] = useState(null)
   const [dragCell, setDragCell] = useState(null)
   const gridRef = useRef(null)
+  const wrapperRef = useRef(null)
+  const trackRef = useRef(null)
+  const atMobileStartRef = useRef(false)
 
   const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
+  const todayStr = localDateStr(today)
 
   // Mobile pane state — prev/next arrows step the 3-day window.
   const [mobileAnchor, setMobileAnchor] = useState(todayStr)
@@ -134,6 +143,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const PICK_MIN = 10 * 60
 
   const currentPaneDates = paneDatesFromAnchor(mobileAnchor, MOBILE_PANE_DAYS)
+  const prevPaneDates = paneDatesFromAnchor(shiftDate(mobileAnchor, -MOBILE_PANE_DAYS), MOBILE_PANE_DAYS)
+  const nextPaneDates = paneDatesFromAnchor(shiftDate(mobileAnchor, MOBILE_PANE_DAYS), MOBILE_PANE_DAYS)
   const atMobileStart = mobileAnchor <= todayStr
 
   const visibleDates = isMobile ? currentPaneDates : weekDates
@@ -212,7 +223,9 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   const { weekSlots, fullTimeGrid } = useMemo(() => {
     const slotMap = {}
     const times = new Set()
-    const relevant = isMobile ? currentPaneDates : weekDates
+    const relevant = isMobile
+      ? [...prevPaneDates, ...currentPaneDates, ...nextPaneDates]
+      : weekDates
     for (const date of relevant) {
       const day = allSlotData[date]
       slotMap[date] = day?.slots || []
@@ -220,7 +233,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
       allTimes.forEach((t) => times.add(t))
     }
     return { weekSlots: slotMap, fullTimeGrid: Array.from(times).sort() }
-  }, [isMobile, weekDates.join(','), currentPaneDates.join(','), allSlotData])
+  }, [isMobile, weekDates.join(','), prevPaneDates.join(','), currentPaneDates.join(','), nextPaneDates.join(','), allSlotData])
 
   // --- Derived values ---
   const baseStartH = fullTimeGrid.length > 0 ? Math.max(7, parseInt(fullTimeGrid[0])) : 7
@@ -358,6 +371,119 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     window.addEventListener('touchend', end)
     return () => { window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', end); window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', end) }
   }, [dragging, dragCell])
+
+  useEffect(() => { atMobileStartRef.current = atMobileStart }, [atMobileStart])
+
+  useEffect(() => {
+    if (!isMobile) return
+    const wrapper = wrapperRef.current
+    const track = trackRef.current
+    if (!wrapper || !track) return
+
+    let phase = 'idle'
+    let bailed = false
+    let startX = 0
+    let startY = 0
+    let startTime = 0
+    let lastDx = 0
+    let width = 0
+    let rafId = null
+
+    function setTransform(value, transition = 'none') {
+      track.style.transition = transition
+      track.style.transform = `translateX(${value})`
+    }
+
+    function onStart(e) {
+      bailed = false
+      if (e.touches.length !== 1) { bailed = true; return }
+      if (e.target.closest('[data-event],[data-remove]')) { bailed = true; return }
+      const t = e.touches[0]
+      startX = t.clientX
+      startY = t.clientY
+      startTime = Date.now()
+      lastDx = 0
+      width = wrapper.clientWidth
+      phase = 'idle'
+    }
+
+    function onMove(e) {
+      if (bailed || phase === 'vscroll' || !e.touches.length) return
+      const t = e.touches[0]
+      const dx = t.clientX - startX
+      const dy = t.clientY - startY
+
+      if (phase === 'idle') {
+        const adx = Math.abs(dx), ady = Math.abs(dy)
+        if (adx < 8 && ady < 8) return
+        if (ady > adx) { phase = 'vscroll'; return }
+        phase = 'hswipe'
+      }
+
+      if (phase === 'hswipe') {
+        e.preventDefault()
+        let clamped = dx
+        if (atMobileStartRef.current && dx > 0) clamped = dx * 0.3
+        lastDx = clamped
+        if (rafId) return
+        rafId = requestAnimationFrame(() => {
+          rafId = null
+          setTransform(`calc(-33.333% + ${lastDx}px)`)
+        })
+      }
+    }
+
+    function onEnd() {
+      if (bailed) { bailed = false; return }
+      if (phase !== 'hswipe') { phase = 'idle'; return }
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+      const dx = lastDx
+      const elapsed = Date.now() - startTime
+      const velocity = elapsed > 0 ? dx / elapsed : 0
+      const threshold = width * 0.18
+
+      let dir = 0
+      if (dx > threshold || velocity > 0.4) dir = -1
+      else if (dx < -threshold || velocity < -0.4) dir = 1
+      if (atMobileStartRef.current && dir === -1) dir = 0
+
+      const target = dir === -1 ? '0%' : dir === 1 ? '-66.667%' : '-33.333%'
+      setTransform(target, 'transform 220ms cubic-bezier(0.2, 0, 0, 1)')
+
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        track.removeEventListener('transitionend', finish)
+        clearTimeout(fallbackId)
+        if (dir !== 0) {
+          flushSync(() => {
+            setMobileAnchor((a) => {
+              const candidate = shiftDate(a, dir * MOBILE_PANE_DAYS)
+              return dir === -1 && candidate < todayStr ? todayStr : candidate
+            })
+          })
+        }
+        setTransform('-33.333%')
+        phase = 'idle'
+      }
+      track.addEventListener('transitionend', finish)
+      const fallbackId = setTimeout(finish, 300)
+    }
+
+    wrapper.addEventListener('touchstart', onStart, { passive: true })
+    wrapper.addEventListener('touchmove', onMove, { passive: false })
+    wrapper.addEventListener('touchend', onEnd, { passive: true })
+    wrapper.addEventListener('touchcancel', onEnd, { passive: true })
+
+    return () => {
+      wrapper.removeEventListener('touchstart', onStart)
+      wrapper.removeEventListener('touchmove', onMove)
+      wrapper.removeEventListener('touchend', onEnd)
+      wrapper.removeEventListener('touchcancel', onEnd)
+      if (rafId) cancelAnimationFrame(rafId)
+    }
+  }, [isMobile])
 
   function handleBookNow() {
     localStorage.setItem('osds_bookingIntent', JSON.stringify({ walkerSlug: walkerParam || null, walkerId, slots: selectedSlots, savedAt: Date.now() }))
@@ -612,8 +738,26 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
       {/* Time grid */}
       {isMobile ? (
-        <div className="border border-gray-200 rounded-lg overflow-y-auto overscroll-none bg-white" style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT }}>
-          <DayPane dates={currentPaneDates} paneRef={gridRef} interactive />
+        <div
+          ref={wrapperRef}
+          className="border border-gray-200 rounded-lg overflow-x-hidden overflow-y-auto overscroll-none bg-white"
+          style={{ maxHeight: MOBILE_GRID_MAX_HEIGHT, touchAction: 'pan-y' }}
+        >
+          <div
+            ref={trackRef}
+            className="flex"
+            style={{ width: '300%', transform: 'translateX(-33.333%)' }}
+          >
+            <div className="w-1/3 shrink-0">
+              <DayPane dates={prevPaneDates} />
+            </div>
+            <div className="w-1/3 shrink-0">
+              <DayPane dates={currentPaneDates} paneRef={gridRef} interactive />
+            </div>
+            <div className="w-1/3 shrink-0">
+              <DayPane dates={nextPaneDates} />
+            </div>
+          </div>
         </div>
       ) : (
         <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
