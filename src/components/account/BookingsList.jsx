@@ -221,7 +221,7 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
   }, [selectedDate, days])
 
   return (
-    <div ref={scrollRef} className={`overflow-y-auto overscroll-contain px-4 ${className}`}>
+    <div ref={scrollRef} className={`overflow-y-auto overscroll-contain px-2 ${className}`}>
       <SetupSection items={setupItems} />
       {days.map((date) => {
         const events = eventsByDay[date] || []
@@ -234,15 +234,13 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
               else delete dayRefs.current[date]
             }}
             data-date={date}
-            className="mb-4"
+            className={events.length > 0 ? 'mb-4' : ''}
           >
-            <h3 className="text-sm font-semibold text-gray-900 sticky -top-px bg-white -mx-4 px-4 pt-[7px] pb-1.5 z-[1] flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-gray-900 sticky -top-px bg-white -mx-2 px-3 pt-[7px] pb-1.5 z-[1] flex items-center gap-1.5 border-b border-gray-100">
               {dateIsToday && <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
               {dayHeading(date)}
             </h3>
-            {events.length === 0 ? (
-              <p className="text-xs text-gray-400">No bookings.</p>
-            ) : (
+            {events.length > 0 && (
               <div>
                 {events.map((event, i) => (
                   <EventRow key={event.id + '-' + i} event={event} activeId={activeId} />
