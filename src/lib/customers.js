@@ -10,12 +10,12 @@ export async function loadWalkerCustomers(walkerProfileId) {
   const [bookingsRes, invitesRes] = await Promise.all([
     supabase
       .from('bookings')
-      .select('client_id, booking_date, users(id, name, email, phone, postcode, avatar_url), payments(total_cents, status)')
+      .select('client_id, booking_date, users(id, name, email, phone, postcode, avatar_url, created_at), payments(total_cents, status)')
       .eq('walker_id', walkerProfileId)
       .order('booking_date', { ascending: false }),
     supabase
       .from('customer_invites')
-      .select('invited_user_id, users(id, name, email, phone, postcode, avatar_url)')
+      .select('invited_user_id, users(id, name, email, phone, postcode, avatar_url, created_at)')
       .eq('walker_id', walkerProfileId)
       .not('invited_user_id', 'is', null),
   ])

@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { getUnreadCounts } from '../../lib/messaging'
+import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ConversationRow from '../../components/account/ConversationRow'
+import ListDetailLayout from '../../components/account/ListDetailLayout'
+import FilterPills from '../../components/account/FilterPills'
 
 export default function AccountMessages() {
   const { user, walkerProfile } = useAuth()
   const isWalker = !!walkerProfile
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
+  const [unreadOnly, setUnreadOnly] = useState(false)
 
   useEffect(() => {
     if (!user) return
     load()
-
     window.addEventListener('message-received', load)
     return () => window.removeEventListener('message-received', load)
   }, [user?.id, walkerProfile?.id])
@@ -36,34 +39,55 @@ export default function AccountMessages() {
     setLoading(false)
   }
 
-  return (
-    <div>
-      <h1 className="text-2xl mb-4">Messages</h1>
+  useAutoSelectFirst({ items: conversations, getHref: (c) => `/account/messages/${c.id}` })
 
-      {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
-      ) : conversations.length === 0 ? (
-        <p className="text-sm text-gray-400">No conversations yet.</p>
-      ) : (
-        <div className="space-y-2">
-          {conversations.map((c) => {
-            const counterpartyName = isWalker
-              ? (c.users?.name || 'Customer')
-              : (c.walker_profiles?.business_name || 'Walker')
-            const avatarUrl = isWalker ? c.users?.avatar_url : null
-            return (
-              <ConversationRow
-                key={c.id}
-                conversation={c}
-                counterpartyName={counterpartyName}
-                avatarUrl={avatarUrl}
-                preview={c.last_message_preview}
-                unreadCount={c.unread_count}
-              />
-            )
-          })}
-        </div>
-      )}
+  const filtered = useMemo(
+    () => unreadOnly ? conversations.filter((c) => c.unread_count > 0) : conversations,
+    [conversations, unreadOnly],
+  )
+  const unreadTotal = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations])
+
+  const listHeader = (
+    <FilterPills
+      value={unreadOnly}
+      onChange={setUnreadOnly}
+      options={[
+        { value: false, label: 'All', count: conversations.length },
+        { value: true, label: 'Unread', count: unreadTotal },
+      ]}
+    />
+  )
+
+  const list = loading ? (
+    <p className="text-sm text-gray-400">Loading…</p>
+  ) : filtered.length === 0 ? (
+    <p className="text-sm text-gray-400">{unreadOnly ? 'No unread conversations.' : 'No conversations yet.'}</p>
+  ) : (
+    <div className="space-y-2">
+      {filtered.map((c) => {
+        const counterpartyName = isWalker
+          ? (c.users?.name || 'Customer')
+          : (c.walker_profiles?.business_name || 'Walker')
+        const avatarUrl = isWalker ? c.users?.avatar_url : null
+        return (
+          <ConversationRow
+            key={c.id}
+            conversation={c}
+            counterpartyName={counterpartyName}
+            avatarUrl={avatarUrl}
+            preview={c.last_message_preview}
+            unreadCount={c.unread_count}
+          />
+        )
+      })}
     </div>
+  )
+
+  return (
+    <ListDetailLayout
+      list={list}
+      listHeader={listHeader}
+      emptyDetail={<p className="text-sm text-gray-400">Select a conversation.</p>}
+    />
   )
 }

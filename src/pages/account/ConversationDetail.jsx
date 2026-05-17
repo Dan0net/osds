@@ -155,7 +155,7 @@ export default function ConversationDetail() {
   const counterpartyTarget = !isWalker ? '_blank' : undefined
 
   return (
-    <div className="flex flex-col h-full pt-3 lg:pt-5 lg:h-[calc(100vh-var(--install-prompt-h,0px))]">
+    <div className="flex flex-col h-full pt-3 lg:pt-0">
       <DetailHeader
         backHref="/account/messages"
         backLabel="Messages"

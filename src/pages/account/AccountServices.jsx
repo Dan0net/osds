@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { clientPriceCents } from '../../lib/utils'
+import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
 import Modal from '../../components/Modal'
 import ServiceForm from '../../components/account/ServiceForm'
+import ListDetailLayout from '../../components/account/ListDetailLayout'
 
 export default function AccountServices() {
   const { walkerProfile } = useAuth()
@@ -31,6 +33,12 @@ export default function AccountServices() {
     setLoading(false)
   }
 
+  useAutoSelectFirst({
+    items: services,
+    getHref: (s) => `/account/services/${s.id}`,
+    enabled: !!walkerProfile,
+  })
+
   async function handleCreate(data) {
     setSubmitting(true)
     const { data: inserted } = await supabase
@@ -49,47 +57,50 @@ export default function AccountServices() {
     return <p className="text-sm text-gray-500">Services are only available for walkers.</p>
   }
 
-  return (
-    <div>
-      <h1 className="text-2xl mb-6">Services</h1>
-
-      {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
-      ) : (
-        <SearchList
-          items={services}
-          searchFields={['name', 'description']}
-          placeholder="Search services…"
-          addLabel="Add service"
-          emptyState="No services yet. Add your first one to start accepting bookings."
-          onAdd={() => setAddOpen(true)}
-          renderItem={(svc) => (
-            <Link
-              key={svc.id}
-              to={`/account/services/${svc.id}`}
-              className={`block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition ${!svc.active ? 'opacity-60' : ''}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold">{svc.name}</span>
-                    {svc.service_type === 'overnight' && (
-                      <span className="text-xs font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">overnight</span>
-                    )}
-                    {!svc.active && (
-                      <span className="text-xs font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">inactive</span>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Client pays £{(clientPriceCents(svc.price_cents) / 100).toFixed(2)}
-                    {svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes} min
-                  </div>
-                </div>
+  const list = loading ? (
+    <p className="text-sm text-gray-400">Loading…</p>
+  ) : (
+    <SearchList
+      items={services}
+      searchFields={['name', 'description']}
+      placeholder="Search services…"
+      addLabel="Add service"
+      emptyState="No services yet. Add your first one to start accepting bookings."
+      onAdd={() => setAddOpen(true)}
+      renderItem={(svc) => (
+        <Link
+          key={svc.id}
+          to={`/account/services/${svc.id}`}
+          className={`block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition ${!svc.active ? 'opacity-60' : ''}`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold">{svc.name}</span>
+                {svc.service_type === 'overnight' && (
+                  <span className="text-xs font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">overnight</span>
+                )}
+                {!svc.active && (
+                  <span className="text-xs font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">inactive</span>
+                )}
               </div>
-            </Link>
-          )}
-        />
+              <div className="text-sm text-gray-500 mt-1">
+                Client pays £{(clientPriceCents(svc.price_cents) / 100).toFixed(2)}
+                {svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes} min
+              </div>
+            </div>
+          </div>
+        </Link>
       )}
+    />
+  )
+
+  return (
+    <>
+      <ListDetailLayout
+        list={list}
+        emptyDetail={<p className="text-sm text-gray-400">Select a service.</p>}
+      />
 
       <Modal
         open={addOpen}
@@ -105,6 +116,6 @@ export default function AccountServices() {
           onValidityChange={setFormValid}
         />
       </Modal>
-    </div>
+    </>
   )
 }

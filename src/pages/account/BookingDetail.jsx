@@ -20,7 +20,7 @@ export default function BookingDetail() {
   const backLabel = (() => {
     if (from === '/account/messages') return 'Messages'
     if (from?.startsWith('/account/customers/')) return 'Customer'
-    if (from?.startsWith('/account/payments/')) return 'Payment'
+    if (from?.startsWith('/account/money/') || from?.startsWith('/account/payments/')) return 'Payment'
     return 'Bookings'
   })()
   const [booking, setBooking] = useState(null)
@@ -231,7 +231,7 @@ export default function BookingDetail() {
             label="Payment"
             value={`£${(booking.payments.total_cents / 100).toFixed(2)}`}
             secondary={booking.payments.source === 'cash' ? 'Cash on arrival' : 'Online'}
-            to={`/account/payments/${booking.payments.id}`}
+            to={`/account/money/${booking.payments.id}`}
             state={{ from: `/account/bookings/${booking.id}` }}
           />
         )}

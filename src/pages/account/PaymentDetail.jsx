@@ -124,7 +124,7 @@ export default function PaymentDetail() {
   const anyCancellable = bookings.some((b) => CANCELLABLE.has(b.status))
   const canApproveAll = isWalker && anyRequested
   const firstPet = bookings.find((b) => b.pets)?.pets
-  const stateBack = { from: `/account/payments/${paymentId}` }
+  const stateBack = { from: `/account/money/${paymentId}` }
 
   return (
     <>

@@ -1,27 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { stripeDashboardLink, createCheckout } from '../../lib/api'
 import { paymentStatusBadge, toneClass } from '../../lib/bookingStatus'
+import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
+import ListDetailLayout from '../../components/account/ListDetailLayout'
+import FilterPills from '../../components/account/FilterPills'
+
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All', match: () => true },
+  { value: 'pending_approval', label: 'Requested', match: (p) => p.status === 'pending_approval' },
+  { value: 'awaiting_payment', label: 'Awaiting', match: (p) => p.status === 'awaiting_payment' },
+  { value: 'paid', label: 'Paid', match: (p) => p.status === 'paid' },
+]
 
 export default function AccountMoney() {
   const { user, walkerProfile: wp } = useAuth()
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
     if (!user) return
     async function load() {
-      // Payments as client
       const { data: clientPayments } = await supabase
         .from('payments')
         .select('*, walker_profiles(business_name)')
         .eq('client_id', user.id)
         .order('created_at', { ascending: false })
 
-      // Payments as walker
       let walkerPayments = []
       if (wp) {
         const { data } = await supabase
@@ -51,86 +60,101 @@ export default function AccountMoney() {
     load()
   }, [user?.id, wp?.id])
 
-  if (loading) {
-    return (
-      <div>
-        <h1 className="text-2xl mb-6">Payments</h1>
-        <div className="flex justify-center py-8">
-          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
-    )
-  }
+  useAutoSelectFirst({ items: payments, getHref: (p) => `/account/money/${p.id}` })
 
-  return (
-    <div>
-      <h1 className="text-2xl mb-6">Payments</h1>
+  const counts = useMemo(() => {
+    const out = { all: payments.length }
+    for (const f of STATUS_FILTERS) if (f.value !== 'all') out[f.value] = payments.filter(f.match).length
+    return out
+  }, [payments])
 
-      {payments.length === 0 ? (
-        <p className="text-gray-400 text-center py-8">No payments yet.</p>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-lg divide-y">
-          {payments.map((p) => {
-            const badge = paymentStatusBadge(p)
-            return (
-            <Link
-              key={p.id}
-              to={`/account/payments/${p.id}`}
-              state={{ from: '/account/money' }}
-              className="p-4 flex items-center justify-between hover:bg-gray-50 transition"
-            >
-              <div>
-                <p className="text-sm font-medium">{p.counterpart}</p>
-                <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                  <span>{new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                  <span className={`inline-block font-medium px-1.5 py-0.5 rounded ${toneClass(badge.tone)}`}>
-                    {badge.label}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {p.type === 'paid' && p.status === 'awaiting_payment' && (
-                  <button
-                    onClick={async (e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setActionLoading(p.id)
-                      const res = await createCheckout(p.id)
-                      if (res.data?.url) {
-                        window.location.href = res.data.url
-                      } else {
-                        setActionLoading(null)
-                      }
-                    }}
-                    disabled={!!actionLoading}
-                    className="cursor-pointer bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {actionLoading === p.id ? 'Redirecting…' : 'Pay now'}
-                  </button>
-                )}
-                <span className={`font-semibold ${p.type === 'received' ? 'text-green-600' : 'text-gray-900'}`}>
-                  {p.type === 'received' ? '+' : '−'}£{((p.type === 'received' ? p.total_cents - (p.platform_fee_cents || 0) : p.total_cents) / 100).toFixed(2)}
+  const filtered = useMemo(() => {
+    const f = STATUS_FILTERS.find((x) => x.value === statusFilter)
+    return f ? payments.filter(f.match) : payments
+  }, [payments, statusFilter])
+
+  const listHeader = (
+    <FilterPills
+      value={statusFilter}
+      onChange={setStatusFilter}
+      options={STATUS_FILTERS.map(({ value, label }) => ({ value, label, count: counts[value] }))}
+    />
+  )
+
+  const list = loading ? (
+    <div className="flex justify-center py-8">
+      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : filtered.length === 0 ? (
+    <p className="text-gray-400 text-center py-8 text-sm">{statusFilter === 'all' ? 'No payments yet.' : 'No matching payments.'}</p>
+  ) : (
+    <div className="bg-white border border-gray-200 rounded-lg divide-y">
+      {filtered.map((p) => {
+        const badge = paymentStatusBadge(p)
+        return (
+          <Link
+            key={p.id}
+            to={`/account/money/${p.id}`}
+            state={{ from: '/account/money' }}
+            className="p-4 flex items-center justify-between hover:bg-gray-50 transition"
+          >
+            <div>
+              <p className="text-sm font-medium">{p.counterpart}</p>
+              <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                <span>{new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <span className={`inline-block font-medium px-1.5 py-0.5 rounded ${toneClass(badge.tone)}`}>
+                  {badge.label}
                 </span>
               </div>
-            </Link>
-            )
-          })}
-        </div>
-      )}
-
+            </div>
+            <div className="flex items-center gap-3">
+              {p.type === 'paid' && p.status === 'awaiting_payment' && (
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setActionLoading(p.id)
+                    const res = await createCheckout(p.id)
+                    if (res.data?.url) {
+                      window.location.href = res.data.url
+                    } else {
+                      setActionLoading(null)
+                    }
+                  }}
+                  disabled={!!actionLoading}
+                  className="cursor-pointer bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {actionLoading === p.id ? 'Redirecting…' : 'Pay now'}
+                </button>
+              )}
+              <span className={`font-semibold ${p.type === 'received' ? 'text-green-600' : 'text-gray-900'}`}>
+                {p.type === 'received' ? '+' : '−'}£{((p.type === 'received' ? p.total_cents - (p.platform_fee_cents || 0) : p.total_cents) / 100).toFixed(2)}
+              </span>
+            </div>
+          </Link>
+        )
+      })}
       {wp && (
-        <div className="mt-6">
+        <div className="p-4">
           <button
             onClick={async () => {
               const res = await stripeDashboardLink()
               if (res.data?.url) window.open(res.data.url, '_blank')
             }}
-            className="border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50"
+            className="border border-gray-300 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50"
           >
             Open Stripe Dashboard
           </button>
         </div>
       )}
     </div>
+  )
+
+  return (
+    <ListDetailLayout
+      list={list}
+      listHeader={listHeader}
+      emptyDetail={<p className="text-sm text-gray-400">Select a payment.</p>}
+    />
   )
 }

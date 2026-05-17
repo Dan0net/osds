@@ -1,14 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { inviteCustomer } from '../../lib/api'
 import { loadWalkerCustomers } from '../../lib/customers'
+import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
 import Modal from '../../components/Modal'
 import CustomerForm from '../../components/account/CustomerForm'
 import InviteConsentModal from '../../components/account/InviteConsentModal'
 import MapButton from '../../components/account/MapButton'
+import ListDetailLayout from '../../components/account/ListDetailLayout'
+
+const SORTS = {
+  recent_booking: {
+    label: 'Recent booking',
+    cmp: (a, b) => {
+      if (a.lastBookingDate === b.lastBookingDate) return 0
+      if (!a.lastBookingDate) return 1
+      if (!b.lastBookingDate) return -1
+      return a.lastBookingDate < b.lastBookingDate ? 1 : -1
+    },
+  },
+  recently_added: {
+    label: 'Recently added',
+    cmp: (a, b) => (b.client.created_at || '').localeCompare(a.client.created_at || ''),
+  },
+  name: {
+    label: 'Name',
+    cmp: (a, b) => (a.client.name || '').localeCompare(b.client.name || ''),
+  },
+  spend: {
+    label: 'Total spend',
+    cmp: (a, b) => (b.totalSpendCents || 0) - (a.totalSpendCents || 0),
+  },
+}
 
 export default function AccountCustomers() {
   const { walkerProfile } = useAuth()
@@ -20,6 +46,7 @@ export default function AccountCustomers() {
   const [submitting, setSubmitting] = useState(false)
   const [addError, setAddError] = useState(null)
   const [formValid, setFormValid] = useState(false)
+  const [sortKey, setSortKey] = useState('recent_booking')
 
   function handleAddClick() {
     if (walkerProfile?.customer_invite_consent_at) {
@@ -39,6 +66,13 @@ export default function AccountCustomers() {
     setCustomers(await loadWalkerCustomers(walkerProfile.id))
     setLoading(false)
   }
+
+  const sorted = useMemo(() => [...customers].sort(SORTS[sortKey].cmp), [customers, sortKey])
+  useAutoSelectFirst({
+    items: sorted,
+    getHref: (c) => `/account/customers/${c.client.id}`,
+    enabled: !!walkerProfile,
+  })
 
   async function handleAddCustomer({ owner, pets }) {
     setSubmitting(true)
@@ -74,48 +108,64 @@ export default function AccountCustomers() {
     return <p className="text-sm text-gray-500">Customers are only available for walkers.</p>
   }
 
-  return (
-    <div>
-      <h1 className="text-2xl mb-6">Customers</h1>
+  const listHeader = (
+    <select
+      value={sortKey}
+      onChange={(e) => setSortKey(e.target.value)}
+      className="w-full h-9 px-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+    >
+      {Object.entries(SORTS).map(([k, v]) => (
+        <option key={k} value={k}>Sort: {v.label}</option>
+      ))}
+    </select>
+  )
 
-      {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
-      ) : (
-        <SearchList
-          items={customers}
-          searchFields={['client.name', 'client.email']}
-          placeholder="Search customers…"
-          addLabel="Add customer"
-          onAdd={handleAddClick}
-          emptyState="No customers yet. Customers appear here once they've booked with you, or you can add one manually."
-          renderItem={({ client, totalBookings, lastBookingDate, totalSpendCents }) => (
-            <Link
-              key={client.id}
-              to={`/account/customers/${client.id}`}
-              className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
-                  {client.avatar_url ? (
-                    <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    (client.name?.charAt(0) || '?').toUpperCase()
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{client.name || 'Unknown'}</p>
-                  <p className="text-sm text-gray-500 truncate">
-                    {totalBookings} booking{totalBookings !== 1 ? 's' : ''}
-                    {lastBookingDate && ` · last ${new Date(lastBookingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
-                    {totalSpendCents > 0 && ` · £${(totalSpendCents / 100).toFixed(2)}`}
-                  </p>
-                </div>
-                <MapButton postcode={client.postcode} size={24} />
-              </div>
-            </Link>
-          )}
-        />
+  const list = loading ? (
+    <p className="text-sm text-gray-400">Loading…</p>
+  ) : (
+    <SearchList
+      items={sorted}
+      searchFields={['client.name', 'client.email']}
+      placeholder="Search customers…"
+      addLabel="Add customer"
+      onAdd={handleAddClick}
+      emptyState="No customers yet. Customers appear here once they've booked with you, or you can add one manually."
+      renderItem={({ client, totalBookings, lastBookingDate, totalSpendCents }) => (
+        <Link
+          key={client.id}
+          to={`/account/customers/${client.id}`}
+          className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
+              {client.avatar_url ? (
+                <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                (client.name?.charAt(0) || '?').toUpperCase()
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">{client.name || 'Unknown'}</p>
+              <p className="text-sm text-gray-500 truncate">
+                {totalBookings} booking{totalBookings !== 1 ? 's' : ''}
+                {lastBookingDate && ` · last ${new Date(lastBookingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                {totalSpendCents > 0 && ` · £${(totalSpendCents / 100).toFixed(2)}`}
+              </p>
+            </div>
+            <MapButton postcode={client.postcode} size={24} />
+          </div>
+        </Link>
       )}
+    />
+  )
+
+  return (
+    <>
+      <ListDetailLayout
+        list={list}
+        listHeader={listHeader}
+        emptyDetail={<p className="text-sm text-gray-400">Select a customer.</p>}
+      />
 
       <InviteConsentModal
         open={consentOpen}
@@ -143,6 +193,6 @@ export default function AccountCustomers() {
           onValidityChange={setFormValid}
         />
       </Modal>
-    </div>
+    </>
   )
 }

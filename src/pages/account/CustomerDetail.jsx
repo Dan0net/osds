@@ -21,7 +21,7 @@ export default function CustomerDetail() {
   const backHref = from || '/account/customers'
   const backLabel = (() => {
     if (from?.startsWith('/account/bookings/')) return 'Booking'
-    if (from?.startsWith('/account/payments/')) return 'Payment'
+    if (from?.startsWith('/account/money/') || from?.startsWith('/account/payments/')) return 'Payment'
     return 'Customers'
   })()
   const [client, setClient] = useState(null)

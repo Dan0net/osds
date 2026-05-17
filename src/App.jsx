@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useEffect } from 'react'
 import { resolveWalker } from './lib/walker'
 import { AuthProvider } from './context/AuthContext'
@@ -35,6 +35,11 @@ import { useAuth } from './hooks/useAuth'
 function SettingsIndex() {
   const { walkerProfile } = useAuth()
   return <Navigate to={walkerProfile ? 'availability' : 'notifications'} replace />
+}
+
+function PaymentLegacyRedirect() {
+  const { paymentId } = useParams()
+  return <Navigate to={`/account/money/${paymentId}`} replace />
 }
 import AccountServices from './pages/account/AccountServices'
 import ServiceDetail from './pages/account/ServiceDetail'
@@ -77,20 +82,26 @@ function PlatformRoutes() {
       <Route path="account" element={<ProtectedRoute />}>
         <Route element={<AccountLayout />}>
           <Route index element={<Navigate to="/account/bookings" replace />} />
-          <Route path="bookings" element={<AccountBookings />} />
-          <Route path="bookings/:bookingId" element={<BookingDetail />} />
+          <Route path="bookings" element={<AccountBookings />}>
+            <Route path=":bookingId" element={<BookingDetail />} />
+          </Route>
           <Route path="pets" element={<AccountPets />} />
-          <Route path="money" element={<AccountMoney />} />
+          <Route path="money" element={<AccountMoney />}>
+            <Route path=":paymentId" element={<PaymentDetail />} />
+          </Route>
           <Route path="payments" element={<Navigate to="/account/money" replace />} />
-          <Route path="payments/:paymentId" element={<PaymentDetail />} />
-          <Route path="messages" element={<AccountMessages />} />
-          <Route path="messages/:conversationId" element={<ConversationDetail />} />
+          <Route path="payments/:paymentId" element={<PaymentLegacyRedirect />} />
+          <Route path="messages" element={<AccountMessages />}>
+            <Route path=":conversationId" element={<ConversationDetail />} />
+          </Route>
           <Route path="inbox" element={<Navigate to="/account/messages" replace />} />
           <Route path="notifications" element={<Navigate to="/account/settings/notifications" replace />} />
-          <Route path="services" element={<AccountServices />} />
-          <Route path="services/:serviceId" element={<ServiceDetail />} />
-          <Route path="customers" element={<AccountCustomers />} />
-          <Route path="customers/:clientId" element={<CustomerDetail />} />
+          <Route path="services" element={<AccountServices />}>
+            <Route path=":serviceId" element={<ServiceDetail />} />
+          </Route>
+          <Route path="customers" element={<AccountCustomers />}>
+            <Route path=":clientId" element={<CustomerDetail />} />
+          </Route>
           <Route path="profile" element={<AccountProfile />} />
           <Route path="settings" element={<AccountSettingsLayout />}>
             <Route index element={<SettingsIndex />} />
