@@ -3,6 +3,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  window.__deferredInstallPrompt = e
+  window.dispatchEvent(new Event('install-prompt-ready'))
+})
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

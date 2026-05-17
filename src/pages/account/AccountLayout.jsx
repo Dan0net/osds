@@ -59,13 +59,28 @@ export default function AccountLayout() {
       return
     }
 
-    function handlePrompt(e) {
-      e.preventDefault()
-      setDeferredInstallPrompt(e)
+    if (window.__deferredInstallPrompt) {
+      setDeferredInstallPrompt(window.__deferredInstallPrompt)
+      setInstallPromptVisible(true)
+      return
+    }
+
+    function adopt() {
+      if (!window.__deferredInstallPrompt) return
+      setDeferredInstallPrompt(window.__deferredInstallPrompt)
       setInstallPromptVisible(true)
     }
+    function handlePrompt(e) {
+      e.preventDefault()
+      window.__deferredInstallPrompt = e
+      adopt()
+    }
+    window.addEventListener('install-prompt-ready', adopt)
     window.addEventListener('beforeinstallprompt', handlePrompt)
-    return () => window.removeEventListener('beforeinstallprompt', handlePrompt)
+    return () => {
+      window.removeEventListener('install-prompt-ready', adopt)
+      window.removeEventListener('beforeinstallprompt', handlePrompt)
+    }
   }, [])
 
   function dismissInstallPrompt() {
@@ -74,12 +89,15 @@ export default function AccountLayout() {
   }
 
   async function handleInstall() {
-    if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt()
-      await deferredInstallPrompt.userChoice
-      setDeferredInstallPrompt(null)
+    if (!deferredInstallPrompt) {
+      setInstallPromptVisible(false)
+      return
     }
-    dismissInstallPrompt()
+    deferredInstallPrompt.prompt()
+    await deferredInstallPrompt.userChoice
+    setDeferredInstallPrompt(null)
+    window.__deferredInstallPrompt = null
+    setInstallPromptVisible(false)
   }
 
   return (
