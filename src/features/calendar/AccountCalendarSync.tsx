@@ -4,6 +4,7 @@ import { useIcalImports, useValidateIcalUrl, useAddIcalImport, useRemoveIcalImpo
 import { useUpdateWalkerProfile } from '@/queries/profile'
 import Button from '@/shared/form/Button'
 import { TextInput } from '@/shared/form/Input'
+import { Spinner } from '@/shared/Spinner'
 
 export default function AccountCalendarSync() {
   const { walkerProfile } = useAuth()
@@ -129,6 +130,7 @@ export default function AccountCalendarSync() {
             className="text-sm flex-1"
           />
           <Button onClick={handleAddIcal} disabled={validating} size="sm">
+            {validating && <Spinner size="xs" className="border-white" />}
             {buttonLabel}
           </Button>
         </div>
