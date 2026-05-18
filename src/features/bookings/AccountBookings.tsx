@@ -88,10 +88,7 @@ export default function AccountBookings() {
       }
     }
     for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => {
-        if (a.external !== b.external) return a.external ? 1 : -1
-        return (a.start_time || '').localeCompare(b.start_time || '')
-      })
+      map[key].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
     }
     return map
   }, [bookings])
