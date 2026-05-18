@@ -133,16 +133,35 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
   const dayRefs = useRef({})
   const sentinelRef = useRef(null)
   const suppressScrollUntilRef = useRef(0)
+  const programmaticTargetRef = useRef(null)
+  const pendingScrollKeyRef = useRef<string | null>(null)
   const fromScrollRef = useRef(false)
   const initialScrollDoneRef = useRef(false)
+  const userActivelyScrollingRef = useRef(false)
+
+  function scrollToKey(key) {
+    if (userActivelyScrollingRef.current && initialScrollDoneRef.current) return
+    const el = dayRefs.current[key]
+    const root = scrollRef.current
+    if (!el || !root) return
+    const elRect = el.getBoundingClientRect()
+    const rootRect = root.getBoundingClientRect()
+    const offsetWithin = elRect.top - rootRect.top
+    if (initialScrollDoneRef.current && Math.abs(offsetWithin) < 100) return
+    const behavior = initialScrollDoneRef.current ? 'smooth' : 'auto'
+    initialScrollDoneRef.current = true
+    programmaticTargetRef.current = root.scrollTop + offsetWithin
+    suppressScrollUntilRef.current = Date.now() + 1500
+    el.scrollIntoView({ block: 'start', behavior })
+  }
 
   useEffect(() => {
     const root = scrollRef.current
     if (!root) return
     let rafId = null
-    function check() {
-      rafId = null
-      if (Date.now() < suppressScrollUntilRef.current) return
+    let idleTimer: ReturnType<typeof setTimeout> | null = null
+
+    function pickBestDate() {
       const rootTop = root.getBoundingClientRect().top
       let bestDate = null
       let bestDelta = -Infinity
@@ -162,14 +181,64 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
       fromScrollRef.current = true
       onSelectDate(parseISO(bestDate))
     }
+
+    function check() {
+      rafId = null
+      if (programmaticTargetRef.current != null) {
+        if (Math.abs(root.scrollTop - programmaticTargetRef.current) <= 4) {
+          programmaticTargetRef.current = null
+        } else {
+          return
+        }
+      }
+      if (Date.now() < suppressScrollUntilRef.current) return
+      pickBestDate()
+    }
+
     function onScroll() {
+      if (programmaticTargetRef.current == null) {
+        userActivelyScrollingRef.current = true
+        if (idleTimer != null) clearTimeout(idleTimer)
+        idleTimer = setTimeout(() => {
+          userActivelyScrollingRef.current = false
+          idleTimer = null
+        }, 200)
+      }
       if (rafId != null) return
       rafId = requestAnimationFrame(check)
     }
+
+    function onScrollEnd() {
+      programmaticTargetRef.current = null
+      suppressScrollUntilRef.current = 0
+      userActivelyScrollingRef.current = false
+      if (idleTimer != null) {
+        clearTimeout(idleTimer)
+        idleTimer = null
+      }
+      if (rafId != null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
+      }
+      pickBestDate()
+    }
+
+    function onUserGesture() {
+      programmaticTargetRef.current = null
+      suppressScrollUntilRef.current = 0
+    }
+
     root.addEventListener('scroll', onScroll, { passive: true })
+    root.addEventListener('scrollend', onScrollEnd)
+    root.addEventListener('pointerdown', onUserGesture)
+    root.addEventListener('wheel', onUserGesture, { passive: true })
     return () => {
       root.removeEventListener('scroll', onScroll)
+      root.removeEventListener('scrollend', onScrollEnd)
+      root.removeEventListener('pointerdown', onUserGesture)
+      root.removeEventListener('wheel', onUserGesture)
       if (rafId != null) cancelAnimationFrame(rafId)
+      if (idleTimer != null) clearTimeout(idleTimer)
     }
   }, [days, onSelectDate, selectedDate])
 
@@ -202,6 +271,7 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
       const lastDate = parseISO(days[days.length - 1])
       const targetDate = parseISO(key)
       const daysToAdd = Math.ceil((targetDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)) + 5
+      pendingScrollKeyRef.current = key
       setDays((prev) => {
         const nextStart = format(addDays(parseISO(prev[prev.length - 1]), 1), 'yyyy-MM-dd')
         return [...prev, ...buildDays(nextStart, daysToAdd)]
@@ -209,20 +279,17 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
       return
     }
 
-    const el = dayRefs.current[key]
-    const root = scrollRef.current
-    if (!el || !root) return
+    pendingScrollKeyRef.current = null
+    scrollToKey(key)
+  }, [selectedDate])
 
-    const elRect = el.getBoundingClientRect()
-    const rootRect = root.getBoundingClientRect()
-    const offsetWithin = elRect.top - rootRect.top
-    if (initialScrollDoneRef.current && Math.abs(offsetWithin) < 100) return
-
-    const behavior = initialScrollDoneRef.current ? 'smooth' : 'auto'
-    initialScrollDoneRef.current = true
-    suppressScrollUntilRef.current = Date.now() + 600
-    el.scrollIntoView({ block: 'start', behavior })
-  }, [selectedDate, days])
+  useEffect(() => {
+    const key = pendingScrollKeyRef.current
+    if (!key) return
+    if (days.length === 0 || key > days[days.length - 1]) return
+    pendingScrollKeyRef.current = null
+    scrollToKey(key)
+  }, [days])
 
   return (
     <div ref={scrollRef} className={`overflow-y-auto overscroll-contain px-2 ${className}`}>
