@@ -46,7 +46,7 @@ export default function DetailHeader({ backHref, backLabel = 'Back', title, righ
         </Link>
       </div>
       {(title || right) && (
-        <div className="flex items-start gap-3 mb-3 lg:mb-4 px-1">
+        <div className="flex items-start gap-3 mb-3 lg:mb-4">
           {titleGroup}
           {right && <div className="shrink-0 mt-1">{right}</div>}
         </div>

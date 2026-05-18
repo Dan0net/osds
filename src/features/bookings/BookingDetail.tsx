@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'
-import { User, PawPrint, Scissors, CreditCard, Trash2, Map, MessageCircle, ChevronLeft, Calendar } from 'lucide-react'
+import { User, PawPrint, Scissors, CreditCard, Trash2, Map, MessageCircle, Calendar } from 'lucide-react'
 import { useAuth } from '@/auth/useAuth'
 import { bookingStatusBadge } from '@/utils/bookingStatus'
 import { displayServicePrice, displayPaymentAmount } from '@/utils/pricing'
@@ -145,13 +145,6 @@ export default function BookingDetail() {
 
   return (
     <>
-      <Link
-        to="/account/bookings"
-        className="hidden lg:inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 mb-3 -ml-1"
-      >
-        <ChevronLeft size={18} />
-        Back to calendar
-      </Link>
       <DetailHeader backHref={backHref} backLabel={backLabel} />
 
       <DetailHero

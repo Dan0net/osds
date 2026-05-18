@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Outlet, useLocation, matchPath } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import { useTotalUnreadConversations } from '@/queries/messages'
 import { useUnreadPaymentIds, usePaidCelebration } from '@/queries/payments'
@@ -12,8 +12,6 @@ import { formatGBP } from '@/utils/formatting'
 
 export default function AccountLayout() {
   const { user, walkerProfile } = useAuth()
-  const location = useLocation()
-  const isConversation = !!matchPath('/account/messages/:conversationId', location.pathname)
   const [moreOpen, setMoreOpen] = useState(false)
   const [installPromptVisible, setInstallPromptVisible] = useState(false)
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null)
@@ -90,8 +88,8 @@ export default function AccountLayout() {
       <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.length} />
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
-      <main className={`lg:ml-56 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block ${isConversation ? 'lg:pb-[var(--install-prompt-h)]' : 'lg:pb-[calc(2rem+var(--install-prompt-h))]'}`}>
-        <div className={`max-w-5xl mx-auto w-full px-4 flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible lg:min-h-0 ${isConversation ? '' : 'py-3 lg:py-5'}`}>
+      <main className="lg:ml-56 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block lg:pb-[calc(2rem+var(--install-prompt-h))]">
+        <div className="max-w-5xl mx-auto w-full px-4 py-3 lg:py-5 flex-1 min-h-0 overflow-y-auto lg:flex-none lg:overflow-visible lg:min-h-0">
           <Outlet />
         </div>
       </main>

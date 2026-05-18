@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Mail, Phone, Map, Plus, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/auth/useAuth'
 import { useCustomerDetail } from '@/queries/customers'
@@ -9,12 +9,12 @@ import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
 import DetailHeader from '@/shared/detail/DetailHeader'
 import LinkRow from '@/shared/detail/LinkRow'
-import { bookingStatusBadge } from '@/utils/bookingStatus'
+import BookingCard from '@/features/bookings/BookingCard'
+import { bookingStatusBadge, toneColor } from '@/utils/bookingStatus'
 import { Spinner } from '@/shared/Spinner'
 import Avatar from '@/shared/Avatar'
 import Badge from '@/shared/Badge'
 import Button from '@/shared/form/Button'
-import { formatLongDate } from '@/utils/formatting'
 
 const PET_FORM_ID = 'customer-pet-form'
 
@@ -92,7 +92,7 @@ export default function CustomerDetail() {
         <h1 className="text-2xl truncate min-w-0 flex-1">{client.name || 'Unknown'}</h1>
       </div>
 
-      <div className="space-y-2 mb-6">
+      <div className="space-y-3 mb-6">
         <LinkRow
           icon={MessageCircle}
           value="Message"
@@ -115,7 +115,7 @@ export default function CustomerDetail() {
         )}
       </div>
 
-      <section className="mb-8">
+      <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Pets</h2>
           <Button onClick={() => setEditing('new')} size="sm">
@@ -133,32 +133,29 @@ export default function CustomerDetail() {
         )}
       </section>
 
-      <section className="mb-8">
+      <section className="mb-6">
         <h2 className="text-lg font-semibold mb-3">Booking history</h2>
         {bookings.length === 0 ? (
           <p className="text-sm text-gray-400">No bookings yet.</p>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-lg divide-y">
-            {bookings.map((b) => (
-              <Link
-                key={b.id}
-                to={`/account/bookings/${b.id}`}
-                state={{ from: `/account/customers/${clientId}` }}
-                className="flex items-center justify-between p-3 hover:bg-gray-50"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{b.services?.name || 'Service'}</p>
-                  <p className="text-xs text-gray-500">
-                    {formatLongDate(b.booking_date)}
-                    {b.pets?.name && ` · ${b.pets.name}`}
-                  </p>
-                </div>
-                {(() => {
-                  const badge = bookingStatusBadge(b)
-                  return <Badge tone={badge.tone}>{badge.label}</Badge>
-                })()}
-              </Link>
-            ))}
+          <div className="space-y-2">
+            {bookings.map((b) => {
+              const badge = bookingStatusBadge(b)
+              return (
+                <BookingCard
+                  key={b.id}
+                  serviceName={b.services?.name}
+                  date={b.booking_date}
+                  endDate={b.end_date}
+                  startTime={b.start_time}
+                  endTime={b.end_time}
+                  to={`/account/bookings/${b.id}`}
+                  state={{ from: `/account/customers/${clientId}` }}
+                  accentColor={toneColor(badge.tone)}
+                  statusBadge={<Badge tone={badge.tone} size="sm">{badge.label}</Badge>}
+                />
+              )
+            })}
           </div>
         )}
       </section>

@@ -204,8 +204,8 @@ export default function PaymentDetail() {
           />
         )}
 
-        <div className="pt-1">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 px-1 mb-2">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
             Bookings ({bookings.length})
           </h2>
           <div className="space-y-2">
@@ -251,20 +251,13 @@ export default function PaymentDetail() {
             })}
 
             {refundsByBooking.unattributed.map((r) => (
-              <div key={r.id} className="block bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                    <CreditCard size={14} className="text-amber-700" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">Manual refund — unattributed</p>
-                    <p className="text-xs text-gray-500">
-                      {formatGBP(r.amount_cents)} on {formatDayMonth(r.created_at)}
-                      {r.reason ? ` · ${r.reason}` : ''}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <LinkRow
+                key={r.id}
+                icon={CreditCard}
+                tone="amber"
+                value="Manual refund — unattributed"
+                secondary={`${formatGBP(r.amount_cents)} on ${formatDayMonth(r.created_at)}${r.reason ? ` · ${r.reason}` : ''}`}
+              />
             ))}
           </div>
         </div>
@@ -322,8 +315,6 @@ export default function PaymentDetail() {
         title="Payment successful!"
         footnote="Your booking is now confirmed."
       />
-
-      <div aria-hidden className="h-8 shrink-0" />
     </>
   )
 }

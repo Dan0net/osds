@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useSearchParams, useOutlet } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { format, parseISO, addDays, startOfMonth, differenceInCalendarDays } from 'date-fns'
 import { useAuth } from '@/auth/useAuth'
@@ -14,6 +14,7 @@ import OwnerBookingForm from '@/features/bookings/OwnerBookingForm'
 import MonthCalendar from '@/features/bookings/MonthCalendar'
 import BookingsSidebar from '@/features/bookings/BookingsSidebar'
 import BookingsList from '@/features/bookings/BookingsList'
+import ListDetailLayout from '@/shared/layout/ListDetailLayout'
 import ListPaneHeader from '@/shared/list/ListPaneHeader'
 import CelebrationModal from '@/shared/modal/CelebrationModal'
 import { Spinner, PageSpinner } from '@/shared/Spinner'
@@ -24,7 +25,6 @@ const EXTERNAL_COLOR = '#9ca3af'
 export default function AccountBookings() {
   const { user, walkerProfile } = useAuth()
   const isWalker = !!walkerProfile
-  const outlet = useOutlet()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const [paymentBanner, setPaymentBanner] = useState(null)
@@ -126,106 +126,102 @@ export default function AccountBookings() {
     </>
   )
 
+  const addButton = (isWalker || ownerWalkersCount > 0) ? (
+    <Button
+      onClick={() => setCreateBookingModal(true)}
+      aria-label={isWalker ? 'Add booking' : 'Request booking'}
+      className="h-8 px-3"
+    >
+      <Plus size={16} />
+      {isWalker ? 'Add booking' : 'Request booking'}
+    </Button>
+  ) : null
+
+  const sidebar = (
+    <>
+      <ListPaneHeader title="Bookings" right={addButton} />
+      {loading ? (
+        <div className="flex justify-center py-8"><Spinner /></div>
+      ) : (
+        <BookingsList
+          eventsByDay={eventsByDay}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          setupItems={setupItems}
+          className="flex-1"
+        />
+      )}
+    </>
+  )
+
+  const mobile = (
+    <>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h1 className="text-xl truncate">{format(visibleMonth, 'MMMM yyyy')}</h1>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleTodayClick}
+            className="cursor-pointer h-9 px-3 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
+          >
+            Today
+          </button>
+          {(isWalker || ownerWalkersCount > 0) && (
+            <Button
+              onClick={() => setCreateBookingModal(true)}
+              aria-label={isWalker ? 'Add booking' : 'Request booking'}
+              className="h-9 w-9 sm:w-auto sm:px-4"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">{isWalker ? 'Add booking' : 'Request booking'}</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {banner}
+
+      {loading ? (
+        <PageSpinner />
+      ) : (
+        <div className="h-[calc(50dvh-5.5rem)]">
+          <MonthCalendar
+            eventsByDay={eventsByDay}
+            selectedDate={selectedDate}
+            onSelect={handleSelectDate}
+            onToday={handleTodayClick}
+            month={visibleMonth}
+            onMonthChange={setVisibleMonth}
+          />
+          <BookingsSidebar
+            eventsByDay={eventsByDay}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            setupItems={setupItems}
+            drawerHeight={drawerHeight}
+            onToggleDrawerHeight={() => setDrawerHeight((h) => (h === 'half' ? 'full' : 'half'))}
+          />
+        </div>
+      )}
+    </>
+  )
+
+  const emptyDetail = (
+    <>
+      {banner}
+      <MonthCalendar
+        eventsByDay={eventsByDay}
+        selectedDate={selectedDate}
+        onSelect={handleSelectDate}
+        onToday={handleTodayClick}
+        month={visibleMonth}
+        onMonthChange={setVisibleMonth}
+      />
+    </>
+  )
+
   return (
     <>
-      <div className="lg:hidden">
-        {outlet ? outlet : (
-          <>
-            <div className="flex items-center justify-between mb-3 gap-2">
-              <h1 className="text-xl truncate">{format(visibleMonth, 'MMMM yyyy')}</h1>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={handleTodayClick}
-                  className="cursor-pointer h-9 px-3 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
-                >
-                  Today
-                </button>
-                {(isWalker || ownerWalkersCount > 0) && (
-                  <Button
-                    onClick={() => setCreateBookingModal(true)}
-                    aria-label={isWalker ? 'Add booking' : 'Request booking'}
-                    className="h-9 w-9 sm:w-auto sm:px-4"
-                  >
-                    <Plus size={16} />
-                    <span className="hidden sm:inline">{isWalker ? 'Add booking' : 'Request booking'}</span>
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {banner}
-
-            {loading ? (
-              <PageSpinner />
-            ) : (
-              <div className="h-[calc(50dvh-5.5rem)]">
-                <MonthCalendar
-                  eventsByDay={eventsByDay}
-                  selectedDate={selectedDate}
-                  onSelect={handleSelectDate}
-                  onToday={handleTodayClick}
-                  month={visibleMonth}
-                  onMonthChange={setVisibleMonth}
-                />
-                <BookingsSidebar
-                  eventsByDay={eventsByDay}
-                  selectedDate={selectedDate}
-                  onSelectDate={handleSelectDate}
-                  setupItems={setupItems}
-                  drawerHeight={drawerHeight}
-                  onToggleDrawerHeight={() => setDrawerHeight((h) => (h === 'half' ? 'full' : 'half'))}
-                />
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="hidden lg:flex lg:fixed lg:left-56 lg:right-0 lg:top-0 lg:bottom-[var(--install-prompt-h,0px)] lg:bg-white">
-        <aside className="w-[var(--list-sidebar-w,14rem)] border-r border-gray-200 bg-white flex flex-col">
-          <ListPaneHeader
-            title="Bookings"
-            right={(isWalker || ownerWalkersCount > 0) ? (
-              <Button
-                onClick={() => setCreateBookingModal(true)}
-                aria-label={isWalker ? 'Add booking' : 'Request booking'}
-                className="h-8 px-3"
-              >
-                <Plus size={16} />
-                {isWalker ? 'Add booking' : 'Request booking'}
-              </Button>
-            ) : null}
-          />
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
-          ) : (
-            <BookingsList
-              eventsByDay={eventsByDay}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              setupItems={setupItems}
-              className="flex-1"
-            />
-          )}
-        </aside>
-        <section className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto w-full px-4 py-5">
-            {banner}
-            {outlet || (
-              <MonthCalendar
-                eventsByDay={eventsByDay}
-                selectedDate={selectedDate}
-                onSelect={handleSelectDate}
-                onToday={handleTodayClick}
-                month={visibleMonth}
-                onMonthChange={setVisibleMonth}
-              />
-            )}
-          </div>
-        </section>
-      </div>
+      <ListDetailLayout sidebar={sidebar} mobile={mobile} emptyDetail={emptyDetail} />
 
       {isWalker ? (
         <BookingForm

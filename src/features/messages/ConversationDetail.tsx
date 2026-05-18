@@ -126,7 +126,7 @@ export default function ConversationDetail() {
   const counterpartyTarget = !isWalker ? '_blank' : undefined
 
   return (
-    <div className="flex flex-col h-full pt-3 lg:pt-0">
+    <div className="flex flex-col h-full">
       <DetailHeader
         backHref="/account/messages"
         backLabel="Messages"
@@ -136,7 +136,7 @@ export default function ConversationDetail() {
         titleTarget={counterpartyTarget}
       />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-4 px-4">
         <div className="min-h-full flex flex-col justify-end py-3 space-y-2">
           {loading ? (
             <div className="flex justify-center"><Spinner /></div>

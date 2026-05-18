@@ -2,6 +2,17 @@ import type { ComponentType, ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+type Tone = 'default' | 'amber'
+
+const TONE_CLASSES: Record<Tone, string> = {
+  default: 'bg-white border-gray-200',
+  amber: 'bg-amber-50 border-amber-200',
+}
+const ICON_TONE: Record<Tone, string> = {
+  default: 'bg-gray-100 text-gray-500',
+  amber: 'bg-amber-100 text-amber-700',
+}
+
 interface Props {
   icon?: ComponentType<{ size?: number }>
   label?: ReactNode
@@ -12,13 +23,14 @@ interface Props {
   state?: unknown
   onClick?: () => void
   right?: ReactNode
+  tone?: Tone
 }
 
-export default function LinkRow({ icon: Icon, label, value, secondary, to, href, state, onClick, right }: Props) {
+export default function LinkRow({ icon: Icon, label, value, secondary, to, href, state, onClick, right, tone = 'default' }: Props) {
   const inner = (
     <>
       {Icon && (
-        <span className="w-9 h-9 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center shrink-0">
+        <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${ICON_TONE[tone]}`}>
           <Icon size={18} />
         </span>
       )}
@@ -32,7 +44,7 @@ export default function LinkRow({ icon: Icon, label, value, secondary, to, href,
     </>
   )
 
-  const className = 'flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-3 py-3'
+  const className = `flex items-center gap-3 border rounded-lg px-3 py-3 ${TONE_CLASSES[tone]}`
   const hoverClassName = ' hover:border-indigo-300 hover:bg-indigo-50/40 transition'
 
   if (href) {
