@@ -1,7 +1,7 @@
 import dns from 'dns/promises'
 import IcalExpander from 'ical-expander'
 
-const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000 // 6 hours
 const FETCH_TIMEOUT_MS = 10_000
 const MAX_BODY_BYTES = 10_000_000 // 10MB
 const WINDOW_DAYS = 30
@@ -164,23 +164,26 @@ function parseIcsEvents(rawText) {
 }
 
 /**
- * Validate and fetch an iCal URL. Returns { rawText } on success, { error } on failure.
+ * Validate and fetch an iCal URL. Returns one of:
+ *   { rawText, lastModified } — fresh body
+ *   { notModified: true }     — 304 response (only when `lastModified` passed in)
+ *   { error }                 — validation or fetch failure
  * Used both for upfront validation (before saving) and for cache-miss fetches.
  */
-export async function fetchIcalUrl(url) {
+export async function fetchIcalUrl(url, { lastModified } = {}) {
   const validationError = await validateUrl(url)
   if (validationError) return { error: validationError }
 
-  let rawText
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'Accept': 'text/calendar' },
-    })
+    const headers = { 'Accept': 'text/calendar' }
+    if (lastModified) headers['If-Modified-Since'] = lastModified
+
+    const res = await fetch(url, { signal: controller.signal, headers })
     clearTimeout(timeout)
 
+    if (res.status === 304) return { notModified: true }
     if (!res.ok) return { error: `HTTP ${res.status}` }
 
     const contentLength = res.headers.get('content-length')
@@ -188,7 +191,7 @@ export async function fetchIcalUrl(url) {
       return { error: 'Response too large' }
     }
 
-    rawText = await res.text()
+    const rawText = await res.text()
     if (rawText.length > MAX_BODY_BYTES) {
       return { error: 'Response too large' }
     }
@@ -196,22 +199,37 @@ export async function fetchIcalUrl(url) {
     if (!rawText.trimStart().startsWith('BEGIN:VCALENDAR')) {
       return { error: 'URL did not return calendar data. Use the "Secret address in iCal format" (ending in .ics), not a sharing or web link.' }
     }
+
+    return { rawText, lastModified: res.headers.get('last-modified') || null }
   } catch (err) {
     return { error: err.name === 'AbortError' ? 'Request timed out' : err.message }
   }
-
-  return { rawText }
 }
 
 async function refreshCacheSingle(supabase, importRow) {
-  const { rawText, error: fetchError } = await fetchIcalUrl(importRow.url)
-  if (fetchError) {
-    return { events: [], error: `${importRow.label}: ${fetchError}` }
+  const { data: existing } = await supabase
+    .from('ical_cache')
+    .select('events_json, last_modified')
+    .eq('import_id', importRow.id)
+    .maybeSingle()
+
+  const result = await fetchIcalUrl(importRow.url, { lastModified: existing?.last_modified })
+
+  if (result.error) {
+    return { events: existing?.events_json || [], error: `${importRow.label}: ${result.error}` }
+  }
+
+  if (result.notModified) {
+    await supabase
+      .from('ical_cache')
+      .update({ fetched_at: new Date().toISOString() })
+      .eq('import_id', importRow.id)
+    return { events: existing?.events_json || [], error: null }
   }
 
   let events
   try {
-    events = parseIcsEvents(rawText)
+    events = parseIcsEvents(result.rawText)
   } catch {
     return { events: [], error: `${importRow.label}: Failed to parse calendar data` }
   }
@@ -221,9 +239,9 @@ async function refreshCacheSingle(supabase, importRow) {
     .upsert({
       import_id: importRow.id,
       events_json: events,
+      last_modified: result.lastModified,
       fetched_at: new Date().toISOString(),
     })
-    .select()
 
   return { events, error: null }
 }
