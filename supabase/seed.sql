@@ -1,6 +1,6 @@
 -- OSDS Dev Seed Data
 -- Run with: npm run db:reset
--- All test users have password: password123
+-- Per-user passwords are set inline below (one-off random values).
 
 -- ============================================================
 -- AUTH USERS
@@ -8,49 +8,49 @@
 
 -- Walker 1: Sarah (Hackney)
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'sarah@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Sarah Mitchell"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'sarah@test.com', extensions.crypt('cLxIsiGe6hWiS26Z', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Sarah Mitchell"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', '{"sub":"11111111-1111-1111-1111-111111111111","email":"sarah@test.com"}'::jsonb, 'email', now(), now(), now());
 
 -- Walker 2: James (Bethnal Green)
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'james@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"James Okonkwo"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'james@test.com', extensions.crypt('Nih7adMZ41zByjsv', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"James Okonkwo"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), '22222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222', '{"sub":"22222222-2222-2222-2222-222222222222","email":"james@test.com"}'::jsonb, 'email', now(), now(), now());
 
 -- Walker 3: Priya (Mile End)
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'priya@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Priya Sharma"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'priya@test.com', extensions.crypt('wAajPej9yUPz4Ako', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Priya Sharma"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333', '{"sub":"33333333-3333-3333-3333-333333333333","email":"priya@test.com"}'::jsonb, 'email', now(), now(), now());
 
 -- Walker 4: Dan (Stratford)
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'dan@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Dan Cooper"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'dan@test.com', extensions.crypt('B6ktLvTnBGuusqed', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Dan Cooper"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-444444444444', '{"sub":"44444444-4444-4444-4444-444444444444","email":"dan@test.com"}'::jsonb, 'email', now(), now(), now());
 
 -- Walker 5: Meg (Bow)
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'meg@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Meg Taylor"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'meg@test.com', extensions.crypt('IMHOOSqdtBunnXPv', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Meg Taylor"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), '55555555-5555-5555-5555-555555555555', '55555555-5555-5555-5555-555555555555', '{"sub":"55555555-5555-5555-5555-555555555555","email":"meg@test.com"}'::jsonb, 'email', now(), now(), now());
 
 -- Client 1: Tom
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', 'aaaa0001-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tom@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Tom Henderson"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', 'aaaa0001-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tom@test.com', extensions.crypt('4YPrmTTg63hm9isd', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Tom Henderson"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), 'aaaa0001-0000-0000-0000-000000000000', 'aaaa0001-0000-0000-0000-000000000000', '{"sub":"aaaa0001-0000-0000-0000-000000000000","email":"tom@test.com"}'::jsonb, 'email', now(), now(), now());
 
 -- Client 2: Anya
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', 'aaaa0002-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'anya@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Anya Petrov"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', 'aaaa0002-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'anya@test.com', extensions.crypt('l2idUb3h35mwh74Q', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Anya Petrov"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), 'aaaa0002-0000-0000-0000-000000000000', 'aaaa0002-0000-0000-0000-000000000000', '{"sub":"aaaa0002-0000-0000-0000-000000000000","email":"anya@test.com"}'::jsonb, 'email', now(), now(), now());
 
 -- Client 3: Marcus
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_user_meta_data, confirmation_token) VALUES
-  ('00000000-0000-0000-0000-000000000000', 'aaaa0003-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'marcus@test.com', extensions.crypt('password123', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Marcus Williams"}'::jsonb, '');
+  ('00000000-0000-0000-0000-000000000000', 'aaaa0003-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'marcus@test.com', extensions.crypt('wORmcibu70biW9vK', extensions.gen_salt('bf')), now(), now(), now(), '{"name":"Marcus Williams"}'::jsonb, '');
 INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES
   (gen_random_uuid(), 'aaaa0003-0000-0000-0000-000000000000', 'aaaa0003-0000-0000-0000-000000000000', '{"sub":"aaaa0003-0000-0000-0000-000000000000","email":"marcus@test.com"}'::jsonb, 'email', now(), now(), now());
 
