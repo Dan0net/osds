@@ -25,7 +25,7 @@ const YN_OPTIONS = [
   { value: 'unknown', label: 'Unknown' },
 ]
 
-export default function PetForm({ initial, onSubmit, formId, onValidityChange }) {
+export default function PetForm({ initial, onSubmit, formId, onValidityChange }: any) {
   const [form, setForm] = useState(() => ({
     pet_type: initial?.pet_type || 'dog',
     name: initial?.name || '',
@@ -125,7 +125,7 @@ export default function PetForm({ initial, onSubmit, formId, onValidityChange })
   )
 }
 
-function Section({ title, children }) {
+function Section({ title, children }: { title: string; children: any }) {
   return (
     <section className="space-y-3">
       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{title}</h3>
@@ -134,11 +134,11 @@ function Section({ title, children }) {
   )
 }
 
-function Grid2({ children }) {
+function Grid2({ children }: { children: any }) {
   return <div className="grid grid-cols-2 gap-3">{children}</div>
 }
 
-function FieldLabel({ children, optional }) {
+function FieldLabel({ children, optional }: { children: any; optional?: boolean }) {
   return (
     <label className="block text-sm font-medium text-gray-700 mb-1">
       {children}
@@ -147,7 +147,7 @@ function FieldLabel({ children, optional }) {
   )
 }
 
-function Text({ label, value, onChange, placeholder, type = 'text', required, optional }) {
+function Text({ label, value, onChange, placeholder, type = 'text', required, optional }: any) {
   return (
     <div>
       <FieldLabel optional={optional}>{label}</FieldLabel>
@@ -163,7 +163,7 @@ function Text({ label, value, onChange, placeholder, type = 'text', required, op
   )
 }
 
-function Number({ label, value, onChange, placeholder, step, min, optional }) {
+function Number({ label, value, onChange, placeholder, step, min, optional }: any) {
   return (
     <div>
       <FieldLabel optional={optional}>{label}</FieldLabel>
@@ -180,7 +180,7 @@ function Number({ label, value, onChange, placeholder, step, min, optional }) {
   )
 }
 
-function Textarea({ label, value, onChange, placeholder, optional }) {
+function Textarea({ label, value, onChange, placeholder, optional }: any) {
   return (
     <div>
       <FieldLabel optional={optional}>{label}</FieldLabel>
@@ -195,7 +195,7 @@ function Textarea({ label, value, onChange, placeholder, optional }) {
   )
 }
 
-function RadioRow({ label, value, options, onChange, optional }) {
+function RadioRow({ label, value, options, onChange, optional }: any) {
   return (
     <div>
       <FieldLabel optional={optional}>{label}</FieldLabel>

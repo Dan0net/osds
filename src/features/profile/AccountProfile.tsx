@@ -63,7 +63,7 @@ export default function AccountProfile() {
       })
 
       if (walkerProfile) {
-        const wpUpdate = {
+        const wpUpdate: Record<string, unknown> = {
           business_name: form.business_name,
           slug: form.slug,
           bio: form.bio,

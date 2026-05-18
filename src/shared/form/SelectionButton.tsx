@@ -1,6 +1,6 @@
 import { ChevronDown, Plus } from 'lucide-react'
 
-export default function SelectionButton({ empty, emptyLabel, onClick, primary, secondary }) {
+export default function SelectionButton({ empty, emptyLabel, onClick, primary, secondary }: any) {
   if (empty) {
     return (
       <button

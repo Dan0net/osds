@@ -40,7 +40,7 @@ export default function AccountNotifications() {
 
   useEffect(() => {
     if (hasInteracted.current) return
-    const serverPrefs = profileQuery.data?.notification_preferences
+    const serverPrefs = profileQuery.data?.notification_preferences as Record<string, boolean> | null | undefined
     if (serverPrefs) setPrefs({ ...DEFAULT_PREFS, ...serverPrefs })
   }, [profileQuery.data?.notification_preferences])
 

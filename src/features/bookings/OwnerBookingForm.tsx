@@ -126,8 +126,9 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
       slots,
     })
     setSubmitting(false)
-    if (res.error) {
-      setError(res.error)
+    const r = res as any
+    if (r.error) {
+      setError(r.error)
       return
     }
     setStep(4)

@@ -1,5 +1,21 @@
+import type { ReactNode } from 'react'
 import { Clock, Moon, ChevronRight, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+
+interface Props {
+  serviceName?: string
+  date: string
+  endDate?: string | null
+  startTime?: string | null
+  endTime?: string | null
+  to?: string
+  state?: unknown
+  right?: ReactNode
+  statusBadge?: ReactNode
+  accentColor?: string
+  onCancel?: () => void
+  children?: ReactNode
+}
 
 export default function BookingCard({
   serviceName,
@@ -14,7 +30,7 @@ export default function BookingCard({
   accentColor,
   onCancel,
   children,
-}) {
+}: Props) {
   const isOvernight = !!(endDate && endDate !== date)
   const Icon = isOvernight ? Moon : Clock
   const dateLabel = formatDateRange(date, endDate, isOvernight)
@@ -77,17 +93,17 @@ export default function BookingCard({
   return <div className={className}>{inner}</div>
 }
 
-function formatDateRange(date, endDate, isOvernight) {
+function formatDateRange(date: string, endDate: string | null | undefined, isOvernight: boolean) {
   if (!date) return ''
   const d = parseDate(date)
-  const fmt = (x) => x.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  const fmt = (x: Date) => x.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
   if (isOvernight && endDate) {
     return `${fmt(d)} → ${fmt(parseDate(endDate))}`
   }
   return fmt(d)
 }
 
-function formatTimeRange(start, end, isOvernight) {
+function formatTimeRange(start: string | null | undefined, end: string | null | undefined, isOvernight: boolean) {
   if (!start) return ''
   const s = start.slice(0, 5)
   const e = end?.slice(0, 5)
@@ -96,6 +112,6 @@ function formatTimeRange(start, end, isOvernight) {
   return `${s}–${e}`
 }
 
-function parseDate(d) {
+function parseDate(d: string) {
   return new Date(d.length === 10 ? d + 'T00:00:00' : d)
 }

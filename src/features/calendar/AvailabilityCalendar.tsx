@@ -68,7 +68,7 @@ function RemoveBtn({ onClick }) {
 }
 
 // --- Main component ---
-export default function AvailabilityCalendar({ services, walkerId, initialServiceId, value, onChange, hideFooter = false }) {
+export default function AvailabilityCalendar({ services, walkerId, initialServiceId, value, onChange, hideFooter = false }: any) {
   const walkerServices = services || []
   const { walker: walkerParam } = useParams()
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
@@ -237,8 +237,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   }, [isMobile, weekDates.join(','), prevPaneDates.join(','), currentPaneDates.join(','), nextPaneDates.join(','), allSlotData])
 
   // --- Derived values ---
-  const baseStartH = fullTimeGrid.length > 0 ? Math.max(7, parseInt(fullTimeGrid[0])) : 7
-  const baseEndH = fullTimeGrid.length > 0 ? Math.min(20, parseInt(fullTimeGrid[fullTimeGrid.length - 1]) + 1) : 19
+  const baseStartH = fullTimeGrid.length > 0 ? Math.max(7, parseInt(fullTimeGrid[0] as string)) : 7
+  const baseEndH = fullTimeGrid.length > 0 ? Math.min(20, parseInt(fullTimeGrid[fullTimeGrid.length - 1] as string) + 1) : 19
   const hasOvernight = isOvernight || selectedSlots.some((s) => s.isOvernight)
   const startHour = hasOvernight ? Math.min(baseStartH, PICK_MIN / 60) : baseStartH
   const endHour = hasOvernight ? Math.max(baseEndH, DROP_MIN / 60 + 1) : baseEndH
@@ -568,8 +568,8 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
       if (ci < 0) return null
       return (
         <div key={i} data-event
-          onMouseDown={(e) => { if (!e.target.closest('[data-remove]')) startDrag(i, e.clientX, e.clientY, e) }}
-          onTouchStart={(e) => { if (!e.target.closest('[data-remove]') && e.touches.length) startDrag(i, e.touches[0].clientX, e.touches[0].clientY, e) }}
+          onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('[data-remove]')) startDrag(i, e.clientX, e.clientY, e) }}
+          onTouchStart={(e) => { if (!(e.target as HTMLElement).closest('[data-remove]') && e.touches.length) startDrag(i, e.touches[0].clientX, e.touches[0].clientY, e) }}
           className="absolute rounded bg-indigo-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-start justify-between group cursor-grab active:cursor-grabbing hover:bg-indigo-700 transition-colors"
           style={{ ...topHeight(parseTime(slot.time), slot.durationMinutes, startHour), ...colCSS(ci, paneCols), zIndex: 20, touchAction: 'none' }}>
           <span className="truncate leading-tight">{slot.time} {slot.serviceName}</span>
@@ -622,7 +622,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     })
   }
 
-  function DayPane({ dates, paneRef, interactive }) {
+  function DayPane({ dates, paneRef, interactive }: any) {
     const bodyHeight = hours.length * PX_PER_HOUR + TOP_PAD + 14
     return (
       <div className="bg-white">

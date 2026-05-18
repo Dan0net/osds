@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut } from 'lucide-react'
 import { useAuth } from '@/auth/useAuth'
 
-export default function ProfileChip({ onItemClick }) {
+export default function ProfileChip({ onItemClick }: { onItemClick?: () => void } = {}) {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)

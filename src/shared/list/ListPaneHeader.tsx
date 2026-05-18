@@ -1,4 +1,4 @@
-export default function ListPaneHeader({ title, right }) {
+export default function ListPaneHeader({ title, right }: { title: string; right?: any }) {
   return (
     <div className="shrink-0 -mx-4 lg:mx-0 px-4 py-3 lg:py-4 border-b border-gray-200">
       <div className="flex items-center justify-between gap-2 lg:h-10">
@@ -9,7 +9,7 @@ export default function ListPaneHeader({ title, right }) {
   )
 }
 
-export function ListPaneSubrow({ children }) {
+export function ListPaneSubrow({ children }: { children: any }) {
   return (
     <div className="shrink-0 -mx-4 lg:mx-0 p-3">
       {children}

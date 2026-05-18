@@ -7,11 +7,11 @@ import { queryClient, persister } from '@/queries/queryClient'
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault()
-  window.__deferredInstallPrompt = e
+  window.__deferredInstallPrompt = e as BeforeInstallPromptEvent
   window.dispatchEvent(new Event('install-prompt-ready'))
 })
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PersistQueryClientProvider
       client={queryClient}

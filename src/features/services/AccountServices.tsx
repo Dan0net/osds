@@ -31,8 +31,8 @@ export default function AccountServices() {
     enabled: !!walkerProfile,
   })
 
-  async function handleCreate(data) {
-    const inserted = await createService.mutateAsync(data)
+  async function handleCreate(data: any) {
+    const inserted = await createService.mutateAsync(data) as any
     setAddOpen(false)
     if (inserted) navigate(`/account/services/${inserted.id}`)
     return inserted

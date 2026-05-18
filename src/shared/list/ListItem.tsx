@@ -1,6 +1,15 @@
+import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 
-export default function ListItem({ to, state, end, accentColor, children }) {
+interface Props {
+  to: string
+  state?: unknown
+  end?: boolean
+  accentColor?: string
+  children: ReactNode
+}
+
+export default function ListItem({ to, state, end, accentColor, children }: Props) {
   return (
     <NavLink
       to={to}

@@ -63,8 +63,8 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function signUp(email, password, name, postcode, role, bookingIntentWalker) {
-    const metadata = { name, postcode, role }
+  async function signUp(email: string, password: string, name: string, postcode: string, role: string, bookingIntentWalker?: string) {
+    const metadata: Record<string, unknown> = { name, postcode, role }
     if (bookingIntentWalker) metadata.booking_intent_walker = bookingIntentWalker
     const { data, error } = await supabase.auth.signUp({
       email,

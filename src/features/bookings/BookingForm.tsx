@@ -18,7 +18,7 @@ import InviteConsentModal from '@/features/customers/InviteConsentModal'
 import SelectionButton from '@/shared/form/SelectionButton'
 import BookingCard from './BookingCard'
 
-export default function BookingForm({ open, onClose, onCreated }) {
+export default function BookingForm({ open, onClose, onCreated }: any) {
   const { walkerProfile } = useAuth()
   const [step, setStep] = useState(1)
   const [customer, setCustomer] = useState(null)
@@ -181,11 +181,12 @@ export default function BookingForm({ open, onClose, onCreated }) {
       mode: apiMode,
     })
     setSubmitting(false)
-    if (res.error) {
-      setError(res.error)
+    const r = res as any
+    if (r.error) {
+      setError(r.error)
       return
     }
-    setCreatedData(res.data)
+    setCreatedData(r.data)
     setStep(4)
   }
 

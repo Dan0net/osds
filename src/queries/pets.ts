@@ -1,16 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/utils/supabase'
+import type { Database } from '@/types/database'
 
-export function usePets(userId) {
-  const enabled = !!userId
+type PetInsert = Database['public']['Tables']['pets']['Insert']
+type PetUpdate = Database['public']['Tables']['pets']['Update']
+
+export function usePets(userId: string | undefined) {
   return useQuery({
-    queryKey: ['pets', userId],
-    enabled,
+    queryKey: ['pets', userId] as const,
+    enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pets')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId!)
         .order('created_at')
       if (error) throw error
       return data || []
@@ -30,7 +33,7 @@ function usePetMutation<TVars>(fn: (vars: TVars) => Promise<unknown>) {
 }
 
 export function useCreatePet() {
-  return usePetMutation(async ({ userId, pet }) => {
+  return usePetMutation(async ({ userId, pet }: { userId: string; pet: Omit<PetInsert, 'user_id'> }) => {
     const { data, error } = await supabase
       .from('pets')
       .insert({ user_id: userId, ...pet })
@@ -42,7 +45,7 @@ export function useCreatePet() {
 }
 
 export function useUpdatePet() {
-  return usePetMutation(async ({ petId, patch }) => {
+  return usePetMutation(async ({ petId, patch }: { petId: string; patch: PetUpdate }) => {
     const { data, error } = await supabase
       .from('pets')
       .update(patch)
@@ -55,7 +58,7 @@ export function useUpdatePet() {
 }
 
 export function useDeletePet() {
-  return usePetMutation(async (petId) => {
+  return usePetMutation(async (petId: string) => {
     const { error } = await supabase.from('pets').delete().eq('id', petId)
     if (error) throw error
   })

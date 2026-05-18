@@ -14,9 +14,9 @@ const DETAIL_SELECT = `
   users!bookings_client_id_fkey(name, email, phone, postcode)
 `
 
-export function useClientBookings(clientId) {
+export function useClientBookings(clientId: string | undefined) {
   const enabled = !!clientId
-  const queryKey = ['bookings', 'client', clientId]
+  const queryKey = ['bookings', 'client', clientId] as const
   useRealtimeInvalidate({ table: 'bookings', filter: enabled ? `client_id=eq.${clientId}` : null, queryKey, enabled })
   return useQuery({
     queryKey,
@@ -25,7 +25,7 @@ export function useClientBookings(clientId) {
       const { data, error } = await supabase
         .from('bookings')
         .select(CLIENT_SELECT)
-        .eq('client_id', clientId)
+        .eq('client_id', clientId!)
         .order('booking_date', { ascending: true })
       if (error) throw error
       return data || []
@@ -33,9 +33,9 @@ export function useClientBookings(clientId) {
   })
 }
 
-export function useWalkerBookings(walkerProfileId) {
+export function useWalkerBookings(walkerProfileId: string | undefined) {
   const enabled = !!walkerProfileId
-  const queryKey = ['bookings', 'walker', walkerProfileId]
+  const queryKey = ['bookings', 'walker', walkerProfileId] as const
   useRealtimeInvalidate({ table: 'bookings', filter: enabled ? `walker_id=eq.${walkerProfileId}` : null, queryKey, enabled })
   return useQuery({
     queryKey,
@@ -44,7 +44,7 @@ export function useWalkerBookings(walkerProfileId) {
       const { data, error } = await supabase
         .from('bookings')
         .select(WALKER_SELECT)
-        .eq('walker_id', walkerProfileId)
+        .eq('walker_id', walkerProfileId!)
         .order('booking_date', { ascending: true })
       if (error) throw error
       return data || []
@@ -52,9 +52,9 @@ export function useWalkerBookings(walkerProfileId) {
   })
 }
 
-export function useBooking(bookingId) {
+export function useBooking(bookingId: string | undefined) {
   const enabled = !!bookingId
-  const queryKey = ['booking', bookingId]
+  const queryKey = ['booking', bookingId] as const
   useRealtimeInvalidate({ table: 'bookings', filter: enabled ? `id=eq.${bookingId}` : null, queryKey, enabled })
   return useQuery({
     queryKey,
@@ -63,7 +63,7 @@ export function useBooking(bookingId) {
       const { data, error } = await supabase
         .from('bookings')
         .select(DETAIL_SELECT)
-        .eq('id', bookingId)
+        .eq('id', bookingId!)
         .single()
       if (error) throw error
       return data
@@ -71,16 +71,15 @@ export function useBooking(bookingId) {
   })
 }
 
-export function useBookingSiblings(paymentId) {
-  const enabled = !!paymentId
+export function useBookingSiblings(paymentId: string | undefined) {
   return useQuery({
-    queryKey: ['booking-siblings', paymentId],
-    enabled,
+    queryKey: ['booking-siblings', paymentId] as const,
+    enabled: !!paymentId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('id, status')
-        .eq('payment_id', paymentId)
+        .eq('payment_id', paymentId!)
       if (error) throw error
       return data || []
     },
@@ -101,37 +100,37 @@ function useBookingMutation<TVars>(fn: (vars: TVars) => Promise<unknown>) {
 }
 
 export function useApproveBooking() {
-  return useBookingMutation((params) =>
+  return useBookingMutation((params: { booking_id?: string; payment_id?: string }) =>
     apiFetch('approve-booking', { method: 'POST', body: JSON.stringify(params) }),
   )
 }
 
 export function useDeclineBooking() {
-  return useBookingMutation((params) =>
+  return useBookingMutation((params: { booking_id?: string; payment_id?: string }) =>
     apiFetch('decline-booking', { method: 'POST', body: JSON.stringify(params) }),
   )
 }
 
 export function useCancelBooking() {
-  return useBookingMutation((params) =>
+  return useBookingMutation((params: { booking_id?: string; payment_id?: string }) =>
     apiFetch('cancel-booking', { method: 'POST', body: JSON.stringify(params) }),
   )
 }
 
 export function useRescheduleBooking() {
-  return useBookingMutation((params) =>
+  return useBookingMutation((params: Record<string, unknown>) =>
     apiFetch('reschedule-booking', { method: 'POST', body: JSON.stringify(params) }),
   )
 }
 
 export function useWalkerCreateBooking() {
-  return useBookingMutation((params) =>
+  return useBookingMutation((params: Record<string, unknown>) =>
     apiFetch('walker-create-booking', { method: 'POST', body: JSON.stringify(params) }),
   )
 }
 
 export function useCreateBookingRequest() {
-  return useBookingMutation((params) =>
+  return useBookingMutation((params: Record<string, unknown>) =>
     apiFetch('create-booking-request', { method: 'POST', body: JSON.stringify(params) }),
   )
 }

@@ -1,6 +1,16 @@
 import { useEffect } from 'react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 
+interface Props {
+  open: boolean
+  onClose: () => void
+  lottieUrl: string
+  title: string
+  subtitle?: string
+  footnote?: string
+  autoDismissMs?: number
+}
+
 export default function CelebrationModal({
   open,
   onClose,
@@ -9,7 +19,7 @@ export default function CelebrationModal({
   subtitle,
   footnote,
   autoDismissMs = 4000,
-}) {
+}: Props) {
   useEffect(() => {
     if (!open) return
     const id = setTimeout(onClose, autoDismissMs)

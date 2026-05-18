@@ -5,7 +5,7 @@ import SelectionButton from '@/shared/form/SelectionButton'
 import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
 
-export default function CustomerForm({ initial, initialPets = [], onSubmit, formId, onValidityChange }) {
+export default function CustomerForm({ initial, initialPets = [], onSubmit, formId, onValidityChange }: any) {
   const [form, setForm] = useState(() => ({
     name: initial?.name || '',
     email: initial?.email || '',

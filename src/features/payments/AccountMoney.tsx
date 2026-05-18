@@ -42,7 +42,7 @@ export default function AccountMoney() {
       ...(walkerQuery.data || []).map((p) => ({
         ...p, type: 'received', counterpart: p.users?.name || 'Client',
       })),
-    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     return merged
   }, [clientQuery.data, walkerQuery.data])
 

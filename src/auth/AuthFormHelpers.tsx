@@ -1,6 +1,7 @@
+import type { ChangeEvent, InputHTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
-export function AuthShell({ title, subtitle, children }) {
+export function AuthShell({ title, subtitle, children }: { title?: string; subtitle?: string; children: ReactNode }) {
   return (
     <div className="max-w-md mx-auto px-4 py-12 sm:py-16">
       {(title || subtitle) && (
@@ -16,7 +17,7 @@ export function AuthShell({ title, subtitle, children }) {
   )
 }
 
-export function SubmitButton({ disabled, children }) {
+export function SubmitButton({ disabled, children }: { disabled?: boolean; children: ReactNode }) {
   return (
     <button
       type="submit"
@@ -28,7 +29,7 @@ export function SubmitButton({ disabled, children }) {
   )
 }
 
-export function AuthFooter({ prefix, to, linkText }) {
+export function AuthFooter({ prefix, to, linkText }: { prefix?: string; to: string; linkText: string }) {
   return (
     <div className="mt-8 pt-6 border-t border-gray-200 text-center">
       <p className="text-gray-600">
@@ -41,7 +42,14 @@ export function AuthFooter({ prefix, to, linkText }) {
   )
 }
 
-export function TextField({ label, value, onChange, type = 'text', ...rest }) {
+interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+  label: string
+  value: string
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void
+  type?: string
+}
+
+export function TextField({ label, value, onChange, type = 'text', ...rest }: TextFieldProps) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -56,7 +64,7 @@ export function TextField({ label, value, onChange, type = 'text', ...rest }) {
   )
 }
 
-export function ErrorBanner({ children }) {
+export function ErrorBanner({ children }: { children?: ReactNode }) {
   if (!children) return null
   return (
     <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">

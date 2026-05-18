@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { supabase } from '@/utils/supabase'
 import { useAuth } from '@/auth/useAuth'
 
-export default function ImageUpload({ bucket, currentUrl, onUpload, aspect = 'square', label }) {
+export default function ImageUpload({ bucket, currentUrl, onUpload, aspect = 'square', label }: any) {
   const { user } = useAuth()
   const fileRef = useRef(null)
   const [uploading, setUploading] = useState(false)

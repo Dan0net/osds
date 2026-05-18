@@ -8,7 +8,7 @@ export default function BookingsSidebar({
   setupItems,
   drawerHeight = 'half',
   onToggleDrawerHeight,
-}) {
+}: any) {
   const [dragActive, setDragActive] = useState(false)
   const [dragOffset, setDragOffset] = useState(0)
   const dragStartRef = useRef({ y: 0, h: 0 })

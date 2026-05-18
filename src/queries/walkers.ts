@@ -3,7 +3,7 @@ import { supabase } from '@/utils/supabase'
 
 const PAID_STATUSES = new Set(['confirmed', 'paid'])
 
-async function fetchOwnerWalkers(ownerUserId) {
+async function fetchOwnerWalkers(ownerUserId: string) {
   const { data, error } = await supabase
     .from('bookings')
     .select('walker_id, booking_date, walker_profiles(id, slug, business_name, theme_color, postcode, cover_url, created_at, users(name, avatar_url)), payments(total_cents, status)')
@@ -11,7 +11,7 @@ async function fetchOwnerWalkers(ownerUserId) {
     .order('booking_date', { ascending: false })
   if (error) return []
 
-  const map = new Map()
+  const map = new Map<string, any>()
   for (const row of data || []) {
     if (!row.walker_id || !row.walker_profiles) continue
     const w = map.get(row.walker_id) || {
@@ -19,7 +19,7 @@ async function fetchOwnerWalkers(ownerUserId) {
     }
     w.totalBookings += 1
     if (!w.lastBookingDate || row.booking_date > w.lastBookingDate) w.lastBookingDate = row.booking_date
-    if (row.payments && PAID_STATUSES.has(row.payments.status)) w.totalSpendCents += row.payments.total_cents || 0
+    if (row.payments && PAID_STATUSES.has((row.payments as any).status)) w.totalSpendCents += (row.payments as any).total_cents || 0
     map.set(row.walker_id, w)
   }
 
@@ -31,25 +31,23 @@ async function fetchOwnerWalkers(ownerUserId) {
   })
 }
 
-export function useOwnerWalkers(ownerUserId) {
-  const enabled = !!ownerUserId
+export function useOwnerWalkers(ownerUserId: string | undefined) {
   return useQuery({
-    queryKey: ['owner-walkers', ownerUserId],
-    enabled,
-    queryFn: () => fetchOwnerWalkers(ownerUserId),
+    queryKey: ['owner-walkers', ownerUserId] as const,
+    enabled: !!ownerUserId,
+    queryFn: () => fetchOwnerWalkers(ownerUserId!),
   })
 }
 
-export function useWalker(walkerId) {
-  const enabled = !!walkerId
+export function useWalker(walkerId: string | undefined) {
   return useQuery({
-    queryKey: ['walker', walkerId],
-    enabled,
+    queryKey: ['walker', walkerId] as const,
+    enabled: !!walkerId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('walker_profiles')
         .select('*, users(name, avatar_url)')
-        .eq('id', walkerId)
+        .eq('id', walkerId!)
         .maybeSingle()
       if (error) throw error
       return data
@@ -57,17 +55,16 @@ export function useWalker(walkerId) {
   })
 }
 
-export function useOwnerBookingsForWalker(walkerId, clientId) {
-  const enabled = !!walkerId && !!clientId
+export function useOwnerBookingsForWalker(walkerId: string | undefined, clientId: string | undefined) {
   return useQuery({
-    queryKey: ['owner-walker-bookings', walkerId, clientId],
-    enabled,
+    queryKey: ['owner-walker-bookings', walkerId, clientId] as const,
+    enabled: !!walkerId && !!clientId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('id, booking_date, status, services(name), payments(source, status)')
-        .eq('walker_id', walkerId)
-        .eq('client_id', clientId)
+        .eq('walker_id', walkerId!)
+        .eq('client_id', clientId!)
         .order('booking_date', { ascending: false })
       if (error) throw error
       return data || []

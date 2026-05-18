@@ -2,7 +2,7 @@ import { Link, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import AppHeader from '@/shared/AppHeader'
 
-export default function Layout({ walker }) {
+export default function Layout({ walker }: { walker?: string | null } = {}) {
   const { user, profile } = useAuth()
 
   return (

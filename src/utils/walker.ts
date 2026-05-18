@@ -3,7 +3,7 @@
  * In production: extract from Host header (e.g. ellie.onestopdog.shop → "ellie")
  * In dev: use /w/:walker path param as fallback.
  */
-export function resolveWalker(hostname, pathParam) {
+export function resolveWalker(hostname: string, pathParam?: string | null) {
   const parts = hostname.split('.')
 
   // Never treat Netlify preview/branch deploys or localhost as walker subdomains

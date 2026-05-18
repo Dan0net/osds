@@ -4,19 +4,19 @@ import { format, parseISO, addDays, isToday, isTomorrow } from 'date-fns'
 import MapButton from '@/shared/MapButton'
 import { isEventPast } from '@/utils/eventTime'
 
-function dayHeading(dateStr) {
+function dayHeading(dateStr: string) {
   const d = parseISO(dateStr)
   if (isToday(d)) return 'Today'
   if (isTomorrow(d)) return 'Tomorrow'
   return format(d, 'EEEE d MMMM')
 }
 
-function buildDays(startStr, count) {
+function buildDays(startStr: string, count: number) {
   const start = parseISO(startStr)
   return Array.from({ length: count }, (_, i) => format(addDays(start, i), 'yyyy-MM-dd'))
 }
 
-function EventRow({ event, activeId }) {
+function EventRow({ event, activeId }: any) {
   const inactive = event.inactive
   const past = isEventPast(event)
   const navigate = useNavigate()
@@ -79,7 +79,7 @@ function EventRow({ event, activeId }) {
   )
 }
 
-function SetupSection({ items }) {
+function SetupSection({ items }: any) {
   if (!items || items.every((i) => i.done)) return null
   return (
     <div className="mb-6">
@@ -123,7 +123,7 @@ function SetupSection({ items }) {
 
 const PAST_DAYS = 30
 
-export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, setupItems, scrollRef: externalScrollRef, className = '' }) {
+export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, setupItems, scrollRef: externalScrollRef, className = '' }: any) {
   const location = useLocation()
   const activeId = matchPath('/account/bookings/:bookingId', location.pathname)?.params?.bookingId
   const [days, setDays] = useState(() => buildDays(format(addDays(new Date(), -PAST_DAYS), 'yyyy-MM-dd'), PAST_DAYS + 90))
@@ -201,7 +201,7 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
     if (days.length > 0 && key > days[days.length - 1]) {
       const lastDate = parseISO(days[days.length - 1])
       const targetDate = parseISO(key)
-      const daysToAdd = Math.ceil((targetDate - lastDate) / (1000 * 60 * 60 * 24)) + 5
+      const daysToAdd = Math.ceil((targetDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)) + 5
       setDays((prev) => {
         const nextStart = format(addDays(parseISO(prev[prev.length - 1]), 1), 'yyyy-MM-dd')
         return [...prev, ...buildDays(nextStart, daysToAdd)]

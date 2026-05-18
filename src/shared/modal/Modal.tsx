@@ -1,9 +1,24 @@
+import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ArrowLeft } from 'lucide-react'
 import { useEnterExit } from './useEnterExit'
 
 const ANIM_MS = 220
+
+interface Props {
+  open: boolean
+  onClose: () => void
+  onBack?: () => void
+  title?: ReactNode
+  children: ReactNode
+  footer?: ReactNode
+  formId?: string
+  onSave?: () => void
+  saveLabel?: string
+  saveDisabled?: boolean
+  saveLoading?: boolean
+}
 
 export default function Modal({
   open,
@@ -17,12 +32,12 @@ export default function Modal({
   saveLabel = 'Save',
   saveDisabled = false,
   saveLoading = false,
-}) {
+}: Props) {
   const { mounted, visible } = useEnterExit(open, ANIM_MS)
 
   useEffect(() => {
     if (!open) return
-    function onKey(e) {
+    function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
     }
     document.body.style.overflow = 'hidden'

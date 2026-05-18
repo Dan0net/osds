@@ -39,7 +39,7 @@ export default function ConversationDetail() {
     return [...serverMessages, ...pendingMessages.filter((m) => !seen.has(m.id))]
   }, [serverMessages, pendingMessages])
 
-  const paymentIds = useMemo(() => extractPaymentIds(messages), [messages])
+  const paymentIds = useMemo(() => extractPaymentIds(messages) as string[], [messages])
   const paymentsQuery = usePaymentsByIds(paymentIds)
   const paymentMap = useMemo(() => {
     const map = new Map()
@@ -118,8 +118,8 @@ export default function ConversationDetail() {
     ? (conversation?.users?.name || 'Customer')
     : (conversation?.walker_profiles?.business_name || 'Walker')
   const counterpartyAvatar = isWalker ? conversation?.users?.avatar_url : null
-  const counterpartyTo = isWalker && conversation?.users?.id
-    ? `/account/customers/${conversation.users.id}`
+  const counterpartyTo = isWalker && (conversation?.users as any)?.id
+    ? `/account/customers/${(conversation.users as any).id}`
     : (!isWalker && conversation?.walker_profiles?.slug
       ? `https://${conversation.walker_profiles.slug}.onestopdog.shop`
       : null)

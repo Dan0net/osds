@@ -28,7 +28,7 @@ export default function AccountLayout() {
     if (localStorage.getItem('install-prompt-dismissed')) return
 
     const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    const isStandalone = window.navigator.standalone === true
+    const isStandalone = (window.navigator as any).standalone === true
     const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
 
     if (isIos && !isStandalone && isSafari) {
@@ -83,7 +83,7 @@ export default function AccountLayout() {
       style={{
         '--install-prompt-h': installPromptVisible ? 'calc(5rem + env(safe-area-inset-bottom))' : '0px',
         '--list-sidebar-w': '21rem',
-      }}
+      } as React.CSSProperties}
     >
       <Sidebar unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.length} />
       <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.length} />

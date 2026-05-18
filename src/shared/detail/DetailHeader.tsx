@@ -1,7 +1,18 @@
+import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-export default function DetailHeader({ backHref, backLabel = 'Back', title, right, avatarUrl, titleHref, titleTarget }) {
+interface Props {
+  backHref: string
+  backLabel?: string
+  title?: string
+  right?: ReactNode
+  avatarUrl?: string | null
+  titleHref?: string | null
+  titleTarget?: '_blank' | '_self'
+}
+
+export default function DetailHeader({ backHref, backLabel = 'Back', title, right, avatarUrl, titleHref, titleTarget }: Props) {
   const initial = (title?.charAt(0) || '?').toUpperCase()
   const showAvatar = avatarUrl !== undefined || !!titleHref
 

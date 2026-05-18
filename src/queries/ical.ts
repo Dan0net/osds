@@ -50,13 +50,14 @@ function useIcalMutation<TVars>(fn: (vars: TVars) => Promise<unknown>) {
 }
 
 export function useValidateIcalUrl() {
-  return useMutation<unknown, Error, TVars>({
-    mutationFn: (url) => apiFetch('validate-ical-url', { method: 'POST', body: JSON.stringify({ url }) }),
+  return useMutation({
+    mutationFn: (url: string) => apiFetch('validate-ical-url', { method: 'POST', body: JSON.stringify({ url }) }),
   })
 }
 
-export function useAddIcalImport(walkerProfileId) {
-  return useIcalMutation(async ({ label, url }) => {
+export function useAddIcalImport(walkerProfileId: string | undefined) {
+  return useIcalMutation(async ({ label, url }: { label: string; url: string }) => {
+    if (!walkerProfileId) return
     const { error } = await supabase.from('ical_imports').insert({
       walker_id: walkerProfileId, label, url,
     })
@@ -65,7 +66,7 @@ export function useAddIcalImport(walkerProfileId) {
 }
 
 export function useRemoveIcalImport() {
-  return useIcalMutation(async (id) => {
+  return useIcalMutation(async (id: string) => {
     const { error } = await supabase.from('ical_imports').delete().eq('id', id)
     if (error) throw error
   })

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { clientPriceCents } from '@/utils/pricing'
 
-export default function ServiceForm({ initial, onSubmit, formId, onValidityChange }) {
+export default function ServiceForm({ initial, onSubmit, formId, onValidityChange }: any) {
   const [form, setForm] = useState(() => ({
     name: initial?.name || '',
     service_type: initial?.service_type || 'standard',

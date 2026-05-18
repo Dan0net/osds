@@ -26,8 +26,8 @@ export default function EntityPicker({
   title,
   items,
   searchFields,
-  renderItem,           // single mode: (item, onSelect) => JSX
-  renderItemContent,    // multi mode: (item) => JSX (just the content, picker wraps in checkbox row)
+  renderItem,
+  renderItemContent,
   FormComponent,
   formProps = {},
   onSelect,
@@ -36,7 +36,7 @@ export default function EntityPicker({
   emptyState,
   multiple = false,
   initialSelected = [],
-}) {
+}: any) {
   const FORM_ID = useId()
   const [mode, setMode] = useState('list')
   const [formValid, setFormValid] = useState(false)

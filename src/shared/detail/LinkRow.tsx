@@ -1,7 +1,20 @@
+import type { ComponentType, ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-export default function LinkRow({ icon: Icon, label, value, secondary, to, href, state, onClick, right }) {
+interface Props {
+  icon?: ComponentType<{ size?: number }>
+  label?: ReactNode
+  value?: ReactNode
+  secondary?: ReactNode
+  to?: string | null
+  href?: string | null
+  state?: unknown
+  onClick?: () => void
+  right?: ReactNode
+}
+
+export default function LinkRow({ icon: Icon, label, value, secondary, to, href, state, onClick, right }: Props) {
   const inner = (
     <>
       {Icon && (

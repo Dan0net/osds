@@ -4,18 +4,23 @@ import { supabase } from '@/utils/supabase'
 import { apiFetch } from '@/utils/functions'
 import { useRealtimeInvalidate } from './realtime'
 
-function unreadCountsKey(userId) {
-  return ['conversation-unread-counts', userId]
+type UnreadCountsMap = Record<string, number>
+
+function unreadCountsKey(userId: string | undefined) {
+  return ['conversation-unread-counts', userId] as const
 }
 
-function useUnreadCountsQuery(userId, options = {}) {
-  return useQuery({
+function useUnreadCountsQuery<TSelected = UnreadCountsMap>(
+  userId: string | undefined,
+  options: { select?: (map: UnreadCountsMap) => TSelected } = {},
+) {
+  return useQuery<UnreadCountsMap, Error, TSelected>({
     queryKey: unreadCountsKey(userId),
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_conversation_unread_counts')
       if (error) throw error
-      const map = {}
+      const map: UnreadCountsMap = {}
       for (const row of data || []) map[row.conversation_id] = Number(row.unread_count) || 0
       return map
     },
@@ -23,27 +28,26 @@ function useUnreadCountsQuery(userId, options = {}) {
   })
 }
 
-export function useTotalUnreadConversations(userId) {
-  // Owns the single realtime subscription for the shared unread-counts cache.
+export function useTotalUnreadConversations(userId: string | undefined) {
   useRealtimeInvalidate({
     table: 'messages',
     queryKey: unreadCountsKey(userId),
     enabled: !!userId,
   })
-  return useUnreadCountsQuery(userId, {
+  return useUnreadCountsQuery<number>(userId, {
     select: (map) => Object.values(map).reduce((a, b) => a + b, 0),
   })
 }
 
-export function useConversationUnreadCount(userId, conversationId) {
-  return useUnreadCountsQuery(userId, {
+export function useConversationUnreadCount(userId: string | undefined, conversationId: string | undefined) {
+  return useUnreadCountsQuery<number>(userId, {
     select: (map) => (conversationId && map ? map[conversationId] || 0 : 0),
   })
 }
 
-export function useConversations(userId) {
+export function useConversations(userId: string | undefined) {
   const enabled = !!userId
-  const queryKey = ['conversations', userId]
+  const queryKey = ['conversations', userId] as const
   useRealtimeInvalidate({ table: 'conversations', queryKey, enabled })
   const convosQuery = useQuery({
     queryKey,
@@ -63,9 +67,9 @@ export function useConversations(userId) {
   })
   const countsQuery = useUnreadCountsQuery(userId)
   const data = useMemo(() => {
-    if (!convosQuery.data) return convosQuery.data
+    if (!convosQuery.data) return convosQuery.data as any
     const counts = countsQuery.data || {}
-    return convosQuery.data.map((c) => ({ ...c, unread_count: counts[c.id] || 0 }))
+    return convosQuery.data.map((c: any) => ({ ...c, unread_count: counts[c.id] || 0 }))
   }, [convosQuery.data, countsQuery.data])
   return {
     ...convosQuery,
@@ -74,9 +78,9 @@ export function useConversations(userId) {
   }
 }
 
-export function useConversation(conversationId) {
+export function useConversation(conversationId: string | undefined) {
   const enabled = !!conversationId
-  const queryKey = ['conversation', conversationId]
+  const queryKey = ['conversation', conversationId] as const
   useRealtimeInvalidate({
     table: 'messages',
     filter: enabled ? `conversation_id=eq.${conversationId}` : null,
@@ -91,12 +95,12 @@ export function useConversation(conversationId) {
         supabase
           .from('conversations')
           .select('*, walker_profiles(business_name, slug), users:client_id(name, avatar_url)')
-          .eq('id', conversationId)
+          .eq('id', conversationId!)
           .single(),
         supabase
           .from('messages')
           .select('*')
-          .eq('conversation_id', conversationId)
+          .eq('conversation_id', conversationId!)
           .order('created_at', { ascending: true }),
       ])
       return { conversation: convoRes.data, messages: messagesRes.data || [] }
@@ -107,7 +111,7 @@ export function useConversation(conversationId) {
 export function useSendMessage() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (params) =>
+    mutationFn: (params: { conversation_id: string; body: string }) =>
       apiFetch('send-chat-message', { method: 'POST', body: JSON.stringify(params) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversation'] })
@@ -115,10 +119,10 @@ export function useSendMessage() {
   })
 }
 
-export function useMarkConversationRead(userId) {
+export function useMarkConversationRead(userId: string | undefined) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (conversationId) => {
+    mutationFn: async (conversationId: string) => {
       if (!conversationId || !userId) return
       await supabase.from('conversation_reads').upsert({
         conversation_id: conversationId,
@@ -126,8 +130,8 @@ export function useMarkConversationRead(userId) {
         last_read_at: new Date().toISOString(),
       })
     },
-    onMutate: (conversationId) => {
-      queryClient.setQueryData(unreadCountsKey(userId), (old) => {
+    onMutate: (conversationId: string) => {
+      queryClient.setQueryData<UnreadCountsMap>(unreadCountsKey(userId), (old) => {
         if (!old) return old
         return { ...old, [conversationId]: 0 }
       })
@@ -135,17 +139,17 @@ export function useMarkConversationRead(userId) {
   })
 }
 
-export function useMarkAllConversationsRead(userId) {
+export function useMarkAllConversationsRead(userId: string | undefined) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (conversationIds) => {
+    mutationFn: async (conversationIds: string[]) => {
       if (!userId || !conversationIds?.length) return
       const now = new Date().toISOString()
       const rows = conversationIds.map((id) => ({ conversation_id: id, user_id: userId, last_read_at: now }))
       await supabase.from('conversation_reads').upsert(rows)
     },
-    onMutate: (conversationIds) => {
-      queryClient.setQueryData(unreadCountsKey(userId), (old) => {
+    onMutate: (conversationIds: string[]) => {
+      queryClient.setQueryData<UnreadCountsMap>(unreadCountsKey(userId), (old) => {
         if (!old) return old
         const next = { ...old }
         for (const id of conversationIds) next[id] = 0
@@ -157,7 +161,7 @@ export function useMarkAllConversationsRead(userId) {
 
 export function useEnsureConversation() {
   return useMutation({
-    mutationFn: async ({ walkerId, clientId }) => {
+    mutationFn: async ({ walkerId, clientId }: { walkerId: string; clientId: string }) => {
       if (!walkerId || !clientId) return null
       const { data: existing } = await supabase
         .from('conversations')
@@ -171,7 +175,7 @@ export function useEnsureConversation() {
         .insert({ walker_id: walkerId, client_id: clientId })
         .select('id')
         .single()
-      if (!error) return inserted.id
+      if (!error && inserted) return inserted.id
       const { data: retry } = await supabase
         .from('conversations')
         .select('id')

@@ -4,7 +4,7 @@ import { apiFetch } from '@/utils/functions'
 
 const PAID_STATUSES = new Set(['confirmed', 'paid'])
 
-async function fetchWalkerCustomers(walkerProfileId) {
+async function fetchWalkerCustomers(walkerProfileId: string) {
   const [bookingsRes, invitesRes] = await Promise.all([
     supabase
       .from('bookings')
@@ -26,7 +26,7 @@ async function fetchWalkerCustomers(walkerProfileId) {
     }
     c.totalBookings += 1
     if (!c.lastBookingDate || row.booking_date > c.lastBookingDate) c.lastBookingDate = row.booking_date
-    if (row.payments && PAID_STATUSES.has(row.payments.status)) c.totalSpendCents += row.payments.total_cents || 0
+    if (row.payments && PAID_STATUSES.has((row.payments as any).status)) c.totalSpendCents += (row.payments as any).total_cents || 0
     map.set(row.client_id, c)
   }
   for (const row of invitesRes.data || []) {
@@ -53,36 +53,35 @@ async function fetchWalkerCustomers(walkerProfileId) {
   })
 }
 
-export function useWalkerCustomers(walkerProfileId) {
-  const enabled = !!walkerProfileId
+export function useWalkerCustomers(walkerProfileId: string | undefined) {
   return useQuery({
-    queryKey: ['customers', walkerProfileId],
-    enabled,
-    queryFn: () => fetchWalkerCustomers(walkerProfileId),
+    queryKey: ['customers', walkerProfileId] as const,
+    enabled: !!walkerProfileId,
+    queryFn: () => fetchWalkerCustomers(walkerProfileId!),
   })
 }
 
-export function useCustomerDetail(walkerProfileId, clientId) {
+export function useCustomerDetail(walkerProfileId: string | undefined, clientId: string | undefined) {
   const enabled = !!walkerProfileId && !!clientId
   return useQuery({
-    queryKey: ['customer', walkerProfileId, clientId],
+    queryKey: ['customer', walkerProfileId, clientId] as const,
     enabled,
     queryFn: async () => {
       const [bookingsRes, userRes] = await Promise.all([
         supabase
           .from('bookings')
           .select('*, services(name), pets(*), payments(source), users:client_id(id, name, email, phone, postcode, avatar_url)')
-          .eq('walker_id', walkerProfileId)
-          .eq('client_id', clientId)
+          .eq('walker_id', walkerProfileId!)
+          .eq('client_id', clientId!)
           .order('booking_date', { ascending: false }),
         supabase
           .from('users')
           .select('id, name, email, phone, postcode, avatar_url')
-          .eq('id', clientId)
+          .eq('id', clientId!)
           .maybeSingle(),
       ])
       const bookings = bookingsRes.data || []
-      const client = bookings[0]?.users || userRes.data || null
+      const client = (bookings[0] as any)?.users || userRes.data || null
       return { client, bookings }
     },
   })
@@ -91,7 +90,7 @@ export function useCustomerDetail(walkerProfileId, clientId) {
 export function useInviteCustomer() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (params) => apiFetch('invite-customer', { method: 'POST', body: JSON.stringify(params) }),
+    mutationFn: (params: Record<string, unknown>) => apiFetch('invite-customer', { method: 'POST', body: JSON.stringify(params) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] })
     },
@@ -101,7 +100,7 @@ export function useInviteCustomer() {
 export function useAddCustomerWithPets() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ owner, pets }) => {
+    mutationFn: async ({ owner, pets }: { owner: Record<string, unknown>; pets?: any[] }) => {
       const { data, error } = await apiFetch('invite-customer', {
         method: 'POST', body: JSON.stringify(owner),
       })

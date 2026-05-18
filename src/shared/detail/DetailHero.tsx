@@ -1,6 +1,17 @@
+import type { ComponentType, ReactNode } from 'react'
 import { toneClass } from '@/utils/bookingStatus'
 
-export default function DetailHero({ icon: Icon, tone = 'gray', primary, secondary, status, extra, action }) {
+interface Props {
+  icon?: ComponentType<{ size?: number; strokeWidth?: number }>
+  tone?: string
+  primary: ReactNode
+  secondary?: ReactNode
+  status?: ReactNode
+  extra?: ReactNode
+  action?: ReactNode
+}
+
+export default function DetailHero({ icon: Icon, tone = 'gray', primary, secondary, status, extra, action }: Props) {
   const trailing = (action || status) && (
     action || <span className="text-sm font-semibold uppercase tracking-wide">{status}</span>
   )
