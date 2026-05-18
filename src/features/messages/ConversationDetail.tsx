@@ -129,12 +129,11 @@ export default function ConversationDetail() {
     ? (conversation?.users?.name || 'Customer')
     : (conversation?.walker_profiles?.business_name || 'Walker')
   const counterpartyAvatar = isWalker ? conversation?.users?.avatar_url : null
-  const counterpartyTo = isWalker && (conversation?.users as any)?.id
-    ? `/account/customers/${(conversation.users as any).id}`
-    : (!isWalker && conversation?.walker_profiles?.slug
-      ? `https://${conversation.walker_profiles.slug}.onestopdog.shop`
+  const counterpartyTo = isWalker && conversation?.client_id
+    ? `/account/customers/${conversation.client_id}`
+    : (!isWalker && conversation?.walker_id
+      ? `/account/walkers/${conversation.walker_id}`
       : null)
-  const counterpartyTarget = !isWalker ? '_blank' : undefined
 
   return (
     <div className="flex flex-col h-full">
@@ -144,7 +143,6 @@ export default function ConversationDetail() {
         title={counterpartyName}
         avatarUrl={counterpartyAvatar}
         titleHref={counterpartyTo}
-        titleTarget={counterpartyTarget}
       />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto -mx-4 px-4">
