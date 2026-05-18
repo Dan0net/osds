@@ -7,7 +7,8 @@ import { clientPriceCents } from '@/utils/pricing'
 import AvailabilityCalendar from '@/features/calendar/AvailabilityCalendar'
 import { useProbeOnMount } from '@/queries/ical'
 import { formatGBP } from '@/utils/formatting'
-import { ChevronLeft, Clock, Moon } from 'lucide-react'
+import Button from '@/shared/form/Button'
+import { ChevronLeft, Clock, Lock, Moon } from 'lucide-react'
 
 export default function ServiceBooking() {
   const { walker: walkerParam, serviceId } = useParams()
@@ -120,14 +121,38 @@ export default function ServiceBooking() {
         </div>
       )}
 
-      {/* Calendar */}
-      {selectedService && (
+      {/* Calendar — gated by login */}
+      {selectedService && user && (
         <AvailabilityCalendar
           services={activeServices}
           walkerId={walker.id}
           initialServiceId={selectedService.id}
         />
       )}
+
+      {selectedService && !user && (() => {
+        const here = `${prefix}/book/${selectedService.id}`
+        const returnTo = encodeURIComponent(here)
+        return (
+          <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+              <Lock size={20} />
+            </div>
+            <h2 className="text-lg font-semibold mb-2">Sign in to see availability</h2>
+            <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+              We show {walker.business_name}'s open slots to signed-in customers so we can keep your booking safe.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Link to={`/login?returnTo=${returnTo}`}>
+                <Button>Log in</Button>
+              </Link>
+              <Link to={`/signup?returnTo=${returnTo}`}>
+                <Button variant="secondary">Sign up</Button>
+              </Link>
+            </div>
+          </div>
+        )
+      })()}
 
       {activeServices.length === 0 && (
         <div className="text-center py-16">
