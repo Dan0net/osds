@@ -33,7 +33,7 @@ export default function PillSelect({ value, onChange, options, fullWidth = false
       </button>
       <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
       {open && (
-        <div className="absolute left-0 top-full mt-1 min-w-full bg-white rounded-2xl shadow-lg border border-gray-200 p-1 z-20">
+        <div className="absolute left-0 top-full mt-1 min-w-full bg-white rounded-2xl shadow-lg border border-gray-200 p-1 z-20 flex flex-col gap-0.5">
           {options.map((opt) => {
             const isActive = opt.value === value
             return (
@@ -41,7 +41,7 @@ export default function PillSelect({ value, onChange, options, fullWidth = false
                 key={String(opt.value)}
                 type="button"
                 onClick={() => { onChange(opt.value); setOpen(false) }}
-                className={`w-full text-left h-10 lg:h-8 pl-3 pr-3 rounded-full text-sm lg:text-xs font-medium inline-flex items-center gap-2 whitespace-nowrap ${
+                className={`w-full text-left h-10 lg:h-8 pl-3 pr-3 rounded-full text-sm lg:text-xs font-medium inline-flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-indigo-50 text-indigo-700'
                     : 'text-gray-700 hover:bg-gray-100'
