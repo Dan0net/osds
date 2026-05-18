@@ -7,10 +7,10 @@ import {
   useMarkAllPaymentsRead, useStripeDashboardLink,
 } from '@/queries/payments'
 import { useAutoSelectFirst } from '@/shared/useAutoSelectFirst'
-import ListDetailLayout from '@/shared/ListDetailLayout'
-import ListPaneHeader, { ListPaneSubrow } from '@/shared/ListPaneHeader'
-import ListItem from '@/shared/ListItem'
-import FilterPills from '@/shared/FilterPills'
+import ListDetailLayout from '@/shared/layout/ListDetailLayout'
+import ListPaneHeader, { ListPaneSubrow } from '@/shared/list/ListPaneHeader'
+import ListItem from '@/shared/list/ListItem'
+import FilterPills from '@/shared/form/FilterPills'
 import { Spinner } from '@/shared/Spinner'
 
 const STATUS_FILTERS = [

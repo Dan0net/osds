@@ -5,7 +5,7 @@ import { resolveWalker } from '@/utils/walker'
 import { useAuth } from '@/auth/useAuth'
 import { apiFetch } from '@/utils/functions'
 import { ChevronLeft, Calendar, Clock, Moon, PawPrint } from 'lucide-react'
-import Modal from '@/shared/Modal'
+import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
 
 const PET_FORM_ID = 'public-pet-form'

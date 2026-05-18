@@ -4,10 +4,10 @@ import { useAuth } from '@/auth/useAuth'
 import { useTotalUnreadConversations } from '@/queries/messages'
 import { useUnreadPaymentIds, usePaidCelebration } from '@/queries/payments'
 import InstallPrompt from '@/shared/InstallPrompt'
-import Sidebar from '@/shared/Sidebar'
-import BottomBar from '@/shared/BottomBar'
-import MoreDrawer from '@/shared/MoreDrawer'
-import PaidCelebrationModal from '@/features/payments/PaidCelebrationModal'
+import Sidebar from '@/shared/nav/Sidebar'
+import BottomBar from '@/shared/nav/BottomBar'
+import MoreDrawer from '@/shared/nav/MoreDrawer'
+import CelebrationModal from '@/shared/modal/CelebrationModal'
 
 export default function AccountLayout() {
   const { user, walkerProfile } = useAuth()
@@ -102,11 +102,13 @@ export default function AccountLayout() {
         onInstall={handleInstall}
       />
 
-      <PaidCelebrationModal
+      <CelebrationModal
         open={!!celebration}
         onClose={dismissCelebration}
-        amountCents={celebration?.amountCents}
-        counterpart={celebration?.counterpart}
+        lottieUrl="https://fonts.gstatic.com/s/e/notoemoji/latest/1f911/lottie.json"
+        title="You got paid!"
+        subtitle={celebration?.amountCents != null ? `+£${(celebration.amountCents / 100).toFixed(2)}` : undefined}
+        footnote={celebration?.counterpart ? `from ${celebration.counterpart}` : undefined}
       />
     </div>
   )

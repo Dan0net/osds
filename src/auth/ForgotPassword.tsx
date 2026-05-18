@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import { EMAIL_RE } from '@/utils/validators'
-import { AuthShell, SubmitButton, AuthFooter, TextField } from '@/shared/Auth'
+import { AuthShell, SubmitButton, AuthFooter, TextField } from '@/auth/AuthFormHelpers'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')

@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { Menu } from 'lucide-react'
-import { NAV_ITEMS, BOTTOM_BAR_KEYS } from './nav'
+import { NAV_ITEMS, BOTTOM_BAR_KEYS } from './items'
 
 export default function BottomBar({ onMore, unreadCount = 0, unreadPaymentsCount = 0 }) {
   const bottomItems = BOTTOM_BAR_KEYS.map((key) => NAV_ITEMS.find((i) => i.key === key))

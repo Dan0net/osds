@@ -1,5 +1,5 @@
 import { format, isToday, isYesterday, parseISO } from 'date-fns'
-import ListItem from '@/shared/ListItem'
+import ListItem from '@/shared/list/ListItem'
 
 function formatTimestamp(iso) {
   if (!iso) return ''

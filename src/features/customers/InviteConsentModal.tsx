@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Shield } from 'lucide-react'
 import { supabase } from '@/utils/supabase'
 import { useAuth } from '@/auth/useAuth'
-import Modal from '@/shared/Modal'
+import Modal from '@/shared/modal/Modal'
 
 export default function InviteConsentModal({ open, onAccept, onClose }) {
   const { walkerProfile, refreshProfile } = useAuth()

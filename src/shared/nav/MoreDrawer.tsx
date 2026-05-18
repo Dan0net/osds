@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuth } from '@/auth/useAuth'
-import { NAV_ITEMS, filterForRole } from './nav'
+import { useEnterExit } from '@/shared/modal/useEnterExit'
+import { NAV_ITEMS, filterForRole } from './items'
 import ProfileChip from './ProfileChip'
 
 const ANIM_MS = 200
@@ -10,33 +11,7 @@ const ANIM_MS = 200
 export default function MoreDrawer({ open, onClose }) {
   const { walkerProfile } = useAuth()
   const isWalker = !!walkerProfile
-  const [mounted, setMounted] = useState(false)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      setMounted(true)
-    } else {
-      setVisible(false)
-      const id = setTimeout(() => setMounted(false), ANIM_MS)
-      return () => clearTimeout(id)
-    }
-  }, [open])
-
-  // After mount, wait two frames so the initial `translate-y-full` paints
-  // before we flip to `translate-y-0`. Otherwise the browser collapses both
-  // states into one paint and the transition never runs.
-  useEffect(() => {
-    if (!mounted || !open) return
-    let raf2
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setVisible(true))
-    })
-    return () => {
-      cancelAnimationFrame(raf1)
-      if (raf2) cancelAnimationFrame(raf2)
-    }
-  }, [mounted, open])
+  const { mounted, visible } = useEnterExit(open, ANIM_MS)
 
   useEffect(() => {
     if (!open) return

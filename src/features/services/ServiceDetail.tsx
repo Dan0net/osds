@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useService, useUpdateService, useDeleteService } from '@/queries/services'
 import ServiceForm from '@/features/services/ServiceForm'
-import DetailHeader from '@/shared/DetailHeader'
+import DetailHeader from '@/shared/detail/DetailHeader'
 import { Spinner } from '@/shared/Spinner'
 
 export default function ServiceDetail() {

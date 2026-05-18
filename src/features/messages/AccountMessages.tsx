@@ -3,9 +3,9 @@ import { useAuth } from '@/auth/useAuth'
 import { useConversations, useMarkAllConversationsRead } from '@/queries/messages'
 import { useAutoSelectFirst } from '@/shared/useAutoSelectFirst'
 import ConversationRow from '@/features/messages/ConversationRow'
-import ListDetailLayout from '@/shared/ListDetailLayout'
-import ListPaneHeader, { ListPaneSubrow } from '@/shared/ListPaneHeader'
-import FilterPills from '@/shared/FilterPills'
+import ListDetailLayout from '@/shared/layout/ListDetailLayout'
+import ListPaneHeader, { ListPaneSubrow } from '@/shared/list/ListPaneHeader'
+import FilterPills from '@/shared/form/FilterPills'
 import { Spinner } from '@/shared/Spinner'
 
 export default function AccountMessages() {

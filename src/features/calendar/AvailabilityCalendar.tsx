@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { clientPriceCents } from '@/utils/pricing'
-import Modal from '@/shared/Modal'
+import Modal from '@/shared/modal/Modal'
 import { Spinner } from '@/shared/Spinner'
 
 function localDateStr(d) {

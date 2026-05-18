@@ -1,8 +1,8 @@
 import { useState, useEffect, useId } from 'react'
 import { X } from 'lucide-react'
 import { EMAIL_RE, UK_POSTCODE_RE } from '@/utils/validators'
-import SelectionButton from '@/shared/SelectionButton'
-import Modal from '@/shared/Modal'
+import SelectionButton from '@/shared/form/SelectionButton'
+import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
 
 export default function CustomerForm({ initial, initialPets = [], onSubmit, formId, onValidityChange }) {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import { EMAIL_RE, UK_POSTCODE_RE } from '@/utils/validators'
-import { AuthShell, SubmitButton, AuthFooter, TextField, ErrorBanner } from '@/shared/Auth'
+import { AuthShell, SubmitButton, AuthFooter, TextField, ErrorBanner } from '@/auth/AuthFormHelpers'
 
 export default function Signup() {
   const [searchParams] = useSearchParams()

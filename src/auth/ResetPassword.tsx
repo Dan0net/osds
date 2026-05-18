@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/utils/supabase'
 import { useAuth } from '@/auth/useAuth'
-import { AuthShell, SubmitButton, TextField, ErrorBanner } from '@/shared/Auth'
+import { AuthShell, SubmitButton, TextField, ErrorBanner } from '@/auth/AuthFormHelpers'
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('')

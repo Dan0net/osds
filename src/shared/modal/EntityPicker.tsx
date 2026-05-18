@@ -1,8 +1,8 @@
 import { useState, useEffect, useId } from 'react'
 import { Plus } from 'lucide-react'
 import Modal from './Modal'
-import SearchList from './SearchList'
-import SearchInput from './SearchInput'
+import SearchList from '@/shared/list/SearchList'
+import SearchInput from '@/shared/list/SearchInput'
 
 function keyOf(item) {
   return item?.id ?? item?.__tempId

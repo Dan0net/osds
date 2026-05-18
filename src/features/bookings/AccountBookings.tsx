@@ -14,8 +14,8 @@ import OwnerBookingForm from '@/features/bookings/OwnerBookingForm'
 import MonthCalendar from '@/features/bookings/MonthCalendar'
 import BookingsSidebar from '@/features/bookings/BookingsSidebar'
 import BookingsList from '@/features/bookings/BookingsList'
-import ListPaneHeader from '@/shared/ListPaneHeader'
-import PaidSuccessModal from '@/features/payments/PaidSuccessModal'
+import ListPaneHeader from '@/shared/list/ListPaneHeader'
+import CelebrationModal from '@/shared/modal/CelebrationModal'
 import { Spinner, PageSpinner } from '@/shared/Spinner'
 
 const EXTERNAL_COLOR = '#9ca3af'
@@ -240,9 +240,12 @@ export default function AccountBookings() {
         />
       )}
 
-      <PaidSuccessModal
+      <CelebrationModal
         open={paymentBanner === 'success'}
         onClose={() => setPaymentBanner(null)}
+        lottieUrl="https://fonts.gstatic.com/s/e/notoemoji/latest/1f4b8/lottie.json"
+        title="Payment successful!"
+        footnote="Your booking is now confirmed."
       />
     </>
   )

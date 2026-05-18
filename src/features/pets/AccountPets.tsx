@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/auth/useAuth'
 import { usePets, useCreatePet, useUpdatePet, useDeletePet } from '@/queries/pets'
-import Modal from '@/shared/Modal'
+import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
 
 const FORM_ID = 'pet-form'

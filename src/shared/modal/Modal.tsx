@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ArrowLeft } from 'lucide-react'
+import { useEnterExit } from './useEnterExit'
 
 const ANIM_MS = 220
 
@@ -17,30 +18,7 @@ export default function Modal({
   saveDisabled = false,
   saveLoading = false,
 }) {
-  const [mounted, setMounted] = useState(false)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      setMounted(true)
-    } else {
-      setVisible(false)
-      const id = setTimeout(() => setMounted(false), ANIM_MS)
-      return () => clearTimeout(id)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!mounted || !open) return
-    let raf2
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setVisible(true))
-    })
-    return () => {
-      cancelAnimationFrame(raf1)
-      if (raf2) cancelAnimationFrame(raf2)
-    }
-  }, [mounted, open])
+  const { mounted, visible } = useEnterExit(open, ANIM_MS)
 
   useEffect(() => {
     if (!open) return

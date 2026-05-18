@@ -9,12 +9,12 @@ import {
   usePayNowCheckout, useMarkPaymentRead, useUnreadPaymentIds,
 } from '@/queries/payments'
 import { useApproveBooking, useDeclineBooking, useCancelBooking } from '@/queries/bookings'
-import DetailHeader from '@/shared/DetailHeader'
-import DetailHero from '@/shared/DetailHero'
-import LinkRow from '@/shared/LinkRow'
+import DetailHeader from '@/shared/detail/DetailHeader'
+import DetailHero from '@/shared/detail/DetailHero'
+import LinkRow from '@/shared/detail/LinkRow'
 import BookingCard from '@/features/bookings/BookingCard'
-import ConfirmModal from '@/shared/ConfirmModal'
-import PaidSuccessModal from '@/features/payments/PaidSuccessModal'
+import ConfirmModal from '@/shared/modal/ConfirmModal'
+import CelebrationModal from '@/shared/modal/CelebrationModal'
 import { PageSpinner } from '@/shared/Spinner'
 
 const CANCELLABLE = new Set(['requested', 'approved', 'hold', 'confirmed', 'pending'])
@@ -334,9 +334,12 @@ export default function PaymentDetail() {
         loading={actionLoading === 'cancel'}
       />
 
-      <PaidSuccessModal
+      <CelebrationModal
         open={paySuccessOpen}
         onClose={() => setPaySuccessOpen(false)}
+        lottieUrl="https://fonts.gstatic.com/s/e/notoemoji/latest/1f4b8/lottie.json"
+        title="Payment successful!"
+        footnote="Your booking is now confirmed."
       />
 
       <div aria-hidden className="h-8 shrink-0" />

@@ -4,7 +4,7 @@ import { useAuth } from '@/auth/useAuth'
 import {
   useUpdateUserProfile, useUpdateWalkerProfile, useCreateWalkerProfile,
 } from '@/queries/profile'
-import ImageUpload from '@/shared/ImageUpload'
+import ImageUpload from '@/shared/form/ImageUpload'
 
 export default function AccountProfile() {
   const { user, profile, walkerProfile, refreshProfile } = useAuth()

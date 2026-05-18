@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { useAuth } from '@/auth/useAuth'
-import { NAV_ITEMS, filterForRole } from './nav'
+import { NAV_ITEMS, filterForRole } from './items'
 import ProfileChip from './ProfileChip'
 
 export default function Sidebar({ unreadCount = 0, unreadPaymentsCount = 0 }) {

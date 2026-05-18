@@ -1,6 +1,6 @@
 import { Link, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
-import AppHeader from './AppHeader'
+import AppHeader from '@/shared/AppHeader'
 
 export default function Layout({ walker }) {
   const { user, profile } = useAuth()
