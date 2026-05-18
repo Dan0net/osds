@@ -11,17 +11,17 @@ export default function MessageBubble({ message, isSelf, paymentMap, latestMessa
 
   const time = message.created_at ? format(parseISO(message.created_at), 'HH:mm') : ''
   return (
-    <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+    <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[80%] sm:max-w-[70%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+        className={`min-w-[3rem] max-w-[80%] sm:max-w-[70%] pl-3 pr-3 py-2 rounded-2xl text-sm break-words ${
           isSelf
             ? 'bg-indigo-600 text-white rounded-br-md'
             : 'bg-white border border-gray-200 text-gray-900 rounded-bl-md'
         }`}
       >
-        {message.body}
+        <span className="whitespace-pre-wrap">{message.body}</span>
+        <span className={`float-right ml-2 align-baseline text-[10px] relative top-2 ${isSelf ? 'text-indigo-200' : 'text-gray-400'}`}>{time}</span>
       </div>
-      <span className="text-[11px] text-gray-400 mt-0.5 px-1">{time}</span>
     </div>
   )
 }
@@ -54,6 +54,7 @@ function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner 
   const price = viewerAmount != null ? formatGBP(viewerAmount, { smart: true }) : null
   const isPaymentRequest = message.event_type === 'booking_approved' || message.event_type === 'booking_payment_link'
   const isStale = latestMessageIdByPayment?.get(paymentId) !== message.id
+  const time = message.created_at ? format(parseISO(message.created_at), 'HH:mm') : ''
 
   return (
     <div className="flex justify-center">
@@ -72,6 +73,7 @@ function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner 
             <ChevronRight size={16} className="text-gray-400 shrink-0" />
           </Link>
           {isOwner && isPaymentRequest && <PayNowButton paymentId={paymentId} disabled={isStale} />}
+          <div className="text-right text-[10px] text-gray-400">{time}</div>
         </div>
       </div>
     </div>
