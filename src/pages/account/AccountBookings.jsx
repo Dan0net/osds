@@ -89,7 +89,14 @@ export default function AccountBookings() {
       : Promise.resolve({ data: [] })
 
     const externalPromise = walkerProfile
-      ? apiFetch('get-external-events')
+      ? (async () => {
+          const { count } = await supabase
+            .from('ical_imports')
+            .select('id', { count: 'exact', head: true })
+            .eq('walker_id', walkerProfile.id)
+          if (!count) return { data: { events: [] } }
+          return apiFetch('get-external-events')
+        })()
       : Promise.resolve({ data: { events: [] } })
 
     const servicesCountPromise = walkerProfile
