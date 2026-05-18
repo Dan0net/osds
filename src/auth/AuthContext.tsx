@@ -79,7 +79,21 @@ export function AuthProvider({ children }) {
       },
     )
 
-    return () => subscription.unsubscribe()
+    // Re-fetch profiles when the tab regains focus, so changes made elsewhere
+    // (e.g. Stripe onboarding in another tab) are picked up immediately.
+    function onVisible() {
+      if (document.visibilityState === 'visible' && loadedUserIdRef.current) {
+        const userId = loadedUserIdRef.current
+        fetchProfile(userId)
+        fetchWalkerProfile(userId)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   async function signUp(email: string, password: string, name: string, postcode: string, role: string, bookingIntentWalker?: string) {

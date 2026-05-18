@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import { Check, AlertTriangle, X, Sparkles } from 'lucide-react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { useAuth } from '@/auth/useAuth'
@@ -8,6 +7,7 @@ import { usePets, useCreatePet } from '@/queries/pets'
 import { useServices, useCreateService } from '@/queries/services'
 import { useWalkerCreateBooking } from '@/queries/bookings'
 import { useProbeExternalEvents } from '@/queries/ical'
+import { useStripeConnectOnboard } from '@/queries/profile'
 import { slotNetCents } from '@common/pricing'
 import Modal from '@/shared/modal/Modal'
 import AvailabilityCalendar from '@/features/calendar/AvailabilityCalendar'
@@ -46,6 +46,12 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
   const createPet = useCreatePet()
   const createService = useCreateService(walkerProfile?.id)
   const createBooking = useWalkerCreateBooking()
+  const onboardStripe = useStripeConnectOnboard()
+
+  async function handleConnectStripe() {
+    const res = await onboardStripe.mutateAsync({ return_path: '/account/settings/stripe' })
+    if (res?.data?.url) window.open(res.data.url, '_blank', 'noopener,noreferrer')
+  }
 
   const customers = useMemo(
     () => (customersQuery.data || []).map((c) => ({
@@ -336,16 +342,22 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
                     <Check size={14} /> Stripe connected
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                    <div className="flex items-center gap-1.5 text-xs text-amber-800">
-                      <AlertTriangle size={14} /> Stripe isn't set up yet
+                  <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 mt-2 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={18} className="text-amber-700 shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-900">
+                        <p className="font-semibold">Stripe required for online payments</p>
+                        <p className="text-xs mt-1">Connect your Stripe account to take card payments. Opens in a new tab — your booking stays here.</p>
+                      </div>
                     </div>
-                    <Link
-                      to="/account/settings/stripe"
-                      className="text-xs font-semibold text-amber-800 hover:text-amber-900 underline shrink-0"
+                    <button
+                      type="button"
+                      onClick={handleConnectStripe}
+                      disabled={onboardStripe.isPending}
+                      className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-semibold text-sm rounded-lg px-4 py-2.5"
                     >
-                      Connect Stripe
-                    </Link>
+                      {onboardStripe.isPending ? 'Opening Stripe…' : 'Connect Stripe'}
+                    </button>
                   </div>
                 )
               )}

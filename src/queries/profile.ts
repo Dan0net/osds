@@ -101,3 +101,9 @@ export function useStripeConnectCallback() {
     mutationFn: () => apiFetch('stripe-connect-callback', { method: 'POST' }),
   })
 }
+
+export function useStripeConnectDisconnect() {
+  return useMutation({
+    mutationFn: () => apiFetch('stripe-connect-disconnect', { method: 'POST' }),
+  })
+}

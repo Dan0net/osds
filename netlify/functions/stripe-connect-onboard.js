@@ -71,6 +71,7 @@ export async function handler(event) {
     refresh_url: `${siteUrl}${returnPath}?stripe=refresh`,
     return_url: `${siteUrl}${returnPath}?stripe=complete`,
     type: 'account_onboarding',
+    collection_options: { fields: 'eventually_due', future_requirements: 'include' },
   })
 
   return {

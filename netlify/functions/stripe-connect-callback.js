@@ -34,8 +34,8 @@ export async function handler(event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'No Stripe account linked' }) }
   }
 
-  // Check if onboarding is complete
   const account = await stripe.accounts.retrieve(wp.stripe_account_id)
+  const req = account.requirements || {}
 
   return {
     statusCode: 200,
@@ -45,6 +45,10 @@ export async function handler(event) {
         charges_enabled: account.charges_enabled,
         details_submitted: account.details_submitted,
         payouts_enabled: account.payouts_enabled,
+        currently_due: req.currently_due || [],
+        past_due: req.past_due || [],
+        pending_verification: req.pending_verification || [],
+        disabled_reason: req.disabled_reason || null,
       },
     }),
   }
