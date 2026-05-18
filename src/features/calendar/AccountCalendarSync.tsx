@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/auth/useAuth'
 import { useIcalImports, useValidateIcalUrl, useAddIcalImport, useRemoveIcalImport } from '@/queries/ical'
 import { useUpdateWalkerProfile } from '@/queries/profile'
+import Button from '@/shared/form/Button'
+import { TextInput } from '@/shared/form/Input'
 
 export default function AccountCalendarSync() {
   const { walkerProfile } = useAuth()
@@ -90,9 +92,9 @@ export default function AccountCalendarSync() {
                     {imp.url.length > 50 ? imp.url.slice(0, 50) + '...' : imp.url}
                   </span>
                 </div>
-                <button onClick={() => removeImport.mutate(imp.id)} className="text-red-500 text-sm hover:text-red-600 ml-2 shrink-0">
+                <Button onClick={() => removeImport.mutate(imp.id)} variant="destructive-text" className="ml-2 shrink-0">
                   Remove
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -103,27 +105,23 @@ export default function AccountCalendarSync() {
         )}
 
         <div className="flex flex-col sm:flex-row gap-2">
-          <input
+          <TextInput
             type="text"
             value={importForm.label}
             onChange={(e) => { setImportForm({ ...importForm, label: e.target.value }); setImportError(null) }}
             placeholder="Label (e.g. Personal, Rover)"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:w-40 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            className="text-sm sm:w-40"
           />
-          <input
+          <TextInput
             type="url"
             value={importForm.url}
             onChange={(e) => { setImportForm({ ...importForm, url: e.target.value }); setImportError(null) }}
             placeholder="https://calendar.google.com/calendar/ical/..."
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            className="text-sm flex-1"
           />
-          <button
-            onClick={handleAddIcal}
-            disabled={validating}
-            className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
+          <Button onClick={handleAddIcal} disabled={validating} size="sm">
             {validating ? 'Validating...' : 'Add'}
-          </button>
+          </Button>
         </div>
         {importError && <p className="text-red-600 text-sm mt-2">{importError}</p>}
       </div>
@@ -132,14 +130,14 @@ export default function AccountCalendarSync() {
         <h3 className="font-medium mb-2">Export your bookings</h3>
         <p className="text-sm text-gray-500 mb-3">Subscribe to this feed to see bookings in your calendar.</p>
         <div className="flex gap-2">
-          <input type="text" value={feedUrl} readOnly className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" />
-          <button onClick={handleCopy} className="border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50">
+          <TextInput type="text" value={feedUrl} readOnly className="flex-1 text-sm bg-gray-50" />
+          <Button onClick={handleCopy} variant="secondary" size="sm">
             {copied ? 'Copied!' : 'Copy'}
-          </button>
+          </Button>
         </div>
-        <button onClick={handleRegenerateToken} className="text-sm text-red-500 hover:text-red-700 mt-2">
+        <Button onClick={handleRegenerateToken} variant="destructive-text" className="mt-2">
           Regenerate URL
-        </button>
+        </Button>
       </div>
     </div>
   )

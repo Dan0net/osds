@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Clock, Moon, ChevronRight, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { formatShortDate } from '@/utils/formatting'
 
 interface Props {
   serviceName?: string
@@ -95,12 +96,10 @@ export default function BookingCard({
 
 function formatDateRange(date: string, endDate: string | null | undefined, isOvernight: boolean) {
   if (!date) return ''
-  const d = parseDate(date)
-  const fmt = (x: Date) => x.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
   if (isOvernight && endDate) {
-    return `${fmt(d)} → ${fmt(parseDate(endDate))}`
+    return `${formatShortDate(parseDate(date))} → ${formatShortDate(parseDate(endDate))}`
   }
-  return fmt(d)
+  return formatShortDate(parseDate(date))
 }
 
 function formatTimeRange(start: string | null | undefined, end: string | null | undefined, isOvernight: boolean) {

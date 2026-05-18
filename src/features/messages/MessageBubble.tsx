@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { ChevronRight } from 'lucide-react'
-import { eventStatusBadge, toneClass, toneColor } from '@/utils/bookingStatus'
+import { eventStatusBadge, toneColor } from '@/utils/bookingStatus'
 import { usePayNowCheckout } from '@/queries/payments'
+import Badge from '@/shared/Badge'
+import { formatGBP } from '@/utils/formatting'
 
 export default function MessageBubble({ message, isSelf, paymentMap, latestMessageIdByPayment, isOwner }) {
   if (message.kind === 'system') return <SystemMessage message={message} paymentMap={paymentMap} latestMessageIdByPayment={latestMessageIdByPayment} isOwner={isOwner} />
@@ -22,12 +24,6 @@ export default function MessageBubble({ message, isSelf, paymentMap, latestMessa
       <span className="text-[11px] text-gray-400 mt-0.5 px-1">{time}</span>
     </div>
   )
-}
-
-function formatPrice(cents) {
-  if (cents == null) return ''
-  const pounds = cents / 100
-  return Number.isInteger(pounds) ? `£${pounds}` : `£${pounds.toFixed(2)}`
 }
 
 function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner }) {
@@ -55,7 +51,7 @@ function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner 
           })()
       )
     : null
-  const price = viewerAmount != null ? formatPrice(viewerAmount) : null
+  const price = viewerAmount != null ? formatGBP(viewerAmount, { smart: true }) : null
   const isPaymentRequest = message.event_type === 'booking_approved' || message.event_type === 'booking_payment_link'
   const isStale = latestMessageIdByPayment?.get(paymentId) !== message.id
 
@@ -69,9 +65,7 @@ function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner 
             to={`/account/money/${paymentId}`}
             className="flex items-center gap-2 text-sm text-gray-800 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 transition"
           >
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${toneClass(badge.tone)}`}>
-              {badge.label}
-            </span>
+            <Badge tone={badge.tone}>{badge.label}</Badge>
             <span className="flex-1 truncate">
               {descriptor ? `${descriptor}${price ? ` · ${price}` : ''}` : 'View payment'}
             </span>

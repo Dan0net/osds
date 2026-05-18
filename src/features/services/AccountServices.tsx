@@ -12,6 +12,9 @@ import ListDetailLayout from '@/shared/layout/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '@/shared/list/ListPaneHeader'
 import ListItem from '@/shared/list/ListItem'
 import { Spinner } from '@/shared/Spinner'
+import Badge from '@/shared/Badge'
+import Button from '@/shared/form/Button'
+import { formatGBP } from '@/utils/formatting'
 
 export default function AccountServices() {
   const { walkerProfile } = useAuth()
@@ -43,14 +46,10 @@ export default function AccountServices() {
   }
 
   const addButton = (
-    <button
-      onClick={() => setAddOpen(true)}
-      aria-label="Add service"
-      className="cursor-pointer h-8 px-3 inline-flex items-center justify-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
-    >
+    <Button onClick={() => setAddOpen(true)} aria-label="Add service" className="h-8 px-3">
       <Plus size={16} />
       Add service
-    </button>
+    </Button>
   )
 
   const listHeader = (
@@ -75,15 +74,11 @@ export default function AccountServices() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-sm font-medium truncate ${!svc.active ? 'opacity-60' : ''}`}>{svc.name}</span>
-              {svc.service_type === 'overnight' && (
-                <span className="text-[10px] font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">overnight</span>
-              )}
-              {!svc.active && (
-                <span className="text-[10px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">inactive</span>
-              )}
+              {svc.service_type === 'overnight' && <Badge tone="indigo" size="sm">overnight</Badge>}
+              {!svc.active && <Badge tone="gray" size="sm">inactive</Badge>}
             </div>
             <div className="text-xs text-gray-500 mt-0.5 truncate">
-              £{(svc.price_cents / 100).toFixed(2)}{svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes}m
+              {formatGBP(svc.price_cents)}{svc.service_type === 'overnight' ? '/night' : ''} · {svc.duration_minutes}m
             </div>
           </div>
         </ListItem>

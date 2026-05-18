@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import { EMAIL_RE } from '@/utils/validators'
-import { AuthShell, SubmitButton, AuthFooter, TextField, ErrorBanner } from '@/auth/AuthFormHelpers'
+import { AuthShell, SubmitButton, AuthFooter, TextField } from '@/auth/AuthFormHelpers'
+import Alert from '@/shared/Alert'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -63,7 +64,7 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back 👋" subtitle="Log in to manage your bookings and walks.">
-      <ErrorBanner>{error}</ErrorBanner>
+      {error && <Alert className="mb-4">{error}</Alert>}
       {needsConfirmation && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3 mb-4">
           <p className="font-medium mb-1">Please verify your email first</p>

@@ -9,8 +9,12 @@ import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
 import DetailHeader from '@/shared/detail/DetailHeader'
 import LinkRow from '@/shared/detail/LinkRow'
-import { bookingStatusBadge, toneClass } from '@/utils/bookingStatus'
+import { bookingStatusBadge } from '@/utils/bookingStatus'
 import { Spinner } from '@/shared/Spinner'
+import Avatar from '@/shared/Avatar'
+import Badge from '@/shared/Badge'
+import Button from '@/shared/form/Button'
+import { formatLongDate } from '@/utils/formatting'
 
 const PET_FORM_ID = 'customer-pet-form'
 
@@ -84,13 +88,7 @@ export default function CustomerDetail() {
       <DetailHeader backHref={backHref} backLabel={backLabel} />
 
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold overflow-hidden shrink-0">
-          {client.avatar_url ? (
-            <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            (client.name?.charAt(0) || '?').toUpperCase()
-          )}
-        </div>
+        <Avatar src={client.avatar_url} name={client.name} size="lg" />
         <h1 className="text-2xl truncate min-w-0 flex-1">{client.name || 'Unknown'}</h1>
       </div>
 
@@ -120,12 +118,9 @@ export default function CustomerDetail() {
       <section className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Pets</h2>
-          <button
-            onClick={() => setEditing('new')}
-            className="cursor-pointer inline-flex items-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-indigo-700"
-          >
+          <Button onClick={() => setEditing('new')} size="sm">
             <Plus size={14} /> Add pet
-          </button>
+          </Button>
         </div>
         {pets.length === 0 ? (
           <p className="text-sm text-gray-400">No pets recorded.</p>
@@ -154,17 +149,13 @@ export default function CustomerDetail() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{b.services?.name || 'Service'}</p>
                   <p className="text-xs text-gray-500">
-                    {new Date(b.booking_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    {formatLongDate(b.booking_date)}
                     {b.pets?.name && ` · ${b.pets.name}`}
                   </p>
                 </div>
                 {(() => {
                   const badge = bookingStatusBadge(b)
-                  return (
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${toneClass(badge.tone)}`}>
-                      {badge.label}
-                    </span>
-                  )
+                  return <Badge tone={badge.tone}>{badge.label}</Badge>
                 })()}
               </Link>
             ))}
@@ -233,7 +224,7 @@ function PetCard({ pet, onEdit, onRemove }) {
         </div>
         <div className="flex gap-3 shrink-0">
           <button onClick={onEdit} className="cursor-pointer text-sm text-indigo-600 hover:text-indigo-700">Edit</button>
-          <button onClick={onRemove} className="cursor-pointer text-sm text-red-500 hover:text-red-600">Remove</button>
+          <Button onClick={onRemove} variant="destructive-text">Remove</Button>
         </div>
       </div>
       <Subsection title="Behaviour" rows={behaviour} />

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import { EMAIL_RE, UK_POSTCODE_RE } from '@/utils/validators'
-import { AuthShell, SubmitButton, AuthFooter, TextField, ErrorBanner } from '@/auth/AuthFormHelpers'
+import { AuthShell, SubmitButton, AuthFooter, TextField } from '@/auth/AuthFormHelpers'
+import Alert from '@/shared/Alert'
 
 export default function Signup() {
   const [searchParams] = useSearchParams()
@@ -106,7 +107,7 @@ export default function Signup() {
         <RoleButton selected={role === 'walker'} onClick={() => setRole('walker')} icon="🦮" label="Dog walker" />
       </div>
 
-      <ErrorBanner>{error}</ErrorBanner>
+      {error && <Alert className="mb-4">{error}</Alert>}
 
       {role && (
         <form

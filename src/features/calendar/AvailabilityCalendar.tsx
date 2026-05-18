@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { clientPriceCents } from '@/utils/pricing'
 import Modal from '@/shared/modal/Modal'
 import { Spinner } from '@/shared/Spinner'
+import { formatGBP, formatWeekday, formatMonthYear } from '@/utils/formatting'
 
 function localDateStr(d) {
   const y = d.getFullYear()
@@ -592,7 +593,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
         blocks.push(
           <div key={`od-${i}`} data-event className="absolute rounded-t bg-purple-600 text-white px-1.5 py-0.5 text-[10px] overflow-hidden flex items-start justify-between group hover:bg-purple-700 transition-colors"
             style={{ top: `${TOP_PAD + dropTop}px`, height: `${h}px`, ...colCSS(ci, paneCols), zIndex: 20 }}>
-            <span className="truncate leading-tight">Drop-off {slot.time} · {slot.nights}n · £{(slot.priceCents / 100).toFixed(0)}</span>
+            <span className="truncate leading-tight">Drop-off {slot.time} · {slot.nights}n · {formatGBP(slot.priceCents, { smart: true })}</span>
             <RemoveBtn onClick={() => removeSlot(i)} />
           </div>
         )
@@ -635,7 +636,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
             const d = new Date(date + 'T00:00:00')
             return (
               <div key={date} className={`text-center py-1.5 text-xs border-l border-gray-100 ${date === todayStr ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>
-                <div>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</div>
+                <div>{formatWeekday(d)}</div>
                 <div className="text-sm font-bold">{d.getDate()}</div>
               </div>
             )
@@ -685,12 +686,12 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
 
   // --- Navigation header ---
   const headerAnchor = isMobile ? currentPaneDates[0] : weekDates[0]
-  const headerLabel = new Date(headerAnchor + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const headerLabel = formatMonthYear(headerAnchor + 'T00:00:00')
 
   const selectedServiceObj = walkerServices.find((s) => s.id === selectedService)
   const serviceLabel = selectedServiceObj ? selectedServiceObj.name : 'All services'
   const serviceSubLabel = selectedServiceObj
-    ? `${selectedServiceObj.service_type === 'overnight' ? 'per night' : `${selectedServiceObj.duration_minutes} min`} · £${(clientPriceCents(selectedServiceObj.price_cents) / 100).toFixed(2)}`
+    ? `${selectedServiceObj.service_type === 'overnight' ? 'per night' : `${selectedServiceObj.duration_minutes} min`} · ${formatGBP(clientPriceCents(selectedServiceObj.price_cents))}`
     : '30 min slots'
 
   function handlePrev() {
@@ -769,7 +770,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
         <div className="mt-3 flex items-center justify-between">
           <span className="text-xs text-gray-500">
             {selectedSlots.length > 0
-              ? `${selectedSlots.length} booking${selectedSlots.length > 1 ? 's' : ''} · £${(selectedSlots.reduce((s, sl) => s + sl.priceCents, 0) / 100).toFixed(2)}`
+              ? `${selectedSlots.length} booking${selectedSlots.length > 1 ? 's' : ''} · ${formatGBP(selectedSlots.reduce((s, sl) => s + sl.priceCents, 0))}`
               : isOvernight ? 'Click a day to book an overnight stay' : 'Click the calendar to book a slot'}
           </span>
           <button onClick={handleBookNow} disabled={selectedSlots.length === 0}
@@ -802,7 +803,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{s.name}</p>
                 <p className="text-xs text-gray-500 truncate">
-                  {s.service_type === 'overnight' ? 'per night' : `${s.duration_minutes} min`} · £{(clientPriceCents(s.price_cents) / 100).toFixed(2)}
+                  {s.service_type === 'overnight' ? 'per night' : `${s.duration_minutes} min`} · {formatGBP(clientPriceCents(s.price_cents))}
                 </p>
               </div>
               {selectedService === s.id && <Check size={16} className="text-indigo-600 shrink-0" />}

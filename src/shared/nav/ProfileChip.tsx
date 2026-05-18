@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut } from 'lucide-react'
 import { useAuth } from '@/auth/useAuth'
+import Avatar from '@/shared/Avatar'
 
 export default function ProfileChip({ onItemClick }: { onItemClick?: () => void } = {}) {
   const { user, profile, signOut } = useAuth()
@@ -30,7 +31,6 @@ export default function ProfileChip({ onItemClick }: { onItemClick?: () => void 
     onItemClick?.()
   }
 
-  const initial = (profile?.name?.charAt(0) || user?.email?.charAt(0) || '?').toUpperCase()
   const displayName = profile?.name || user?.email || ''
 
   return (
@@ -39,13 +39,7 @@ export default function ProfileChip({ onItemClick }: { onItemClick?: () => void 
         onClick={() => setOpen((v) => !v)}
         className="cursor-pointer w-full flex items-center gap-3 p-1 -m-1 rounded-lg hover:bg-gray-50 transition"
       >
-        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            initial
-          )}
-        </div>
+        <Avatar src={profile?.avatar_url} name={profile?.name || user?.email} />
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
           {profile?.name && user?.email && (

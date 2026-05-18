@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import Modal from './Modal'
 import SearchList from '@/shared/list/SearchList'
 import SearchInput from '@/shared/list/SearchInput'
+import Button from '@/shared/form/Button'
 
 function keyOf(item) {
   return item?.id ?? item?.__tempId
@@ -124,14 +125,10 @@ export default function EntityPicker({
               <SearchInput value={query} onChange={setQuery} />
             </div>
             {onCreate && (
-              <button
-                type="button"
-                onClick={() => setMode('add')}
-                className="cursor-pointer h-9 px-3 inline-flex items-center justify-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 shrink-0"
-              >
+              <Button type="button" onClick={() => setMode('add')} className="h-9 px-3 shrink-0">
                 <Plus size={16} />
                 <span className="hidden sm:inline">{addLabel}</span>
-              </button>
+              </Button>
             )}
           </div>
           <div className="space-y-2">

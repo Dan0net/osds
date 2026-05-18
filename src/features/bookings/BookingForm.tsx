@@ -17,6 +17,8 @@ import ServiceForm from '@/features/services/ServiceForm'
 import InviteConsentModal from '@/features/customers/InviteConsentModal'
 import SelectionButton from '@/shared/form/SelectionButton'
 import BookingCard from './BookingCard'
+import Alert from '@/shared/Alert'
+import { formatGBP } from '@/utils/formatting'
 
 export default function BookingForm({ open, onClose, onCreated }: any) {
   const { walkerProfile } = useAuth()
@@ -219,9 +221,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
         saveDisabled={!stepValid}
         saveLoading={submitting}
       >
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
-        )}
+        {error && <Alert className="mb-4">{error}</Alert>}
 
         {step === 1 && (
           <div className="space-y-4">
@@ -252,7 +252,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
               onClick={() => setServicePickerOpen(true)}
               primary={bookingService?.name}
               secondary={bookingService
-                ? `£${(bookingService.price_cents / 100).toFixed(2)} · ${bookingService.duration_minutes} min`
+                ? `${formatGBP(bookingService.price_cents)} · ${bookingService.duration_minutes} min`
                 : null}
             />
             {bookingService && (
@@ -286,7 +286,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
                     right={
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-gray-900">
-                          £{(slotDisplay(slot) / 100).toFixed(2)}
+                          {formatGBP(slotDisplay(slot))}
                         </span>
                         <button
                           type="button"
@@ -350,7 +350,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
 
             <div className="flex items-center justify-between border-t border-gray-200 pt-3">
               <span className="text-sm text-gray-500">Total</span>
-              <span className="text-lg font-semibold text-gray-900">£{(totalDisplay / 100).toFixed(2)}</span>
+              <span className="text-lg font-semibold text-gray-900">{formatGBP(totalDisplay)}</span>
             </div>
           </div>
         )}
@@ -415,7 +415,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
           >
             <p className="text-sm font-medium">{s.name}</p>
             <p className="text-xs text-gray-500">
-              £{(s.price_cents / 100).toFixed(2)} · {s.duration_minutes} min
+              {formatGBP(s.price_cents)} · {s.duration_minutes} min
               {s.service_type === 'overnight' && ' · overnight'}
             </p>
           </button>

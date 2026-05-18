@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useAuth } from '@/auth/useAuth'
-import { paymentStatusBadge, toneClass, toneColor } from '@/utils/bookingStatus'
+import { paymentStatusBadge, toneColor } from '@/utils/bookingStatus'
 import { displayPaymentAmount } from '@/utils/pricing'
+import Badge from '@/shared/Badge'
+import { formatGBP, formatDayMonth } from '@/utils/formatting'
 import {
   useClientPayments, useWalkerPayments, useUnreadPaymentIds,
   useMarkAllPaymentsRead, useStripeDashboardLink,
@@ -110,7 +112,7 @@ export default function AccountMoney() {
           : (firstService ? `${p.counterpart} · ${firstService}` : p.counterpart)
         const viewerIsWalker = p.type === 'received'
         const amountCents = displayPaymentAmount(p, viewerIsWalker)
-        const amount = `${viewerIsWalker ? '+' : '−'}£${(amountCents / 100).toFixed(2)}`
+        const amount = `${viewerIsWalker ? '+' : '−'}${formatGBP(amountCents)}`
         const isUnread = unreadSet.has(p.id)
         return (
           <ListItem
@@ -122,16 +124,14 @@ export default function AccountMoney() {
             <div className="flex-1 min-w-0">
               <p className={`text-sm truncate ${isUnread ? 'font-semibold' : 'font-medium'}`}>{title}</p>
               <p className="text-xs text-gray-400 truncate mt-0.5">
-                {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                {formatDayMonth(p.created_at)}
               </p>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
               <span className={`text-sm font-semibold ${viewerIsWalker ? 'text-green-600' : ''}`}>
                 {amount}
               </span>
-              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${toneClass(badge.tone)}`}>
-                {badge.label}
-              </span>
+              <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
             </div>
             {isUnread && (
               <span aria-label="Unread" className="w-2 h-2 rounded-full bg-indigo-600 shrink-0 self-center" />

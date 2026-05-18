@@ -3,6 +3,7 @@ import { useAuth } from '@/auth/useAuth'
 import { usePets, useCreatePet, useUpdatePet, useDeletePet } from '@/queries/pets'
 import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
+import Button from '@/shared/form/Button'
 
 const FORM_ID = 'pet-form'
 
@@ -39,12 +40,7 @@ export default function AccountPets() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl">Pets</h1>
-        <button
-          onClick={() => setEditing('new')}
-          className="cursor-pointer bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700"
-        >
-          Add pet
-        </button>
+        <Button onClick={() => setEditing('new')} size="sm">Add pet</Button>
       </div>
 
       <div className="space-y-2">
@@ -59,9 +55,7 @@ export default function AccountPets() {
               <button onClick={() => setEditing(pet)} className="cursor-pointer text-sm text-indigo-600 hover:text-indigo-700">
                 Edit
               </button>
-              <button onClick={() => remove(pet.id)} className="cursor-pointer text-sm text-red-500 hover:text-red-600">
-                Remove
-              </button>
+              <Button onClick={() => remove(pet.id)} variant="destructive-text">Remove</Button>
             </div>
           </div>
         ))}

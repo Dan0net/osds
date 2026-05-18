@@ -3,6 +3,7 @@ import { Shield } from 'lucide-react'
 import { supabase } from '@/utils/supabase'
 import { useAuth } from '@/auth/useAuth'
 import Modal from '@/shared/modal/Modal'
+import Button from '@/shared/form/Button'
 
 export default function InviteConsentModal({ open, onAccept, onClose }) {
   const { walkerProfile, refreshProfile } = useAuth()
@@ -38,19 +39,12 @@ export default function InviteConsentModal({ open, onAccept, onClose }) {
         <li>• Abuse (spam, unsolicited contacts) can lead to your account being suspended.</li>
       </ul>
       <div className="flex gap-2">
-        <button
-          onClick={handleAccept}
-          disabled={saving}
-          className="cursor-pointer flex-1 bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-        >
+        <Button onClick={handleAccept} disabled={saving} className="flex-1">
           {saving ? 'Saving…' : 'I understand'}
-        </button>
-        <button
-          onClick={onClose}
-          className="cursor-pointer flex-1 border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg hover:bg-gray-50"
-        >
+        </Button>
+        <Button onClick={onClose} variant="secondary" className="flex-1">
           Cancel
-        </button>
+        </Button>
       </div>
     </Modal>
   )

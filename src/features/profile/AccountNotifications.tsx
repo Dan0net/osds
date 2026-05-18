@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/auth/useAuth'
 import { useUserProfile, useUpdateUserProfile } from '@/queries/profile'
 import { usePushSubscription } from '@/auth/usePushSubscription'
+import Button from '@/shared/form/Button'
 
 const PREF_ITEMS = [
   { label: 'New chat message', emailKey: 'email_chat_message', pushKey: 'push_chat_message' },
@@ -81,13 +82,9 @@ export default function AccountNotifications() {
           </div>
           {pushPermission !== 'denied' && (
             pushSub ? (
-              <button onClick={unsubscribePush} className="cursor-pointer text-sm text-red-500 hover:text-red-700 font-medium">
-                Disable
-              </button>
+              <Button onClick={unsubscribePush} variant="destructive-text">Disable</Button>
             ) : (
-              <button onClick={subscribePush} className="cursor-pointer bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">
-                Enable
-              </button>
+              <Button onClick={subscribePush} size="sm">Enable</Button>
             )
           )}
         </div>

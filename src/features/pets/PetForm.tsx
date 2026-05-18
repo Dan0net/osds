@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TextInput, TextArea } from '@/shared/form/Input'
 
 const PET_TYPES = [
   { value: 'dog', label: 'Dog' },
@@ -151,13 +152,12 @@ function Text({ label, value, onChange, placeholder, type = 'text', required, op
   return (
     <div>
       <FieldLabel optional={optional}>{label}</FieldLabel>
-      <input
+      <TextInput
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
       />
     </div>
   )
@@ -167,14 +167,13 @@ function Number({ label, value, onChange, placeholder, step, min, optional }: an
   return (
     <div>
       <FieldLabel optional={optional}>{label}</FieldLabel>
-      <input
+      <TextInput
         type="number"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         step={step}
         min={min}
         placeholder={placeholder}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
       />
     </div>
   )
@@ -184,12 +183,11 @@ function Textarea({ label, value, onChange, placeholder, optional }: any) {
   return (
     <div>
       <FieldLabel optional={optional}>{label}</FieldLabel>
-      <textarea
+      <TextArea
         rows={2}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
       />
     </div>
   )

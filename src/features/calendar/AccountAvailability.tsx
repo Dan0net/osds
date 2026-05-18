@@ -4,6 +4,9 @@ import {
   useAvailability, useBlockedDates,
   useReplaceAvailability, useAddBlockedDate, useRemoveBlockedDate,
 } from '@/queries/availability'
+import Button from '@/shared/form/Button'
+import { TextInput } from '@/shared/form/Input'
+import { formatLongDate } from '@/utils/formatting'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -107,51 +110,39 @@ export default function AccountAvailability() {
             </div>
           ))}
         </div>
-        <button
-          onClick={saveAvailability}
-          disabled={replaceAvailability.isPending}
-          className="mt-3 bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-        >
+        <Button onClick={saveAvailability} disabled={replaceAvailability.isPending} size="sm" className="mt-3">
           {replaceAvailability.isPending ? 'Saving...' : 'Save schedule'}
-        </button>
+        </Button>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <h3 className="font-medium mb-3">Blocked dates</h3>
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
-          <input
+          <TextInput
             type="date"
             value={newBlock.date}
             onChange={(e) => setNewBlock({ ...newBlock, date: e.target.value })}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="text-sm sm:w-auto"
           />
-          <input
+          <TextInput
             type="text"
             value={newBlock.reason}
             onChange={(e) => setNewBlock({ ...newBlock, reason: e.target.value })}
             placeholder="Reason (optional)"
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="text-sm flex-1"
           />
-          <button
-            onClick={addBlockedDate}
-            disabled={addBlocked.isPending}
-            className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
+          <Button onClick={addBlockedDate} disabled={addBlocked.isPending} size="sm">
             Block
-          </button>
+          </Button>
         </div>
         <div className="space-y-2">
           {blockedDates.map((block) => (
             <div key={block.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
               <div>
-                <span className="font-medium text-sm">
-                  {new Date(block.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
+                <span className="font-medium text-sm">{formatLongDate(block.date)}</span>
                 {block.reason && <span className="text-gray-500 text-sm ml-2">— {block.reason}</span>}
               </div>
-              <button onClick={() => removeBlockedDate(block.id)} className="text-red-500 text-sm hover:text-red-600">
-                Remove
-              </button>
+              <Button onClick={() => removeBlockedDate(block.id)} variant="destructive-text">Remove</Button>
             </div>
           ))}
         </div>

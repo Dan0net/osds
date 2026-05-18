@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import { clientPriceCents } from '@/utils/pricing'
+import Alert from '@/shared/Alert'
+import { formatGBP } from '@/utils/formatting'
 
 function WalkerCard({ walker, showDistance }) {
   const lowestPrice = walker.services?.length > 0
@@ -48,7 +50,7 @@ function WalkerCard({ walker, showDistance }) {
         </div>
         {lowestPrice && (
           <p className="text-sm text-gray-900 shrink-0 ml-2">
-            <span className="font-semibold">£{(lowestPrice / 100).toFixed(0)}</span>
+            <span className="font-semibold">{formatGBP(lowestPrice, { smart: true })}</span>
             <span className="text-gray-500 font-normal"> / visit</span>
           </p>
         )}
@@ -200,11 +202,7 @@ export default function PlatformLanding() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {searchError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-            {searchError}
-          </div>
-        )}
+        {searchError && <Alert className="mb-4">{searchError}</Alert>}
 
         {/* Results header */}
         {!loading && (

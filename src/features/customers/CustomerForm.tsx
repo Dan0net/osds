@@ -4,6 +4,7 @@ import { EMAIL_RE, UK_POSTCODE_RE } from '@/utils/validators'
 import SelectionButton from '@/shared/form/SelectionButton'
 import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
+import { TextInput, TextArea, Field } from '@/shared/form/Input'
 
 export default function CustomerForm({ initial, initialPets = [], onSubmit, formId, onValidityChange }: any) {
   const [form, setForm] = useState(() => ({
@@ -56,65 +57,28 @@ export default function CustomerForm({ initial, initialPets = [], onSubmit, form
   return (
     <>
       <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => update('name', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            placeholder="Jane Smith"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) => update('email', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            placeholder="jane@example.com"
-          />
-          <p className="text-xs text-gray-400 mt-1">We'll email an invite so they can pay and manage bookings.</p>
-        </div>
+        <Field label="Name">
+          <TextInput type="text" value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="Jane Smith" />
+        </Field>
+        <Field label="Email" hint="We'll email an invite so they can pay and manage bookings.">
+          <TextInput type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="jane@example.com" />
+        </Field>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) => update('phone', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="07700 900000"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Postcode <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={form.postcode}
-              onChange={(e) => update('postcode', e.target.value.toUpperCase())}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="SW1A 1AA"
-            />
-          </div>
+          <Field label="Phone" optional>
+            <TextInput type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="07700 900000" />
+          </Field>
+          <Field label="Postcode" optional>
+            <TextInput type="text" value={form.postcode} onChange={(e) => update('postcode', e.target.value.toUpperCase())} placeholder="SW1A 1AA" />
+          </Field>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes <span className="text-gray-400 font-normal">(optional, walker-only)</span>
-          </label>
-          <textarea
+        <Field label={<>Notes <span className="text-gray-400 font-normal">(optional, walker-only)</span></>}>
+          <TextArea
             rows={3}
             value={form.notes}
             onChange={(e) => update('notes', e.target.value)}
             placeholder="Anything to remember about this customer"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
           />
-        </div>
+        </Field>
 
         <SelectionButton
           empty

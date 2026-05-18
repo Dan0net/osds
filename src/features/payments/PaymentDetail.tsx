@@ -2,8 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { User, PawPrint, CreditCard, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/useAuth'
-import { paymentStatusBadge, bookingStatusBadge, toneClass, toneColor } from '@/utils/bookingStatus'
+import { paymentStatusBadge, bookingStatusBadge, toneColor } from '@/utils/bookingStatus'
 import { displayPaymentAmount, displayServicePrice } from '@/utils/pricing'
+import Badge from '@/shared/Badge'
+import Button from '@/shared/form/Button'
+import { formatGBP, formatLongDate, formatDayMonth } from '@/utils/formatting'
 import {
   usePayment, usePaymentBookings, usePaymentRefunds,
   usePayNowCheckout, useMarkPaymentRead, useUnreadPaymentIds,
@@ -130,36 +133,22 @@ export default function PaymentDetail() {
   const counterpartyName = isWalker
     ? (payment.users?.name || 'Client')
     : (payment.walker_profiles?.business_name || 'Walker')
-  const requestedDate = new Date(payment.created_at).toLocaleDateString('en-GB', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-  })
+  const requestedDate = formatLongDate(payment.created_at)
 
   const payNowButton = canPay ? (
-    <button
-      onClick={handlePayNow}
-      disabled={actionLoading === 'pay'}
-      className="cursor-pointer bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-    >
+    <Button onClick={handlePayNow} disabled={actionLoading === 'pay'}>
       {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
-    </button>
+    </Button>
   ) : null
 
   const approveButtons = canApproveAll ? (
     <div className="flex items-center gap-3">
-      <button
-        onClick={handleApproveAll}
-        disabled={!!actionLoading}
-        className="cursor-pointer bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
-      >
+      <Button onClick={handleApproveAll} disabled={!!actionLoading} variant="approve">
         {actionLoading === 'approve' ? 'Approving…' : 'Approve all'}
-      </button>
-      <button
-        onClick={handleDeclineAll}
-        disabled={!!actionLoading}
-        className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-      >
+      </Button>
+      <Button onClick={handleDeclineAll} disabled={!!actionLoading} variant="decline">
         {actionLoading === 'decline' ? 'Declining…' : 'Decline all'}
-      </button>
+      </Button>
     </div>
   ) : null
 
@@ -172,13 +161,13 @@ export default function PaymentDetail() {
       <DetailHero
         icon={CreditCard}
         tone={badge.tone}
-        primary={`£${(displayAmount / 100).toFixed(2)}`}
+        primary={formatGBP(displayAmount)}
         status={badge.label}
         secondary={`${isWalker ? 'From' : 'To'} ${counterpartyName} · Requested ${requestedDate}`}
         extra={
           (payment.refunded_amount_cents || 0) > 0 && (
             <p className="text-sm">
-              Refunded £{(displayRefunded / 100).toFixed(2)} of £{(displayTotal / 100).toFixed(2)}
+              Refunded {formatGBP(displayRefunded)} of {formatGBP(displayTotal)}
             </p>
           )
         }
@@ -237,15 +226,11 @@ export default function PaymentDetail() {
                   to={`/account/bookings/${b.id}`}
                   state={stateBack}
                   accentColor={toneColor(bookingBadge.tone)}
-                  statusBadge={
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${toneClass(bookingBadge.tone)}`}>
-                      {bookingBadge.label}
-                    </span>
-                  }
+                  statusBadge={<Badge tone={bookingBadge.tone} size="sm">{bookingBadge.label}</Badge>}
                   right={
                     priceCents != null && priceCents !== 0 && (
                       <span className="text-sm font-semibold text-gray-900">
-                        £{(priceCents / 100).toFixed(2)}
+                        {formatGBP(priceCents)}
                       </span>
                     )
                   }
@@ -255,7 +240,7 @@ export default function PaymentDetail() {
                     <div className="mt-2 pl-[3.5rem] space-y-0.5">
                       {bRefunds.map((r) => (
                         <p key={r.id} className="text-xs text-gray-500">
-                          Refunded £{(r.amount_cents / 100).toFixed(2)} on {new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          Refunded {formatGBP(r.amount_cents)} on {formatDayMonth(r.created_at)}
                           {r.status === 'pending' && ' (pending)'}
                         </p>
                       ))}
@@ -274,7 +259,7 @@ export default function PaymentDetail() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">Manual refund — unattributed</p>
                     <p className="text-xs text-gray-500">
-                      £{(r.amount_cents / 100).toFixed(2)} on {new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      {formatGBP(r.amount_cents)} on {formatDayMonth(r.created_at)}
                       {r.reason ? ` · ${r.reason}` : ''}
                     </p>
                   </div>
@@ -292,14 +277,10 @@ export default function PaymentDetail() {
         const label = `${action} ${someAlreadyCancelled ? 'remaining' : 'all'}`
         return (
           <>
-            <button
-              onClick={() => setCancelAllOpen(true)}
-              disabled={!!actionLoading}
-              className="cursor-pointer mt-4 self-start w-fit inline-flex items-center gap-1.5 text-sm font-medium text-red-600 border border-red-200 bg-white hover:bg-red-50 px-4 py-2 rounded-lg disabled:opacity-50"
-            >
+            <Button onClick={() => setCancelAllOpen(true)} disabled={!!actionLoading} variant="cancel" className="mt-4 self-start w-fit">
               <Trash2 size={16} />
               {label}
-            </button>
+            </Button>
 
             <ConfirmModal
               open={cancelAllOpen}

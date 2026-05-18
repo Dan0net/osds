@@ -4,6 +4,8 @@ import {
   useStripeConnectOnboard, useStripeConnectCallback, useUpdateWalkerProfile,
 } from '@/queries/profile'
 import { useStripeDashboardLink } from '@/queries/payments'
+import Button from '@/shared/form/Button'
+import Alert from '@/shared/Alert'
 
 export default function AccountStripe() {
   const { walkerProfile, refreshProfile } = useAuth()
@@ -65,13 +67,9 @@ export default function AccountStripe() {
               <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
               <span className="text-sm text-green-700 font-medium">Stripe connected</span>
             </div>
-            <button
-              type="button"
-              onClick={handleDashboard}
-              className="cursor-pointer border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50"
-            >
+            <Button type="button" onClick={handleDashboard} variant="secondary" size="sm">
               Open Stripe Dashboard
-            </button>
+            </Button>
           </div>
         )}
 
@@ -81,36 +79,22 @@ export default function AccountStripe() {
               <span className="inline-block w-2 h-2 rounded-full bg-yellow-500" />
               <span className="text-sm text-yellow-700 font-medium">Onboarding incomplete</span>
             </div>
-            <button
-              type="button"
-              disabled={stripeLoading}
-              onClick={handleConnect}
-              className="cursor-pointer bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-            >
+            <Button type="button" disabled={stripeLoading} onClick={handleConnect} size="sm">
               {stripeLoading ? 'Redirecting…' : 'Continue Stripe setup'}
-            </button>
+            </Button>
           </div>
         )}
 
         {!connected && !partial && (
           <div>
-            <button
-              type="button"
-              disabled={stripeLoading}
-              onClick={handleConnect}
-              className="cursor-pointer bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-            >
+            <Button type="button" disabled={stripeLoading} onClick={handleConnect} size="sm">
               {stripeLoading ? 'Redirecting…' : 'Connect Stripe account'}
-            </button>
+            </Button>
             <p className="text-xs text-gray-400 mt-2">Required to accept online payments.</p>
           </div>
         )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mt-4">
-            {error}
-          </div>
-        )}
+        {error && <Alert className="mt-4">{error}</Alert>}
       </div>
     </div>
   )

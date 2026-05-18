@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import Avatar from '@/shared/Avatar'
 
 interface Props {
   backHref: string
@@ -13,16 +14,11 @@ interface Props {
 }
 
 export default function DetailHeader({ backHref, backLabel = 'Back', title, right, avatarUrl, titleHref, titleTarget }: Props) {
-  const initial = (title?.charAt(0) || '?').toUpperCase()
   const showAvatar = avatarUrl !== undefined || !!titleHref
 
   const titleInner = (
     <>
-      {showAvatar && (
-        <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
-          {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : initial}
-        </div>
-      )}
+      {showAvatar && <Avatar src={avatarUrl} name={title} size="sm" />}
       {title && (
         <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 truncate flex-1 min-w-0">
           {title}

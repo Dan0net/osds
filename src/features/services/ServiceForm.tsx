@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { clientPriceCents } from '@/utils/pricing'
+import { TextInput, TextArea, Select, Field } from '@/shared/form/Input'
+import { formatGBP } from '@/utils/formatting'
 
 export default function ServiceForm({ initial, onSubmit, formId, onValidityChange }: any) {
   const [form, setForm] = useState(() => ({
@@ -40,99 +42,67 @@ export default function ServiceForm({ initial, onSubmit, formId, onValidityChang
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={(e) => update('name', e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          placeholder="30-min walk"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-        <select
-          value={form.service_type}
-          onChange={(e) => update('service_type', e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
-        >
+      <Field label="Name">
+        <TextInput type="text" value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="30-min walk" />
+      </Field>
+      <Field label="Type">
+        <Select value={form.service_type} onChange={(e) => update('service_type', e.target.value)}>
           <option value="standard">Standard</option>
           <option value="overnight">Overnight</option>
-        </select>
-      </div>
+        </Select>
+      </Field>
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Standard rate (£)</label>
-          <input
+        <Field
+          label="Standard rate (£)"
+          hint={form.price_cents && parseFloat(form.price_cents) > 0
+            ? `Client pays ${formatGBP(clientPriceCents(Math.round(parseFloat(form.price_cents) * 100)))}${form.service_type === 'overnight' ? '/night' : ''}`
+            : null}
+        >
+          <TextInput
             type="number"
             step="0.01"
             value={form.price_cents}
             onChange={(e) => update('price_cents', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="12.00"
           />
-          {form.price_cents && parseFloat(form.price_cents) > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
-              Client pays £{(clientPriceCents(Math.round(parseFloat(form.price_cents) * 100)) / 100).toFixed(2)}
-              {form.service_type === 'overnight' ? '/night' : ''}
-            </p>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {form.service_type === 'overnight' ? 'Slot (min)' : 'Duration (min)'}
-          </label>
-          <input
+        </Field>
+        <Field label={form.service_type === 'overnight' ? 'Slot (min)' : 'Duration (min)'}>
+          <TextInput
             type="number"
             value={form.duration_minutes}
             onChange={(e) => update('duration_minutes', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="30"
           />
-        </div>
+        </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Holiday rate (£) <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <input
+        <Field label="Holiday rate (£)" optional>
+          <TextInput
             type="number"
             step="0.01"
             value={form.holiday_rate_cents}
             onChange={(e) => update('holiday_rate_cents', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="—"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Additional pet rate (£) <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <input
+        </Field>
+        <Field label="Additional pet rate (£)" optional>
+          <TextInput
             type="number"
             step="0.01"
             value={form.extra_pet_rate_cents}
             onChange={(e) => update('extra_pet_rate_cents', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="—"
           />
-        </div>
+        </Field>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Buffer after appointment (min) <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-        <input
+      <Field label={<>Buffer after appointment (min) <span className="text-gray-400 font-normal">(optional)</span></>} hint="Block extra time after each booking for travel or clean-up.">
+        <TextInput
           type="number"
           value={form.buffer_after_minutes}
           onChange={(e) => update('buffer_after_minutes', e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
           placeholder="0"
         />
-        <p className="text-xs text-gray-400 mt-1">Block extra time after each booking for travel or clean-up.</p>
-      </div>
+      </Field>
       <label className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg p-3 cursor-pointer">
         <input
           type="checkbox"
@@ -145,18 +115,14 @@ export default function ServiceForm({ initial, onSubmit, formId, onValidityChang
           <p className="text-xs text-gray-500">When ticked, this booking takes up the slot so other customers can't book it.</p>
         </div>
       </label>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Description <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-        <textarea
+      <Field label="Description" optional>
+        <TextArea
           rows={2}
           value={form.description}
           onChange={(e) => update('description', e.target.value)}
           placeholder="What's included in this service?"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
         />
-      </div>
+      </Field>
     </form>
   )
 }

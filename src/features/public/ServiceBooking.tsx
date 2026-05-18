@@ -4,6 +4,7 @@ import { supabase } from '@/utils/supabase'
 import { resolveWalker } from '@/utils/walker'
 import { clientPriceCents } from '@/utils/pricing'
 import AvailabilityCalendar from '@/features/calendar/AvailabilityCalendar'
+import { formatGBP } from '@/utils/formatting'
 import { ChevronLeft, Clock, Moon } from 'lucide-react'
 
 export default function ServiceBooking() {
@@ -105,7 +106,7 @@ export default function ServiceBooking() {
                 {isOvernight ? <Moon size={14} /> : <Clock size={14} />}
                 {svc.name}
                 <span className="text-xs font-normal text-gray-400">
-                  £{(clientPriceCents(svc.price_cents) / 100).toFixed(0)}
+                  {formatGBP(clientPriceCents(svc.price_cents), { smart: true })}
                 </span>
               </Link>
             )

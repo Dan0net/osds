@@ -14,6 +14,9 @@ import EntityPicker from '@/shared/modal/EntityPicker'
 import PetForm from '@/features/pets/PetForm'
 import SelectionButton from '@/shared/form/SelectionButton'
 import BookingCard from './BookingCard'
+import Avatar from '@/shared/Avatar'
+import Alert from '@/shared/Alert'
+import { formatGBP } from '@/utils/formatting'
 
 export default function OwnerBookingForm({ open, onClose, onCreated, initialWalker = null, initialServiceId = null }) {
   const { user } = useAuth()
@@ -173,9 +176,7 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
         saveDisabled={!stepValid}
         saveLoading={submitting}
       >
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
-        )}
+        {error && <Alert className="mb-4">{error}</Alert>}
 
         {step === 1 && (
           <div className="space-y-4">
@@ -206,7 +207,7 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
               onClick={() => setServicePickerOpen(true)}
               primary={bookingService?.name}
               secondary={bookingService
-                ? `£${(clientPriceCents(bookingService.price_cents) / 100).toFixed(2)} · ${bookingService.duration_minutes} min`
+                ? `${formatGBP(clientPriceCents(bookingService.price_cents))} · ${bookingService.duration_minutes} min`
                 : null}
             />
             {bookingService && (
@@ -251,7 +252,7 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
                     right={
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-gray-900">
-                          £{(slotDisplay(slot) / 100).toFixed(2)}
+                          {formatGBP(slotDisplay(slot))}
                         </span>
                         <button
                           type="button"
@@ -270,7 +271,7 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
 
             <div className="flex items-center justify-between border-t border-gray-200 pt-3">
               <span className="text-sm text-gray-500">Total</span>
-              <span className="text-lg font-semibold text-gray-900">£{(totalDisplay / 100).toFixed(2)}</span>
+              <span className="text-lg font-semibold text-gray-900">{formatGBP(totalDisplay)}</span>
             </div>
 
             <p className="text-xs text-gray-500">
@@ -308,13 +309,7 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
             onClick={onSelect}
             className="cursor-pointer w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:bg-indigo-50/40 transition flex items-center gap-3"
           >
-            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
-              {w.users?.avatar_url ? (
-                <img src={w.users.avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                (w.business_name?.charAt(0) || '?').toUpperCase()
-              )}
-            </div>
+            <Avatar src={w.users?.avatar_url} name={w.business_name} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{w.business_name || 'Walker'}</p>
               {w.postcode && <p className="text-xs text-gray-500 truncate">{w.postcode}</p>}
@@ -340,7 +335,7 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
           >
             <p className="text-sm font-medium">{s.name}</p>
             <p className="text-xs text-gray-500">
-              £{(clientPriceCents(s.price_cents) / 100).toFixed(2)} · {s.duration_minutes} min
+              {formatGBP(clientPriceCents(s.price_cents))} · {s.duration_minutes} min
               {s.service_type === 'overnight' && ' · overnight'}
             </p>
           </button>

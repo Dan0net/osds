@@ -4,6 +4,8 @@ import { useService, useUpdateService, useDeleteService } from '@/queries/servic
 import ServiceForm from '@/features/services/ServiceForm'
 import DetailHeader from '@/shared/detail/DetailHeader'
 import { Spinner } from '@/shared/Spinner'
+import Button from '@/shared/form/Button'
+import Alert from '@/shared/Alert'
 
 export default function ServiceDetail() {
   const { serviceId } = useParams()
@@ -59,25 +61,17 @@ export default function ServiceDetail() {
         title={service.name}
         right={
           <div className="flex gap-2">
-            <button
-              onClick={toggleActive}
-              className="cursor-pointer text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
+            <Button onClick={toggleActive} variant="secondary" size="sm">
               {service.active ? 'Deactivate' : 'Activate'}
-            </button>
-            <button
-              onClick={handleDelete}
-              className="cursor-pointer text-sm font-medium px-3 py-1.5 rounded-lg text-red-600 hover:bg-red-50"
-            >
+            </Button>
+            <Button onClick={handleDelete} variant="destructive-text" size="sm">
               Delete
-            </button>
+            </Button>
           </div>
         }
       />
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
-      )}
+      {error && <Alert className="mb-4">{error}</Alert>}
 
       <ServiceForm
         formId="service-edit-form"
@@ -85,14 +79,15 @@ export default function ServiceDetail() {
         onSubmit={handleSave}
         onValidityChange={setFormValid}
       />
-      <button
+      <Button
         type="submit"
         form="service-edit-form"
         disabled={!formValid || updateService.isPending}
-        className="cursor-pointer w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+        className="w-full mt-4"
+        size="md"
       >
         {updateService.isPending ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </>
   )
 }

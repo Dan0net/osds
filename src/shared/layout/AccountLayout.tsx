@@ -8,6 +8,7 @@ import Sidebar from '@/shared/nav/Sidebar'
 import BottomBar from '@/shared/nav/BottomBar'
 import MoreDrawer from '@/shared/nav/MoreDrawer'
 import CelebrationModal from '@/shared/modal/CelebrationModal'
+import { formatGBP } from '@/utils/formatting'
 
 export default function AccountLayout() {
   const { user, walkerProfile } = useAuth()
@@ -107,7 +108,7 @@ export default function AccountLayout() {
         onClose={dismissCelebration}
         lottieUrl="https://fonts.gstatic.com/s/e/notoemoji/latest/1f911/lottie.json"
         title="You got paid!"
-        subtitle={celebration?.amountCents != null ? `+£${(celebration.amountCents / 100).toFixed(2)}` : undefined}
+        subtitle={celebration?.amountCents != null ? `+${formatGBP(celebration.amountCents)}` : undefined}
         footnote={celebration?.counterpart ? `from ${celebration.counterpart}` : undefined}
       />
     </div>

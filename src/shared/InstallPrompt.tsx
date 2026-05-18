@@ -1,3 +1,5 @@
+import Button from '@/shared/form/Button'
+
 export default function InstallPrompt({ visible, deferredPrompt, onDismiss, onInstall }) {
   if (!visible) return null
 
@@ -19,9 +21,7 @@ export default function InstallPrompt({ visible, deferredPrompt, onDismiss, onIn
           )}
         </div>
         {!isIos && deferredPrompt && (
-          <button onClick={onInstall} className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 shrink-0">
-            Install
-          </button>
+          <Button onClick={onInstall} size="sm" className="shrink-0">Install</Button>
         )}
         <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600 shrink-0" aria-label="Dismiss">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

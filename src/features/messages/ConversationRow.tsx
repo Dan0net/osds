@@ -1,5 +1,6 @@
 import { format, isToday, isYesterday, parseISO } from 'date-fns'
 import ListItem from '@/shared/list/ListItem'
+import Avatar from '@/shared/Avatar'
 
 function formatTimestamp(iso) {
   if (!iso) return ''
@@ -11,17 +12,10 @@ function formatTimestamp(iso) {
 
 export default function ConversationRow({ conversation, counterpartyName, avatarUrl, preview, unreadCount }) {
   const hasUnread = unreadCount > 0
-  const initial = (counterpartyName?.charAt(0) || '?').toUpperCase()
 
   return (
     <ListItem to={`/account/messages/${conversation.id}`}>
-      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          initial
-        )}
-      </div>
+      <Avatar src={avatarUrl} name={counterpartyName} />
       <div className="flex-1 min-w-0">
         <p className={`text-sm truncate ${hasUnread ? 'font-semibold' : 'font-medium'}`}>
           {counterpartyName || 'Unknown'}

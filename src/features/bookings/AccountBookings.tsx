@@ -17,6 +17,7 @@ import BookingsList from '@/features/bookings/BookingsList'
 import ListPaneHeader from '@/shared/list/ListPaneHeader'
 import CelebrationModal from '@/shared/modal/CelebrationModal'
 import { Spinner, PageSpinner } from '@/shared/Spinner'
+import Button from '@/shared/form/Button'
 
 const EXTERNAL_COLOR = '#9ca3af'
 
@@ -140,14 +141,14 @@ export default function AccountBookings() {
                   Today
                 </button>
                 {(isWalker || ownerWalkersCount > 0) && (
-                  <button
+                  <Button
                     onClick={() => setCreateBookingModal(true)}
                     aria-label={isWalker ? 'Add booking' : 'Request booking'}
-                    className="cursor-pointer h-9 w-9 sm:w-auto sm:px-4 inline-flex items-center justify-center sm:gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
+                    className="h-9 w-9 sm:w-auto sm:px-4"
                   >
                     <Plus size={16} />
                     <span className="hidden sm:inline">{isWalker ? 'Add booking' : 'Request booking'}</span>
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -185,14 +186,14 @@ export default function AccountBookings() {
           <ListPaneHeader
             title="Bookings"
             right={(isWalker || ownerWalkersCount > 0) ? (
-              <button
+              <Button
                 onClick={() => setCreateBookingModal(true)}
                 aria-label={isWalker ? 'Add booking' : 'Request booking'}
-                className="cursor-pointer h-8 px-3 inline-flex items-center justify-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
+                className="h-8 px-3"
               >
                 <Plus size={16} />
                 {isWalker ? 'Add booking' : 'Request booking'}
-              </button>
+              </Button>
             ) : null}
           />
           {loading ? (

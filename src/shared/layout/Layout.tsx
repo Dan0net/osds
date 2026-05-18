@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import AppHeader from '@/shared/AppHeader'
+import Avatar from '@/shared/Avatar'
 
 export default function Layout({ walker }: { walker?: string | null } = {}) {
   const { user, profile } = useAuth()
@@ -12,13 +13,7 @@ export default function Layout({ walker }: { walker?: string | null } = {}) {
           <nav className="flex items-center gap-3 text-sm">
             {user ? (
               <Link to="/account" className="block rounded-full hover:ring-2 hover:ring-indigo-200 transition">
-                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold overflow-hidden">
-                  {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    (profile?.name?.charAt(0) || user.email?.charAt(0) || '?').toUpperCase()
-                  )}
-                </div>
+                <Avatar src={profile?.avatar_url} name={profile?.name || user.email} size="xs" />
               </Link>
             ) : (
               <>

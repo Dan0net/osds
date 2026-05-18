@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/utils/supabase'
 import { useAuth } from '@/auth/useAuth'
-import { AuthShell, SubmitButton, TextField, ErrorBanner } from '@/auth/AuthFormHelpers'
+import { AuthShell, SubmitButton, TextField } from '@/auth/AuthFormHelpers'
+import Alert from '@/shared/Alert'
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('')
@@ -91,7 +92,7 @@ export default function ResetPassword() {
       title="Set a new password 🔒"
       subtitle="Choose something memorable — at least 8 characters."
     >
-      <ErrorBanner>{error}</ErrorBanner>
+      {error && <Alert className="mb-4">{error}</Alert>}
       <form onSubmit={handleSubmit} className="space-y-4 animate-fade-slide-up">
         <TextField
           label="New password"

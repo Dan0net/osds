@@ -5,6 +5,9 @@ import {
   useUpdateUserProfile, useUpdateWalkerProfile, useCreateWalkerProfile,
 } from '@/queries/profile'
 import ImageUpload from '@/shared/form/ImageUpload'
+import { TextInput, TextArea, Field } from '@/shared/form/Input'
+import Button from '@/shared/form/Button'
+import Alert from '@/shared/Alert'
 
 export default function AccountProfile() {
   const { user, profile, walkerProfile, refreshProfile } = useAuth()
@@ -144,33 +147,15 @@ export default function AccountProfile() {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => update('name', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => update('email', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => update('phone', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-            </div>
+            <Field label="Name">
+              <TextInput type="text" value={form.name} onChange={(e) => update('name', e.target.value)} />
+            </Field>
+            <Field label="Email">
+              <TextInput type="email" value={form.email} onChange={(e) => update('email', e.target.value)} />
+            </Field>
+            <Field label="Phone">
+              <TextInput type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} />
+            </Field>
           </div>
         </div>
 
@@ -182,45 +167,24 @@ export default function AccountProfile() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Page URL (slug)</label>
               <div className="flex items-center gap-1">
                 <span className="text-sm text-gray-400 shrink-0">/w/</span>
-                <input
+                <TextInput
                   type="text"
                   value={form.slug}
                   onChange={(e) => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   placeholder="your-slug"
                 />
               </div>
               <p className="text-xs text-gray-400 mt-1">{form.slug}.{import.meta.env.VITE_DOMAIN || 'onestopdog.shop'}</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Business name</label>
-              <input
-                type="text"
-                value={form.business_name}
-                onChange={(e) => update('business_name', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-              <textarea
-                rows={4}
-                value={form.bio}
-                onChange={(e) => update('bio', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Postcode</label>
-              <input
-                type="text"
-                value={form.postcode}
-                onChange={(e) => update('postcode', e.target.value.toUpperCase())}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                placeholder="SW1A 1AA"
-              />
-              <p className="text-xs text-gray-400 mt-1">Used so clients can find walkers near them.</p>
-            </div>
+            <Field label="Business name">
+              <TextInput type="text" value={form.business_name} onChange={(e) => update('business_name', e.target.value)} />
+            </Field>
+            <Field label="Bio">
+              <TextArea rows={4} value={form.bio} onChange={(e) => update('bio', e.target.value)} className="text-base" />
+            </Field>
+            <Field label="Postcode" hint="Used so clients can find walkers near them.">
+              <TextInput type="text" value={form.postcode} onChange={(e) => update('postcode', e.target.value.toUpperCase())} placeholder="SW1A 1AA" />
+            </Field>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Theme colour</label>
               <div className="flex items-center gap-3">
@@ -238,30 +202,17 @@ export default function AccountProfile() {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h2 className="mb-2">Become a Walker</h2>
             <p className="text-sm text-gray-500 mb-3">Create a walker profile to offer services and accept bookings.</p>
-            <button
-              type="button"
-              onClick={handleBecomeWalker}
-              disabled={creatingWalker}
-              className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-            >
+            <Button type="button" onClick={handleBecomeWalker} disabled={creatingWalker} size="sm">
               {creatingWalker ? 'Creating…' : 'Create Walker Profile'}
-            </button>
+            </Button>
           </div>
         )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-            {error}
-          </div>
-        )}
+        {error && <Alert>{error}</Alert>}
         <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-indigo-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={saving} size="lg">
             {saving ? 'Saving…' : 'Save profile'}
-          </button>
+          </Button>
           {saved && <span className="text-green-600 text-sm">Saved!</span>}
         </div>
       </form>

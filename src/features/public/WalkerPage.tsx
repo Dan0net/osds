@@ -5,6 +5,7 @@ import { resolveWalker } from '@/utils/walker'
 import { useAuth } from '@/auth/useAuth'
 import { clientPriceCents } from '@/utils/pricing'
 import { Star, Heart, MapPin, Clock, Moon, ChevronLeft, ChevronRight, Shield, Calendar, PawPrint } from 'lucide-react'
+import { formatGBP, formatMonthYear } from '@/utils/formatting'
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -213,7 +214,7 @@ export default function WalkerPage() {
             </div>
             <div>
               <p className="text-sm font-medium">Hosted by {walker.users?.name || walker.business_name}</p>
-              <p className="text-xs text-gray-500">Member since {new Date(walker.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>
+              <p className="text-xs text-gray-500">Member since {formatMonthYear(walker.created_at)}</p>
             </div>
           </div>
 
@@ -277,7 +278,7 @@ export default function WalkerPage() {
                       </div>
                     </div>
                     <span className="text-sm font-semibold text-indigo-600 shrink-0 ml-4">
-                      £{(clientPriceCents(service.price_cents) / 100).toFixed(2)}
+                      {formatGBP(clientPriceCents(service.price_cents))}
                     </span>
                   </button>
                 )
@@ -344,7 +345,7 @@ export default function WalkerPage() {
             <div className="flex items-baseline justify-between mb-4">
               {services.length > 0 && (
                 <p className="text-lg">
-                  <span className="font-semibold">From £{(clientPriceCents(Math.min(...services.map((s) => s.price_cents))) / 100).toFixed(0)}</span>
+                  <span className="font-semibold">From {formatGBP(clientPriceCents(Math.min(...services.map((s) => s.price_cents))), { smart: true })}</span>
                   <span className="text-gray-500 text-sm"> / visit</span>
                 </p>
               )}
@@ -369,14 +370,14 @@ export default function WalkerPage() {
                       {service.service_type === 'overnight' ? '/ night' : `/ ${service.duration_minutes}min`}
                     </span>
                   </div>
-                  <span className="font-semibold text-indigo-600">£{(clientPriceCents(service.price_cents) / 100).toFixed(0)}</span>
+                  <span className="font-semibold text-indigo-600">{formatGBP(clientPriceCents(service.price_cents), { smart: true })}</span>
                 </Link>
               ))}
             </div>
             {services.length > 0 && (
               <Link
                 to={`${prefix}/book/${services[0].id}`}
-                className="cursor-pointer block text-center bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition"
+                className="cursor-pointer block text-center bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition w-full"
               >
                 Book now
               </Link>

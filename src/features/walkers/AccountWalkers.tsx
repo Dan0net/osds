@@ -8,6 +8,8 @@ import ListDetailLayout from '@/shared/layout/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '@/shared/list/ListPaneHeader'
 import ListItem from '@/shared/list/ListItem'
 import { Spinner } from '@/shared/Spinner'
+import Avatar from '@/shared/Avatar'
+import { formatGBP, formatDayMonth } from '@/utils/formatting'
 
 const SORTS = {
   recent_booking: {
@@ -79,19 +81,13 @@ export default function AccountWalkers() {
       emptyState="No walkers yet. Walkers appear here once you've booked with one."
       renderItem={({ walker, totalBookings, lastBookingDate, totalSpendCents }) => (
         <ListItem key={walker.id} to={`/account/walkers/${walker.id}`}>
-          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden shrink-0">
-            {walker.users?.avatar_url ? (
-              <img src={walker.users.avatar_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              (walker.business_name?.charAt(0) || '?').toUpperCase()
-            )}
-          </div>
+          <Avatar src={walker.users?.avatar_url} name={walker.business_name} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{walker.business_name || 'Walker'}</p>
             <p className="text-xs text-gray-500 truncate">
               {totalBookings} booking{totalBookings !== 1 ? 's' : ''}
-              {lastBookingDate && ` · ${new Date(lastBookingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
-              {totalSpendCents > 0 && ` · £${(totalSpendCents / 100).toFixed(2)}`}
+              {lastBookingDate && ` · ${formatDayMonth(lastBookingDate)}`}
+              {totalSpendCents > 0 && ` · ${formatGBP(totalSpendCents)}`}
             </p>
           </div>
         </ListItem>

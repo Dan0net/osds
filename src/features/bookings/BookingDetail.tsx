@@ -12,6 +12,8 @@ import DetailHero from '@/shared/detail/DetailHero'
 import LinkRow from '@/shared/detail/LinkRow'
 import ConfirmModal from '@/shared/modal/ConfirmModal'
 import { PageSpinner } from '@/shared/Spinner'
+import Button from '@/shared/form/Button'
+import { formatGBP, formatShortDate } from '@/utils/formatting'
 
 export default function BookingDetail() {
   const { bookingId } = useParams()
@@ -81,13 +83,10 @@ export default function BookingDetail() {
   const canApprove = isWalker && booking.status === 'requested'
   const isOvernight = booking.end_date && booking.end_date !== booking.booking_date
 
-  const formatDate = (d) =>
-    new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-
   const badge = bookingStatusBadge(booking)
   const heroPrimary = isOvernight
-    ? `${formatDate(booking.booking_date)} → ${formatDate(booking.end_date)}`
-    : `${formatDate(booking.booking_date)} · ${booking.start_time?.slice(0, 5)}${booking.end_time ? `–${booking.end_time.slice(0, 5)}` : ''}`
+    ? `${formatShortDate(booking.booking_date)} → ${formatShortDate(booking.end_date)}`
+    : `${formatShortDate(booking.booking_date)} · ${booking.start_time?.slice(0, 5)}${booking.end_time ? `–${booking.end_time.slice(0, 5)}` : ''}`
   const servicePriceCents = displayServicePrice(booking.services, isWalker)
   const paymentAmountCents = booking.payments ? displayPaymentAmount(booking.payments, isWalker) : null
 
@@ -105,30 +104,18 @@ export default function BookingDetail() {
 
   const approveButtons = showApproveDecline ? (
     <div className="flex items-center gap-3">
-      <button
-        onClick={handleApprove}
-        disabled={!!actionLoading}
-        className="cursor-pointer bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
-      >
+      <Button onClick={handleApprove} disabled={!!actionLoading} variant="approve">
         {actionLoading === 'approve' ? 'Approving…' : 'Approve'}
-      </button>
-      <button
-        onClick={handleDecline}
-        disabled={!!actionLoading}
-        className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-      >
+      </Button>
+      <Button onClick={handleDecline} disabled={!!actionLoading} variant="decline">
         {actionLoading === 'decline' ? 'Declining…' : 'Decline'}
-      </button>
+      </Button>
     </div>
   ) : null
   const payNowButton = showPayNow ? (
-    <button
-      onClick={handlePayNow}
-      disabled={actionLoading === 'pay'}
-      className="cursor-pointer bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-    >
+    <Button onClick={handlePayNow} disabled={actionLoading === 'pay'}>
       {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
-    </button>
+    </Button>
   ) : null
   const reviewAllButton = showReviewAll ? (
     <Link
@@ -240,7 +227,7 @@ export default function BookingDetail() {
             right={
               servicePriceCents != null && (
                 <span className="text-sm font-semibold text-gray-900">
-                  £{(servicePriceCents / 100).toFixed(2)}
+                  {formatGBP(servicePriceCents)}
                 </span>
               )
             }
@@ -250,7 +237,7 @@ export default function BookingDetail() {
           <LinkRow
             icon={CreditCard}
             label="Payment"
-            value={paymentAmountCents != null ? `£${(paymentAmountCents / 100).toFixed(2)}` : ''}
+            value={paymentAmountCents != null ? formatGBP(paymentAmountCents) : ''}
             secondary={
               isOrphan
                 ? 'This booking is cancelled — payment now covers remaining bookings only'
@@ -263,13 +250,10 @@ export default function BookingDetail() {
       </div>
 
       {cancellable && (
-        <button
-          onClick={() => setCancelOpen(true)}
-          className="cursor-pointer mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-red-600 border border-red-200 bg-white hover:bg-red-50 px-4 py-2 rounded-lg"
-        >
+        <Button onClick={() => setCancelOpen(true)} variant="cancel" className="mt-4">
           <Trash2 size={16} />
           Cancel booking
-        </button>
+        </Button>
       )}
 
       <ConfirmModal

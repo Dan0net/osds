@@ -6,8 +6,10 @@ import { useWalker, useOwnerBookingsForWalker } from '@/queries/walkers'
 import { useServices } from '@/queries/services'
 import { useEnsureConversation } from '@/queries/messages'
 import { clientPriceCents } from '@/utils/pricing'
-import { bookingStatusBadge, toneClass } from '@/utils/bookingStatus'
+import { bookingStatusBadge } from '@/utils/bookingStatus'
 import DetailHeader from '@/shared/detail/DetailHeader'
+import Badge from '@/shared/Badge'
+import { formatGBP, formatLongDate } from '@/utils/formatting'
 import LinkRow from '@/shared/detail/LinkRow'
 import OwnerBookingForm from '@/features/bookings/OwnerBookingForm'
 import { Spinner } from '@/shared/Spinner'
@@ -152,7 +154,7 @@ export default function WalkerDetail() {
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-indigo-600 shrink-0 ml-3">
-                    £{(clientPriceCents(service.price_cents) / 100).toFixed(2)}
+                    {formatGBP(clientPriceCents(service.price_cents))}
                   </span>
                 </button>
               )
@@ -179,12 +181,10 @@ export default function WalkerDetail() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{b.services?.name || 'Service'}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(b.booking_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                      {formatLongDate(b.booking_date)}
                     </p>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${toneClass(badge.tone)}`}>
-                    {badge.label}
-                  </span>
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
                 </Link>
               )
             })}

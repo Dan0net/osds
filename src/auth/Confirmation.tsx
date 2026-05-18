@@ -2,6 +2,7 @@ import { Link, useLocation, useSearchParams, useParams } from 'react-router-dom'
 import { resolveWalker } from '@/utils/walker'
 import { CheckCircle, ArrowLeft } from 'lucide-react'
 import BookingCard from '@/features/bookings/BookingCard'
+import { formatGBP } from '@/utils/formatting'
 
 export default function Confirmation() {
   const { walker: walkerParam } = useParams()
@@ -70,7 +71,7 @@ export default function Confirmation() {
                 startTime={slot.time}
                 endTime={slot.endTime}
                 right={
-                  <span className="text-sm font-medium">£{(slot.priceCents / 100).toFixed(2)}</span>
+                  <span className="text-sm font-medium">{formatGBP(slot.priceCents)}</span>
                 }
               />
             ))}
@@ -80,7 +81,7 @@ export default function Confirmation() {
             {pet && <span className="text-sm text-gray-500">Pet: <span className="font-medium text-gray-700">{pet.name}</span></span>}
             <div className="flex items-center gap-3 ml-auto">
               <span className="text-xs bg-yellow-100 text-yellow-700 font-medium px-2 py-0.5 rounded-full">Requested</span>
-              <span className="text-sm font-semibold">£{(totalCents / 100).toFixed(2)}</span>
+              <span className="text-sm font-semibold">{formatGBP(totalCents)}</span>
             </div>
           </div>
         </div>

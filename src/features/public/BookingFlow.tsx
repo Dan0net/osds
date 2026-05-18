@@ -7,6 +7,10 @@ import { apiFetch } from '@/utils/functions'
 import { ChevronLeft, Calendar, Clock, Moon, PawPrint } from 'lucide-react'
 import Modal from '@/shared/modal/Modal'
 import PetForm from '@/features/pets/PetForm'
+import Alert from '@/shared/Alert'
+import Button from '@/shared/form/Button'
+import { TextArea } from '@/shared/form/Input'
+import { formatGBP, formatShortDate } from '@/utils/formatting'
 
 const PET_FORM_ID = 'public-pet-form'
 
@@ -236,29 +240,21 @@ export default function BookingFlow() {
           {/* Notes */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-3">Notes for the walker</h2>
-            <textarea
+            <TextArea
               rows={3}
               value={petNotes}
               onChange={(e) => setPetNotes(e.target.value)}
               placeholder="Any special needs, dietary requirements, or instructions…"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+              className="resize-none"
             />
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-6">
-              {error}
-            </div>
-          )}
+          {error && <Alert className="mb-6">{error}</Alert>}
 
           {/* Submit */}
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="cursor-pointer w-full bg-indigo-600 text-white font-semibold py-3.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition text-sm"
-          >
+          <Button onClick={handleSubmit} disabled={submitting} className="w-full" size="lg">
             {submitting ? 'Submitting…' : user ? 'Submit booking request' : 'Log in to book'}
-          </button>
+          </Button>
 
           <p className="text-xs text-gray-400 text-center mt-3">
             You won't be charged yet. The walker will review your request first.
@@ -297,17 +293,15 @@ export default function BookingFlow() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{slot.serviceName}</p>
                       <p className="text-xs text-gray-500">
-                        {new Date(slot.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                        {slot.isOvernight && slot.endDate ? (
-                          <> → {new Date(slot.endDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</>
-                        ) : null}
+                        {formatShortDate(slot.date)}
+                        {slot.isOvernight && slot.endDate ? <> → {formatShortDate(slot.endDate)}</> : null}
                         {' · '}
                         {slot.isOvernight
                           ? `Drop-off ${slot.time} · Pick-up ${slot.endTime}`
                           : `${slot.time}–${slot.endTime}`}
                       </p>
                     </div>
-                    <span className="text-sm font-medium shrink-0">£{(slot.priceCents / 100).toFixed(2)}</span>
+                    <span className="text-sm font-medium shrink-0">{formatGBP(slot.priceCents)}</span>
                   </div>
                 </div>
               ))}
@@ -316,7 +310,7 @@ export default function BookingFlow() {
             {/* Total */}
             <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
               <span className="text-sm font-semibold">Total</span>
-              <span className="text-lg font-bold text-indigo-600">£{(totalCents / 100).toFixed(2)}</span>
+              <span className="text-lg font-bold text-indigo-600">{formatGBP(totalCents)}</span>
             </div>
           </div>
         </div>

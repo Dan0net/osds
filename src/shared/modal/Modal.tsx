@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ArrowLeft } from 'lucide-react'
 import { useEnterExit } from './useEnterExit'
+import Button from '@/shared/form/Button'
 
 const ANIM_MS = 220
 
@@ -75,15 +76,16 @@ export default function Modal({
           </button>
           <h2 className="text-base font-semibold text-gray-900 truncate flex-1 text-center">{title}</h2>
           {formId || onSave ? (
-            <button
+            <Button
               type={formId ? 'submit' : 'button'}
               form={formId}
               onClick={formId ? undefined : onSave}
               disabled={saveDisabled || saveLoading}
-              className="cursor-pointer px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              size="sm"
+              className="shrink-0"
             >
               {saveLoading ? 'Saving…' : saveLabel}
-            </button>
+            </Button>
           ) : (
             <div className="w-9 shrink-0" aria-hidden />
           )}
