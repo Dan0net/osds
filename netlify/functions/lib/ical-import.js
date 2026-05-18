@@ -67,10 +67,57 @@ function preprocessIcs(icsText) {
   return icsText
 }
 
+/**
+ * Drop VEVENT blocks whose DTSTART is before `cutoffISO` AND have no RRULE
+ * AND no RECURRENCE-ID. Reduces what `IcalExpander.between()` has to expand —
+ * for a 10MB Google feed full of years of past events, this is a 10-50x
+ * shrink before parse. Conservative: keep the block if anything looks
+ * recurring or unparseable.
+ */
+function trimPastEvents(icsText, cutoffISO) {
+  const lines = icsText.split(/\r?\n/)
+  const out = []
+  let buf = null, dtstart = null, hasRrule = false, hasRecurId = false
+  for (const line of lines) {
+    if (line.startsWith('BEGIN:VEVENT')) {
+      buf = [line]
+      dtstart = null
+      hasRrule = false
+      hasRecurId = false
+      continue
+    }
+    if (!buf) {
+      out.push(line)
+      continue
+    }
+    buf.push(line)
+    if (line.startsWith('DTSTART')) {
+      const m = line.match(/(\d{8})/)
+      if (m) dtstart = `${m[1].slice(0, 4)}-${m[1].slice(4, 6)}-${m[1].slice(6, 8)}`
+    } else if (line.startsWith('RRULE')) {
+      hasRrule = true
+    } else if (line.startsWith('RECURRENCE-ID')) {
+      hasRecurId = true
+    } else if (line.startsWith('END:VEVENT')) {
+      const past = dtstart && dtstart < cutoffISO
+      const drop = past && !hasRrule && !hasRecurId
+      if (!drop) out.push(...buf)
+      buf = null
+    }
+  }
+  return out.join('\n')
+}
+
 function parseIcsEvents(rawText) {
-  const cleaned = preprocessIcs(rawText)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+  const cutoff = new Date(today)
+  cutoff.setDate(cutoff.getDate() - 7)
+  const cutoffISO = cutoff.toISOString().slice(0, 10)
+
+  const trimmed = trimPastEvents(rawText, cutoffISO)
+  const cleaned = preprocessIcs(trimmed)
+
   const windowEnd = new Date(today)
   windowEnd.setDate(windowEnd.getDate() + WINDOW_DAYS)
 
