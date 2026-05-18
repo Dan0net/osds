@@ -95,6 +95,8 @@ function useBookingMutation<TVars>(fn: (vars: TVars) => Promise<unknown>) {
       queryClient.invalidateQueries({ queryKey: ['booking'] })
       queryClient.invalidateQueries({ queryKey: ['payments'] })
       queryClient.invalidateQueries({ queryKey: ['payment'] })
+      queryClient.invalidateQueries({ queryKey: ['payment-bookings'] })
+      queryClient.invalidateQueries({ queryKey: ['payment-refunds'] })
     },
   })
 }

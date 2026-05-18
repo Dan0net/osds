@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
-import { clientPriceCents } from './lib/pricing.js'
+import { recomputePaymentTotals } from './lib/payment-totals.js'
 
 async function reconcilePaymentAfterDecline(adminSupabase, paymentId) {
   if (!paymentId) return
@@ -11,15 +11,9 @@ async function reconcilePaymentAfterDecline(adminSupabase, paymentId) {
     .single()
   if (!payment || (payment.status !== 'pending_approval' && payment.status !== 'awaiting_payment')) return
 
-  const { data: active } = await adminSupabase
-    .from('bookings')
-    .select('id, services(price_cents)')
-    .eq('payment_id', paymentId)
-    .not('status', 'in', '(cancelled,declined,refunded)')
-
-  const newTotal = (active || []).reduce((sum, b) => sum + clientPriceCents(b.services?.price_cents || 0), 0)
-  const update = { total_cents: newTotal }
-  if (newTotal === 0) update.status = 'cancelled'
+  const totals = await recomputePaymentTotals(adminSupabase, paymentId)
+  const update = { total_cents: totals.total_cents, platform_fee_cents: totals.platform_fee_cents }
+  if (totals.total_cents === 0) update.status = 'cancelled'
   await adminSupabase.from('payments').update(update).eq('id', paymentId)
 }
 

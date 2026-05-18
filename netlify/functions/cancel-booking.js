@@ -2,6 +2,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
 import { clientPriceCents } from './lib/pricing.js'
+import { recomputePaymentTotals } from './lib/payment-totals.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -134,23 +135,16 @@ export async function handler(event) {
       .update({ status: 'cancelled' })
       .in('id', toCancelIds)
   }
-  // ---- Awaiting payment / pending approval: no money to move; just recompute total. ----
+  // ---- Awaiting payment / pending approval: no money to move; just recompute totals. ----
   else if (payment && (payment.status === 'awaiting_payment' || payment.status === 'pending_approval')) {
     await adminSupabase
       .from('bookings')
       .update({ status: 'cancelled' })
       .in('id', toCancelIds)
 
-    // Recompute payment.total_cents from active bookings
-    const { data: active } = await adminSupabase
-      .from('bookings')
-      .select('id, services(price_cents)')
-      .eq('payment_id', payment.id)
-      .not('status', 'in', '(cancelled,declined,refunded)')
-
-    const newTotal = (active || []).reduce((sum, b) => sum + clientPriceCents(b.services?.price_cents || 0), 0)
-    const update = { total_cents: newTotal }
-    if (newTotal === 0) update.status = 'cancelled'
+    const totals = await recomputePaymentTotals(adminSupabase, payment.id)
+    const update = { total_cents: totals.total_cents, platform_fee_cents: totals.platform_fee_cents }
+    if (totals.total_cents === 0) update.status = 'cancelled'
     await adminSupabase.from('payments').update(update).eq('id', payment.id)
   }
   // ---- Cash or no payment row: just mark cancelled. ----
