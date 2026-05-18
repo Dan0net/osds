@@ -103,12 +103,6 @@ export function useUnreadPaymentIds(userId) {
   const enabled = !!userId
   const queryKey = ['unread-payment-ids', userId]
   useRealtimeInvalidate({ table: 'payments', queryKey, enabled })
-  useRealtimeInvalidate({
-    table: 'payment_reads',
-    filter: enabled ? `user_id=eq.${userId}` : null,
-    queryKey,
-    enabled,
-  })
   return useQuery({
     queryKey,
     enabled,
@@ -136,8 +130,11 @@ export function useMarkPaymentRead(userId) {
         payment_id: paymentId, user_id: userId, last_seen_at: new Date().toISOString(),
       })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unread-payment-ids'] })
+    onMutate: (paymentId) => {
+      queryClient.setQueryData(['unread-payment-ids', userId], (old) => {
+        if (!Array.isArray(old)) return old
+        return old.filter((id) => id !== paymentId)
+      })
     },
   })
 }
@@ -151,8 +148,12 @@ export function useMarkAllPaymentsRead(userId) {
       const rows = paymentIds.map((id) => ({ payment_id: id, user_id: userId, last_seen_at: now }))
       await supabase.from('payment_reads').upsert(rows)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unread-payment-ids'] })
+    onMutate: (paymentIds) => {
+      queryClient.setQueryData(['unread-payment-ids', userId], (old) => {
+        if (!Array.isArray(old)) return old
+        const set = new Set(paymentIds)
+        return old.filter((id) => !set.has(id))
+      })
     },
   })
 }

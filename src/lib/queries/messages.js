@@ -4,19 +4,14 @@ import { supabase } from '../supabase'
 import { apiFetch } from '../api'
 import { useRealtimeInvalidate } from './realtime'
 
-function useConversationUnreadCountsMap(userId, options = {}) {
-  const enabled = !!userId
-  const queryKey = ['conversation-unread-counts', userId]
-  useRealtimeInvalidate({ table: 'messages', queryKey, enabled })
-  useRealtimeInvalidate({
-    table: 'conversation_reads',
-    filter: enabled ? `user_id=eq.${userId}` : null,
-    queryKey,
-    enabled,
-  })
+function unreadCountsKey(userId) {
+  return ['conversation-unread-counts', userId]
+}
+
+function useUnreadCountsQuery(userId, options = {}) {
   return useQuery({
-    queryKey,
-    enabled,
+    queryKey: unreadCountsKey(userId),
+    enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_conversation_unread_counts')
       if (error) throw error
@@ -29,7 +24,13 @@ function useConversationUnreadCountsMap(userId, options = {}) {
 }
 
 export function useTotalUnreadConversations(userId) {
-  return useConversationUnreadCountsMap(userId, {
+  // Owns the single realtime subscription for the shared unread-counts cache.
+  useRealtimeInvalidate({
+    table: 'messages',
+    queryKey: unreadCountsKey(userId),
+    enabled: !!userId,
+  })
+  return useUnreadCountsQuery(userId, {
     select: (map) => Object.values(map).reduce((a, b) => a + b, 0),
   })
 }
@@ -54,7 +55,7 @@ export function useConversations(userId) {
       return data || []
     },
   })
-  const countsQuery = useConversationUnreadCountsMap(userId)
+  const countsQuery = useUnreadCountsQuery(userId)
   const data = useMemo(() => {
     if (!convosQuery.data) return convosQuery.data
     const counts = countsQuery.data || {}
@@ -119,8 +120,11 @@ export function useMarkConversationRead(userId) {
         last_read_at: new Date().toISOString(),
       })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversation-unread-counts'] })
+    onMutate: (conversationId) => {
+      queryClient.setQueryData(unreadCountsKey(userId), (old) => {
+        if (!old) return old
+        return { ...old, [conversationId]: 0 }
+      })
     },
   })
 }
@@ -134,8 +138,13 @@ export function useMarkAllConversationsRead(userId) {
       const rows = conversationIds.map((id) => ({ conversation_id: id, user_id: userId, last_read_at: now }))
       await supabase.from('conversation_reads').upsert(rows)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversation-unread-counts'] })
+    onMutate: (conversationIds) => {
+      queryClient.setQueryData(unreadCountsKey(userId), (old) => {
+        if (!old) return old
+        const next = { ...old }
+        for (const id of conversationIds) next[id] = 0
+        return next
+      })
     },
   })
 }
