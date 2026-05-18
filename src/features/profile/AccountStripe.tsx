@@ -44,6 +44,8 @@ export default function AccountStripe() {
   const [stripeStatus, setStripeStatus] = useState(null)
   const [error, setError] = useState(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [awaitingCount, setAwaitingCount] = useState(0)
 
   useEffect(() => {
     if (!walkerProfile?.stripe_account_id) return
@@ -74,13 +76,33 @@ export default function AccountStripe() {
 
   async function handleDisconnect() {
     setError(null)
-    const res = await disconnect.mutateAsync()
+    const res = await disconnect.mutateAsync({})
+    if (res?.error) {
+      setConfirmOpen(false)
+      setError(res.error)
+      return
+    }
+    if (res?.data?.awaiting_count > 0) {
+      setAwaitingCount(res.data.awaiting_count)
+      setConfirmOpen(false)
+      setCancelConfirmOpen(true)
+      return
+    }
     setConfirmOpen(false)
+    setStripeStatus(null)
+    await refreshProfile?.()
+  }
+
+  async function handleDisconnectWithCancel() {
+    setError(null)
+    const res = await disconnect.mutateAsync({ cancel_pending: true })
+    setCancelConfirmOpen(false)
     if (res?.error) {
       setError(res.error)
       return
     }
     setStripeStatus(null)
+    setAwaitingCount(0)
     await refreshProfile?.()
   }
 
@@ -184,6 +206,17 @@ export default function AccountStripe() {
           ? "You won't be able to take online payments until you reconnect. Re-connecting creates a new Stripe account — past payouts and history stay in your existing Stripe Dashboard."
           : "This clears your incomplete Stripe account. You'll start fresh next time you click Connect."}
         confirmLabel="Disconnect"
+        confirmTone="danger"
+        loading={disconnect.isPending}
+      />
+
+      <ConfirmModal
+        open={cancelConfirmOpen}
+        onClose={() => setCancelConfirmOpen(false)}
+        onConfirm={handleDisconnectWithCancel}
+        title={`Cancel ${awaitingCount} unpaid payment${awaitingCount === 1 ? '' : 's'}?`}
+        body={`You have ${awaitingCount} payment${awaitingCount === 1 ? '' : 's'} awaiting customer payment. Disconnecting will cancel ${awaitingCount === 1 ? 'it' : 'them'} and the associated bookings. The customer${awaitingCount === 1 ? '' : 's'} will be notified. No money changes hands — nothing was paid yet.`}
+        confirmLabel="Cancel & Disconnect"
         confirmTone="danger"
         loading={disconnect.isPending}
       />
