@@ -172,9 +172,9 @@ export default function AccountBookings() {
             <Button
               onClick={() => setCreateBookingModal(true)}
               aria-label={isWalker ? 'Add booking' : 'Request booking'}
-              className="h-9 w-9 sm:w-auto sm:px-4"
+              className="h-9 w-9 !px-0 sm:w-auto sm:!px-4"
             >
-              <Plus size={16} />
+              <Plus size={20} />
               <span className="hidden sm:inline">{isWalker ? 'Add booking' : 'Request booking'}</span>
             </Button>
           )}
