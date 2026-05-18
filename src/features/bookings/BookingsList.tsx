@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { Link, NavLink, useLocation, useNavigate, matchPath } from 'react-router-dom'
 import { format, parseISO, addDays, isToday, isTomorrow } from 'date-fns'
 import MapButton from '@/shared/MapButton'
@@ -84,19 +84,19 @@ function SetupSection({ items }: any) {
   return (
     <div className="mb-6">
       <h3 className="text-sm font-semibold text-gray-900 mb-2">Get your page live</h3>
-      <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-1 rounded-lg border border-gray-200 overflow-hidden">
         {items.map((item) => {
-          const className = `flex items-center gap-2 px-2.5 py-2 rounded-lg border transition ${
+          const className = `flex items-center gap-2 px-2.5 py-2 transition ${
             item.done
-              ? 'bg-green-50 border-green-200'
-              : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40'
+              ? 'bg-green-50'
+              : 'bg-white hover:bg-indigo-50/40'
           }`
           const inner = (
             <>
               <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
-                item.done ? 'bg-green-200 text-green-700' : 'bg-gray-100 text-gray-400'
+                item.done ? 'bg-green-200 text-green-700' : 'bg-gray-100'
               }`}>
-                {item.done ? '✓' : '·'}
+                {item.done ? '✓' : <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />}
               </span>
               <span className={`text-xs font-medium ${item.done ? 'text-gray-400' : 'text-gray-700'}`}>
                 {item.label}
@@ -226,32 +226,34 @@ export default function BookingsList({ eventsByDay, selectedDate, onSelectDate, 
 
   return (
     <div ref={scrollRef} className={`overflow-y-auto overscroll-contain px-2 ${className}`}>
-      <SetupSection items={setupItems} />
       {days.map((date) => {
         const events = eventsByDay[date] || []
         const dateIsToday = isToday(parseISO(date))
+        const dateIsTomorrow = isTomorrow(parseISO(date))
         return (
-          <section
-            key={date}
-            ref={(el) => {
-              if (el) dayRefs.current[date] = el
-              else delete dayRefs.current[date]
-            }}
-            data-date={date}
-            className={events.length > 0 ? 'mb-4' : ''}
-          >
-            <h3 className="text-sm font-semibold text-gray-900 sticky -top-px bg-white -mx-2 px-3 pt-[7px] pb-1.5 z-[1] flex items-center gap-1.5 border-b border-gray-100">
-              {dateIsToday && <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
-              {dayHeading(date)}
-            </h3>
-            {events.length > 0 && (
-              <div>
-                {events.map((event, i) => (
-                  <EventRow key={event.id + '-' + i} event={event} activeId={activeId} />
-                ))}
-              </div>
-            )}
-          </section>
+          <Fragment key={date}>
+            {dateIsTomorrow && <SetupSection items={setupItems} />}
+            <section
+              ref={(el) => {
+                if (el) dayRefs.current[date] = el
+                else delete dayRefs.current[date]
+              }}
+              data-date={date}
+              className={events.length > 0 ? 'mb-4' : ''}
+            >
+              <h3 className="text-sm font-semibold text-gray-900 sticky -top-px bg-white -mx-2 px-3 pt-[7px] pb-1.5 z-[1] flex items-center gap-1.5 border-b border-gray-100">
+                {dateIsToday && <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
+                {dayHeading(date)}
+              </h3>
+              {events.length > 0 && (
+                <div>
+                  {events.map((event, i) => (
+                    <EventRow key={event.id + '-' + i} event={event} activeId={activeId} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </Fragment>
         )
       })}
       <div ref={sentinelRef} aria-hidden className="h-1" />
