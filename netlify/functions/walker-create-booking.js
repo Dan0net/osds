@@ -1,7 +1,7 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatSlots, bookingsListHtml } from './lib/notify.js'
-import { slotNetCents, grossUp } from './lib/pricing.js'
+import { slotNetCents, clientPriceCents } from './lib/pricing.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -112,7 +112,7 @@ export async function handler(event) {
   // Calculate total from server-side prices (net = walker's price)
   const netTotalCents = slots.reduce((sum, slot) => sum + netForSlot(slot), 0)
 
-  const grossTotalCents = grossUp(netTotalCents)
+  const grossTotalCents = clientPriceCents(netTotalCents)
   const platformFeeCents = grossTotalCents - netTotalCents
 
   const isCash = mode === 'cash'
@@ -191,7 +191,7 @@ export async function handler(event) {
       return {
         price_data: {
           currency: 'gbp',
-          unit_amount: grossUp(perUnitNet),
+          unit_amount: clientPriceCents(perUnitNet),
           product_data: { name: `${svc.name} — ${dateStr}` },
         },
         quantity: isOvernight ? nights : 1,
@@ -234,7 +234,7 @@ export async function handler(event) {
     endTime: slot.endTime,
     endDate: slot.endDate,
     isOvernight: !!slot.isOvernight,
-    grossCents: grossUp(netForSlot(slot)),
+    grossCents: clientPriceCents(netForSlot(slot)),
   }))
   const bookingsTable = bookingsListHtml(emailRows)
 

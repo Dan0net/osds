@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
-import { apiFetch } from '../api'
+import { apiFetch } from '../functions'
 import { useRealtimeInvalidate } from './realtime'
 
 const CLIENT_SELECT = '*, services(name), pets(name), walker_profiles(slug, business_name, theme_color), payments(status, source)'

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
-import { apiFetch } from '../api'
+import { apiFetch } from '../functions'
 
 export function useIcalImports(walkerProfileId) {
   const enabled = !!walkerProfileId

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatSlots } from './lib/notify.js'
-import { slotNetCents, grossUp } from './lib/pricing.js'
+import { slotNetCents, clientPriceCents } from './lib/pricing.js'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -160,7 +160,7 @@ export async function handler(event) {
       nights,
     })
   }, 0)
-  const grossTotalCents = grossUp(netTotalCents)
+  const grossTotalCents = clientPriceCents(netTotalCents)
 
   const { data: payment, error: paymentError } = await supabase
     .from('payments')

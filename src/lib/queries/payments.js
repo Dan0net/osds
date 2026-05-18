@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
-import { apiFetch } from '../api'
+import { apiFetch } from '../functions'
 import { walkerTakeFromPayment } from '../utils'
 import { useRealtimeInvalidate } from './realtime'
 

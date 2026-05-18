@@ -1,7 +1,7 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
-import { grossUp } from './lib/pricing.js'
+import { clientPriceCents } from './lib/pricing.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -103,7 +103,7 @@ export async function handler(event) {
     }
 
     // How much to refund: gross-up of cancelled bookings' net prices
-    const refundCents = toCancel.reduce((sum, b) => sum + grossUp(b.services?.price_cents || 0), 0)
+    const refundCents = toCancel.reduce((sum, b) => sum + clientPriceCents(b.services?.price_cents || 0), 0)
     const unrefundedBalance = (payment.total_cents || 0) - (payment.refunded_amount_cents || 0)
 
     // If this would consume the remaining balance, omit `amount` for a clean full refund
@@ -148,7 +148,7 @@ export async function handler(event) {
       .eq('payment_id', payment.id)
       .not('status', 'in', '(cancelled,declined,refunded)')
 
-    const newTotal = (active || []).reduce((sum, b) => sum + grossUp(b.services?.price_cents || 0), 0)
+    const newTotal = (active || []).reduce((sum, b) => sum + clientPriceCents(b.services?.price_cents || 0), 0)
     const update = { total_cents: newTotal }
     if (newTotal === 0) update.status = 'cancelled'
     await adminSupabase.from('payments').update(update).eq('id', payment.id)

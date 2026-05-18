@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { supabase } from '../supabase'
-import { apiFetch } from '../api'
+import { apiFetch } from '../functions'
 import { useRealtimeInvalidate } from './realtime'
 
 function unreadCountsKey(userId) {

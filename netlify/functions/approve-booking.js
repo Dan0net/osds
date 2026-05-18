@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatDateTime, bookingsListHtml } from './lib/notify.js'
-import { grossUp } from './lib/pricing.js'
+import { clientPriceCents } from './lib/pricing.js'
 
 async function fetchBookingRowsForEmail(adminSupabase, paymentId) {
   const { data: bks } = await adminSupabase
@@ -22,7 +22,7 @@ async function fetchBookingRowsForEmail(adminSupabase, paymentId) {
       endTime: b.end_time,
       endDate: b.end_date,
       isOvernight,
-      grossCents: grossUp((b.services?.price_cents || 0)) * nights,
+      grossCents: clientPriceCents((b.services?.price_cents || 0)) * nights,
     }
   })
 }

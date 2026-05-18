@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { grossUp } from './lib/pricing.js'
+import { clientPriceCents } from './lib/pricing.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -82,7 +82,7 @@ export async function handler(event) {
   const lineItems = bookings.map((b) => {
     const svc = b.services
     const isOvernight = b.end_date && b.end_date !== b.booking_date
-    let unitAmount = grossUp(svc.price_cents)
+    let unitAmount = clientPriceCents(svc.price_cents)
     let quantity = 1
     if (isOvernight) {
       const nights = Math.round((new Date(b.end_date) - new Date(b.booking_date)) / (1000 * 60 * 60 * 24))
