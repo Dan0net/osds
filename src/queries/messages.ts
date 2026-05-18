@@ -45,10 +45,15 @@ export function useConversationUnreadCount(userId: string | undefined, conversat
   })
 }
 
+const conversationChildKeys = (p: any) => {
+  const id = p?.new?.id || p?.old?.id
+  return id ? [['conversation', id]] : null
+}
+
 export function useConversations(userId: string | undefined) {
   const enabled = !!userId
   const queryKey = ['conversations', userId] as const
-  useRealtimeInvalidate({ table: 'conversations', queryKey, enabled })
+  useRealtimeInvalidate({ table: 'conversations', queryKey, enabled, childKeys: conversationChildKeys })
   const convosQuery = useQuery({
     queryKey,
     enabled,
