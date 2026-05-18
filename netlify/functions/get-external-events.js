@@ -57,7 +57,7 @@ export async function handler(event) {
     }
   }
 
-  const { events, errors } = await fetchExternalEvents(adminClient, walkerProfile.id)
+  const { events, errors } = await fetchExternalEvents(adminClient, walkerProfile.id, { allowStale: true })
 
   return {
     statusCode: 200,
