@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, AlertTriangle, X, Sparkles } from 'lucide-react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { inviteCustomer, walkerCreateBooking } from '../../lib/api'
-import { loadWalkerCustomers } from '../../lib/customers'
+import { useWalkerCustomers, useAddCustomerWithPets } from '../../lib/queries/customers'
+import { usePets, useCreatePet } from '../../lib/queries/pets'
+import { useServices, useCreateService } from '../../lib/queries/services'
+import { useWalkerCreateBooking } from '../../lib/queries/bookings'
 import { slotNetCents } from '../../lib/pricing'
 import Modal from '../Modal'
 import AvailabilityCalendar from '../AvailabilityCalendar'
@@ -27,15 +28,29 @@ export default function BookingForm({ open, onClose, onCreated }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const [customers, setCustomers] = useState([])
-  const [services, setServices] = useState([])
-  const [customerPets, setCustomerPets] = useState([])
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false)
   const [petPickerOpen, setPetPickerOpen] = useState(false)
   const [servicePickerOpen, setServicePickerOpen] = useState(false)
   const [bookingService, setBookingService] = useState(null)
   const [consentOpen, setConsentOpen] = useState(false)
   const [createdData, setCreatedData] = useState(null)
+
+  const customersQuery = useWalkerCustomers(open ? walkerProfile?.id : null)
+  const servicesQuery = useServices(open ? walkerProfile?.id : null, { activeOnly: true })
+  const petsQuery = usePets(customer?.id)
+  const addCustomer = useAddCustomerWithPets()
+  const createPet = useCreatePet()
+  const createService = useCreateService(walkerProfile?.id)
+  const createBooking = useWalkerCreateBooking()
+
+  const customers = useMemo(
+    () => (customersQuery.data || []).map((c) => ({
+      ...c.client, _petCount: c.petCount, _lastBookingDate: c.lastBookingDate,
+    })),
+    [customersQuery.data],
+  )
+  const services = servicesQuery.data || []
+  const customerPets = petsQuery.data || []
 
   // Reset on open/close
   useEffect(() => {
@@ -57,74 +72,22 @@ export default function BookingForm({ open, onClose, onCreated }) {
     return () => clearTimeout(id)
   }, [step])
 
+  // Auto-select pet if customer has exactly one.
   useEffect(() => {
-    if (!walkerProfile || !open) return
-    loadCustomers()
-    loadServices()
-  }, [walkerProfile?.id, open])
-
-  // When customer changes, load their pets and auto-select if exactly one.
-  useEffect(() => {
-    if (!customer) {
-      setCustomerPets([])
-      setSelectedPets([])
-      return
-    }
-    let cancelled = false
-    supabase
-      .from('pets')
-      .select('id, name, breed, pet_type')
-      .eq('user_id', customer.id)
-      .then(({ data }) => {
-        if (cancelled) return
-        const list = data || []
-        setCustomerPets(list)
-        setSelectedPets(list.length === 1 ? [list[0]] : [])
-      })
-    return () => { cancelled = true }
-  }, [customer?.id])
-
-  async function loadCustomers() {
-    const list = await loadWalkerCustomers(walkerProfile.id)
-    setCustomers(list.map((c) => ({ ...c.client, _petCount: c.petCount, _lastBookingDate: c.lastBookingDate })))
-  }
-
-  async function loadServices() {
-    const { data } = await supabase
-      .from('services')
-      .select('*')
-      .eq('walker_id', walkerProfile.id)
-      .eq('active', true)
-      .order('created_at')
-    setServices(data || [])
-  }
+    if (!customer) { setSelectedPets([]); return }
+    if (customerPets.length === 1) setSelectedPets([customerPets[0]])
+    else if (customerPets.length === 0) setSelectedPets([])
+  }, [customer?.id, customerPets.length])
 
   async function handleInviteCustomer({ owner, pets: newPets }) {
-    const { data, error: err } = await inviteCustomer(owner)
-    if (err) {
-      setError(err)
+    const result = await addCustomer.mutateAsync({ owner, pets: newPets })
+    if (result.error) {
+      setError(result.error)
       return null
     }
-    const newUser = data?.user
+    const newUser = result.data?.user
     if (!newUser) return null
-
-    if (newPets?.length) {
-      const rows = newPets.map((p) => {
-        const { __tempId, id, ...rest } = p
-        return { ...rest, user_id: newUser.id }
-      })
-      const { data: inserted, error: petError } = await supabase.from('pets').insert(rows).select()
-      if (petError) {
-        setError(`Customer added, but pets failed to save: ${petError.message}`)
-      } else if (inserted?.length) {
-        setCustomerPets(inserted)
-        setSelectedPets(inserted)
-      }
-    }
-
-    if (!customers.find((c) => c.id === newUser.id)) {
-      setCustomers((prev) => [newUser, ...prev])
-    }
+    if (result.pets?.length) setSelectedPets(result.pets)
     return newUser
   }
 
@@ -135,31 +98,21 @@ export default function BookingForm({ open, onClose, onCreated }) {
 
   async function handleCreatePet(payload) {
     if (!customer) return null
-    const { data, error: err } = await supabase
-      .from('pets')
-      .insert({ ...payload, user_id: customer.id })
-      .select()
-      .single()
-    if (err) {
+    try {
+      return await createPet.mutateAsync({ userId: customer.id, pet: payload })
+    } catch (err) {
       setError(err.message)
       return null
     }
-    setCustomerPets((prev) => [...prev, data])
-    return data
   }
 
   async function handleCreateService(payload) {
-    const { data, error: err } = await supabase
-      .from('services')
-      .insert({ ...payload, walker_id: walkerProfile.id, active: true })
-      .select()
-      .single()
-    if (err) {
+    try {
+      return await createService.mutateAsync({ ...payload, active: true })
+    } catch (err) {
       setError(err.message)
       return null
     }
-    setServices((prev) => [data, ...prev])
-    return data
   }
 
   const serviceMap = useMemo(() => {
@@ -221,7 +174,7 @@ export default function BookingForm({ open, onClose, onCreated }) {
       isOvernight: !!s.isOvernight,
       isHoliday: !!s.isHoliday,
     }))
-    const res = await walkerCreateBooking({
+    const res = await createBooking.mutateAsync({
       client_id: customer.id,
       pet_ids: selectedPets.map((p) => p.id),
       slots,

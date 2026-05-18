@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { ChevronRight } from 'lucide-react'
 import { eventStatusBadge, toneClass, toneColor } from '../../lib/bookingStatus'
-import { createCheckout } from '../../lib/api'
+import { usePayNowCheckout } from '../../lib/queries/payments'
 
 export default function MessageBubble({ message, isSelf, paymentMap, latestMessageIdByPayment, isOwner }) {
   if (message.kind === 'system') return <SystemMessage message={message} paymentMap={paymentMap} latestMessageIdByPayment={latestMessageIdByPayment} isOwner={isOwner} />
@@ -86,16 +85,14 @@ function SystemMessage({ message, paymentMap, latestMessageIdByPayment, isOwner 
 }
 
 function PayNowButton({ paymentId, disabled }) {
-  const [loading, setLoading] = useState(false)
+  const payNow = usePayNowCheckout()
+  const loading = payNow.isPending
   async function pay() {
     if (loading || disabled) return
-    setLoading(true)
-    const res = await createCheckout(paymentId)
+    const res = await payNow.mutateAsync(paymentId)
     if (res?.data?.url) {
       window.location.href = res.data.url
-      return
     }
-    setLoading(false)
   }
   return (
     <button

@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useLocation, matchPath } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { supabase } from '../../lib/supabase'
-import { getUnreadCounts } from '../../lib/messaging'
-import { getUnreadPaymentIds } from '../../lib/payments'
-import { walkerTakeFromPayment } from '../../lib/utils'
+import { useTotalUnreadConversations, useInboundMessagesChannel } from '../../lib/queries/messages'
+import { useUnreadPaymentIds, usePaidCelebration } from '../../lib/queries/payments'
 import InstallPrompt from '../../components/InstallPrompt'
 import Sidebar from '../../components/account/Sidebar'
 import BottomBar from '../../components/account/BottomBar'
@@ -15,95 +13,32 @@ export default function AccountLayout() {
   const { user, walkerProfile } = useAuth()
   const location = useLocation()
   const isConversation = !!matchPath('/account/messages/:conversationId', location.pathname)
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [unreadPayments, setUnreadPayments] = useState(() => new Set())
   const [moreOpen, setMoreOpen] = useState(false)
   const [installPromptVisible, setInstallPromptVisible] = useState(false)
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null)
-  const [paidCelebration, setPaidCelebration] = useState(null)
-  const seenPaidIds = useRef(new Set())
 
-  async function refreshUnread() {
-    if (!user) return
-    const counts = await getUnreadCounts(user.id)
-    let total = 0
-    for (const n of counts.values()) total += n
-    setUnreadCount(total)
-  }
+  const unreadConversationsQuery = useTotalUnreadConversations(user?.id)
+  const unreadPaymentsQuery = useUnreadPaymentIds(user?.id)
+  const { celebration, dismiss: dismissCelebration } = usePaidCelebration(walkerProfile?.id)
 
-  async function refreshUnreadPayments() {
-    if (!user) return
-    setUnreadPayments(await getUnreadPaymentIds(user.id))
-  }
+  useInboundMessagesChannel(user?.id)
+
+  const unreadCount = unreadConversationsQuery.data || 0
+  const unreadPayments = unreadPaymentsQuery.data || []
+
+  // Bridge legacy "notifications-read" event so unread counts refresh when a
+  // conversation is marked read elsewhere.
+  useEffect(() => {
+    const onRead = () => unreadConversationsQuery.refetch()
+    window.addEventListener('notifications-read', onRead)
+    return () => window.removeEventListener('notifications-read', onRead)
+  }, [unreadConversationsQuery])
 
   useEffect(() => {
-    if (!user) return
-    refreshUnread()
-    refreshUnreadPayments()
-    if (walkerProfile?.id) {
-      supabase
-        .from('payments')
-        .select('id')
-        .eq('walker_id', walkerProfile.id)
-        .eq('status', 'paid')
-        .then(({ data }) => {
-          for (const p of data || []) seenPaidIds.current.add(p.id)
-        })
-    }
-    window.addEventListener('notifications-read', refreshUnread)
-    window.addEventListener('payments-read', refreshUnreadPayments)
-
-    const messagesChannel = supabase
-      .channel(`messages-for-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const msg = payload.new
-          window.dispatchEvent(new CustomEvent('message-received', { detail: msg }))
-          if (msg.sender_user_id !== user.id) refreshUnread()
-        },
-      )
-      .subscribe()
-
-    const paymentsChannel = supabase
-      .channel(`payments-for-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'payments' },
-        async (payload) => {
-          refreshUnreadPayments()
-          window.dispatchEvent(new Event('account-data-mutated'))
-
-          const row = payload.new
-          if (
-            walkerProfile?.id &&
-            row?.walker_id === walkerProfile.id &&
-            row?.status === 'paid' &&
-            !seenPaidIds.current.has(row.id)
-          ) {
-            seenPaidIds.current.add(row.id)
-            const { data } = await supabase
-              .from('payments')
-              .select('id, total_cents, platform_fee_cents, refunded_amount_cents, users!payments_client_id_fkey(name)')
-              .eq('id', row.id)
-              .maybeSingle()
-            setPaidCelebration({
-              amountCents: walkerTakeFromPayment(data || row),
-              counterpart: data?.users?.name || null,
-            })
-          }
-        },
-      )
-      .subscribe()
-
-    return () => {
-      window.removeEventListener('notifications-read', refreshUnread)
-      window.removeEventListener('payments-read', refreshUnreadPayments)
-      supabase.removeChannel(messagesChannel)
-      supabase.removeChannel(paymentsChannel)
-    }
-  }, [user?.id, walkerProfile?.id])
+    const onRead = () => unreadPaymentsQuery.refetch()
+    window.addEventListener('payments-read', onRead)
+    return () => window.removeEventListener('payments-read', onRead)
+  }, [unreadPaymentsQuery])
 
   useEffect(() => {
     if (localStorage.getItem('install-prompt-dismissed')) return
@@ -166,8 +101,8 @@ export default function AccountLayout() {
         '--list-sidebar-w': '21rem',
       }}
     >
-      <Sidebar unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.size} />
-      <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.size} />
+      <Sidebar unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.length} />
+      <BottomBar onMore={() => setMoreOpen(true)} unreadCount={unreadCount} unreadPaymentsCount={unreadPayments.length} />
       <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
 
       <main className={`lg:ml-56 lg:min-h-screen h-[calc(100dvh_-_56px_-_env(safe-area-inset-bottom)_-_var(--install-prompt-h))] lg:h-auto flex flex-col lg:block ${isConversation ? 'lg:pb-[var(--install-prompt-h)]' : 'lg:pb-[calc(2rem+var(--install-prompt-h))]'}`}>
@@ -184,10 +119,10 @@ export default function AccountLayout() {
       />
 
       <PaidCelebrationModal
-        open={!!paidCelebration}
-        onClose={() => setPaidCelebration(null)}
-        amountCents={paidCelebration?.amountCents}
-        counterpart={paidCelebration?.counterpart}
+        open={!!celebration}
+        onClose={dismissCelebration}
+        amountCents={celebration?.amountCents}
+        counterpart={celebration?.counterpart}
       />
     </div>
   )

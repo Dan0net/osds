@@ -1,7 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import './index.css'
 import App from './App'
+import { queryClient, persister } from './lib/queries/queryClient'
+import { GlobalEventBridge } from './lib/queries/GlobalEventBridge'
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault()
@@ -11,7 +14,13 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister, maxAge: 24 * 60 * 60 * 1000 }}
+    >
+      <GlobalEventBridge />
+      <App />
+    </PersistQueryClientProvider>
   </StrictMode>,
 )
 

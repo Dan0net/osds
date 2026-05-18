@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { usePets, useCreatePet, useUpdatePet, useDeletePet } from '../../lib/queries/pets'
 import Modal from '../../components/Modal'
 import PetForm from '../../components/account/PetForm'
 
@@ -8,40 +8,29 @@ const FORM_ID = 'pet-form'
 
 export default function AccountPets() {
   const { user } = useAuth()
-  const [pets, setPets] = useState([])
   const [editing, setEditing] = useState(null) // null | 'new' | pet object
   const [formValid, setFormValid] = useState(false)
-  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (user) loadPets()
-  }, [user?.id])
+  const petsQuery = usePets(user?.id)
+  const createPet = useCreatePet()
+  const updatePet = useUpdatePet()
+  const deletePet = useDeletePet()
 
-  async function loadPets() {
-    const { data } = await supabase
-      .from('pets')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at')
-    setPets(data || [])
-  }
+  const pets = petsQuery.data || []
+  const saving = createPet.isPending || updatePet.isPending
 
   async function handleSubmit(payload) {
-    setSaving(true)
     if (editing === 'new') {
-      await supabase.from('pets').insert({ user_id: user.id, ...payload })
+      await createPet.mutateAsync({ userId: user.id, pet: payload })
     } else if (editing?.id) {
-      await supabase.from('pets').update(payload).eq('id', editing.id)
+      await updatePet.mutateAsync({ petId: editing.id, patch: payload })
     }
-    setSaving(false)
     setEditing(null)
-    await loadPets()
   }
 
   async function remove(id) {
     if (!confirm('Remove this pet?')) return
-    await supabase.from('pets').delete().eq('id', id)
-    await loadPets()
+    await deletePet.mutateAsync(id)
   }
 
   const modalTitle = editing === 'new' ? 'New pet' : 'Edit pet'

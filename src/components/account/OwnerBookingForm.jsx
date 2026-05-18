@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X } from 'lucide-react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { apiFetch } from '../../lib/api'
-import { loadOwnerWalkers } from '../../lib/walkers'
+import { useOwnerWalkers } from '../../lib/queries/walkers'
+import { usePets, useCreatePet } from '../../lib/queries/pets'
+import { useServices } from '../../lib/queries/services'
+import { useCreateBookingRequest } from '../../lib/queries/bookings'
 import { slotNetCents } from '../../lib/pricing'
 import { clientPriceCents } from '../../lib/utils'
 import Modal from '../Modal'
@@ -23,13 +24,20 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const [walkers, setWalkers] = useState([])
-  const [services, setServices] = useState([])
-  const [pets, setPets] = useState([])
   const [walkerPickerOpen, setWalkerPickerOpen] = useState(false)
   const [petPickerOpen, setPetPickerOpen] = useState(false)
   const [servicePickerOpen, setServicePickerOpen] = useState(false)
   const [bookingService, setBookingService] = useState(null)
+
+  const walkersQuery = useOwnerWalkers(open ? user?.id : null)
+  const petsQuery = usePets(open ? user?.id : null)
+  const servicesQuery = useServices(walker?.id, { activeOnly: true })
+  const createPet = useCreatePet()
+  const createBooking = useCreateBookingRequest()
+
+  const walkers = useMemo(() => (walkersQuery.data || []).map((w) => w.walker), [walkersQuery.data])
+  const pets = petsQuery.data || []
+  const services = servicesQuery.data || []
 
   useEffect(() => {
     if (!open) return
@@ -42,45 +50,20 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
     setSubmitting(false)
   }, [open])
 
+  // Auto-select pet when there's only one.
   useEffect(() => {
-    if (!open || !user) return
-    loadOwnerWalkers(user.id).then((list) => setWalkers(list.map((w) => w.walker)))
-    supabase
-      .from('pets')
-      .select('id, name, breed, pet_type')
-      .eq('user_id', user.id)
-      .then(({ data }) => {
-        const list = data || []
-        setPets(list)
-        if (list.length === 1) setSelectedPet(list[0])
-      })
-  }, [open, user?.id])
+    if (!open) return
+    if (pets.length === 1 && !selectedPet) setSelectedPet(pets[0])
+  }, [open, pets.length])
 
-  // Fetch services when walker chosen, and apply initialServiceId once available
+  // Apply initialServiceId once services are loaded for the selected walker.
   useEffect(() => {
-    if (!walker) {
-      setServices([])
-      setBookingService(null)
-      return
+    if (!walker) { setBookingService(null); return }
+    if (initialServiceId && services.length > 0) {
+      const match = services.find((s) => s.id === initialServiceId)
+      if (match) setBookingService(match)
     }
-    let cancelled = false
-    supabase
-      .from('services')
-      .select('*')
-      .eq('walker_id', walker.id)
-      .eq('active', true)
-      .order('created_at')
-      .then(({ data }) => {
-        if (cancelled) return
-        const list = data || []
-        setServices(list)
-        if (initialServiceId) {
-          const match = list.find((s) => s.id === initialServiceId)
-          if (match) setBookingService(match)
-        }
-      })
-    return () => { cancelled = true }
-  }, [walker?.id, initialServiceId])
+  }, [walker?.id, initialServiceId, services.length])
 
   const serviceMap = useMemo(() => {
     const m = {}
@@ -117,17 +100,12 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
   }
 
   async function handleCreatePet(payload) {
-    const { data, error: err } = await supabase
-      .from('pets')
-      .insert({ ...payload, user_id: user.id })
-      .select()
-      .single()
-    if (err) {
+    try {
+      return await createPet.mutateAsync({ userId: user.id, pet: payload })
+    } catch (err) {
       setError(err.message)
       return null
     }
-    setPets((prev) => [...prev, data])
-    return data
   }
 
   async function handleSubmit() {
@@ -142,13 +120,10 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
       endDate: s.endDate,
       isOvernight: !!s.isOvernight,
     }))
-    const res = await apiFetch('create-booking-request', {
-      method: 'POST',
-      body: JSON.stringify({
-        walker_id: walker.id,
-        pet_id: selectedPet?.id || null,
-        slots,
-      }),
+    const res = await createBooking.mutateAsync({
+      walker_id: walker.id,
+      pet_id: selectedPet?.id || null,
+      slots,
     })
     setSubmitting(false)
     if (res.error) {

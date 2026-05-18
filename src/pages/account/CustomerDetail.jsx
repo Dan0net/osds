@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Mail, Phone, Map, Plus, MessageCircle } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { ensureConversation } from '../../lib/messaging'
+import { useCustomerDetail } from '../../lib/queries/customers'
+import { usePets, useCreatePet, useUpdatePet, useDeletePet } from '../../lib/queries/pets'
+import { useEnsureConversation } from '../../lib/queries/messages'
 import Modal from '../../components/Modal'
 import PetForm from '../../components/account/PetForm'
 import DetailHeader from '../../components/account/DetailHeader'
 import LinkRow from '../../components/account/LinkRow'
 import { bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
+import { Spinner } from '../../shared/Spinner'
 
 const PET_FORM_ID = 'customer-pet-form'
 
@@ -24,57 +26,49 @@ export default function CustomerDetail() {
     if (from?.startsWith('/account/money/') || from?.startsWith('/account/payments/')) return 'Payment'
     return 'Customers'
   })()
-  const [client, setClient] = useState(null)
-  const [bookings, setBookings] = useState([])
-  const [pets, setPets] = useState([])
-  const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // null | 'new' | pet object
   const [formValid, setFormValid] = useState(false)
-  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (!walkerProfile) return
-    load()
-  }, [clientId, walkerProfile?.id])
+  const customerQuery = useCustomerDetail(walkerProfile?.id, clientId)
+  const petsQuery = usePets(clientId)
+  const createPet = useCreatePet()
+  const updatePet = useUpdatePet()
+  const deletePet = useDeletePet()
+  const ensureConversation = useEnsureConversation()
 
-  async function load() {
-    setLoading(true)
-    const [bkRes, petsRes, userRes] = await Promise.all([
-      supabase
-        .from('bookings')
-        .select('*, services(name), pets(*), payments(source), users:client_id(id, name, email, phone, postcode, avatar_url)')
-        .eq('walker_id', walkerProfile.id)
-        .eq('client_id', clientId)
-        .order('booking_date', { ascending: false }),
-      supabase.from('pets').select('*').eq('user_id', clientId),
-      supabase.from('users').select('id, name, email, phone, postcode, avatar_url').eq('id', clientId).maybeSingle(),
-    ])
-
-    setBookings(bkRes.data || [])
-    setPets(petsRes.data || [])
-    setClient(bkRes.data?.[0]?.users || userRes.data || null)
-    setLoading(false)
-  }
+  const client = customerQuery.data?.client
+  const bookings = customerQuery.data?.bookings || []
+  const pets = petsQuery.data || []
+  const loading = customerQuery.isLoading || petsQuery.isLoading
+  const saving = createPet.isPending || updatePet.isPending
 
   async function handleSubmit(payload) {
-    setSaving(true)
     if (editing === 'new') {
-      await supabase.from('pets').insert({ user_id: clientId, ...payload })
+      await createPet.mutateAsync({ userId: clientId, pet: payload })
     } else if (editing?.id) {
-      await supabase.from('pets').update(payload).eq('id', editing.id)
+      await updatePet.mutateAsync({ petId: editing.id, patch: payload })
     }
-    setSaving(false)
     setEditing(null)
-    await load()
   }
 
   async function removePet(id) {
     if (!confirm('Remove this pet?')) return
-    await supabase.from('pets').delete().eq('id', id)
-    await load()
+    await deletePet.mutateAsync(id)
   }
 
-  if (loading) return <p className="text-sm text-gray-400">Loading…</p>
+  async function openConversation() {
+    const id = await ensureConversation.mutateAsync({ walkerId: walkerProfile.id, clientId })
+    if (id) navigate(`/account/messages/${id}`)
+  }
+
+  if (loading) {
+    return (
+      <>
+        <DetailHeader backHref={backHref} backLabel={backLabel} />
+        <div className="flex justify-center py-8"><Spinner /></div>
+      </>
+    )
+  }
 
   if (!client) {
     return (
@@ -105,10 +99,7 @@ export default function CustomerDetail() {
           icon={MessageCircle}
           value="Message"
           secondary={client.name ? `Chat with ${client.name.split(' ')[0]}` : null}
-          onClick={async () => {
-            const id = await ensureConversation(walkerProfile.id, clientId)
-            if (id) navigate(`/account/messages/${id}`)
-          }}
+          onClick={openConversation}
         />
         {client.email && (
           <LinkRow icon={Mail} value={client.email} href={`mailto:${client.email}`} />

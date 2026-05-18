@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useServices, useCreateService } from '../../lib/queries/services'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
 import SearchInput from '../../components/account/SearchInput'
@@ -11,31 +11,19 @@ import ServiceForm from '../../components/account/ServiceForm'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
 import ListItem from '../../components/account/ListItem'
+import { Spinner } from '../../shared/Spinner'
 
 export default function AccountServices() {
   const { walkerProfile } = useAuth()
   const navigate = useNavigate()
-  const [services, setServices] = useState([])
-  const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
   const [formValid, setFormValid] = useState(false)
   const [query, setQuery] = useState('')
 
-  useEffect(() => {
-    if (!walkerProfile) return
-    loadServices()
-  }, [walkerProfile?.id])
-
-  async function loadServices() {
-    const { data } = await supabase
-      .from('services')
-      .select('*')
-      .eq('walker_id', walkerProfile.id)
-      .order('created_at')
-    setServices(data || [])
-    setLoading(false)
-  }
+  const servicesQuery = useServices(walkerProfile?.id)
+  const createService = useCreateService(walkerProfile?.id)
+  const services = servicesQuery.data || []
+  const loading = servicesQuery.isLoading
 
   useAutoSelectFirst({
     items: services,
@@ -44,14 +32,7 @@ export default function AccountServices() {
   })
 
   async function handleCreate(data) {
-    setSubmitting(true)
-    const { data: inserted } = await supabase
-      .from('services')
-      .insert({ ...data, walker_id: walkerProfile.id })
-      .select()
-      .single()
-    setSubmitting(false)
-    await loadServices()
+    const inserted = await createService.mutateAsync(data)
     setAddOpen(false)
     if (inserted) navigate(`/account/services/${inserted.id}`)
     return inserted
@@ -82,7 +63,7 @@ export default function AccountServices() {
   )
 
   const list = loading ? (
-    <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
+    <div className="flex justify-center py-8"><Spinner /></div>
   ) : (
     <SearchList
       items={services}
@@ -124,7 +105,7 @@ export default function AccountServices() {
         title="New service"
         formId="service-form"
         saveDisabled={!formValid}
-        saveLoading={submitting}
+        saveLoading={createService.isPending}
       >
         <ServiceForm
           formId="service-form"

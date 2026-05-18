@@ -1,10 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { supabase } from '../../lib/supabase'
-import { inviteCustomer } from '../../lib/api'
-import { loadWalkerCustomers } from '../../lib/customers'
+import { useWalkerCustomers, useAddCustomerWithPets } from '../../lib/queries/customers'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
 import SearchInput from '../../components/account/SearchInput'
@@ -16,6 +14,7 @@ import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
 import ListItem from '../../components/account/ListItem'
 import PillSelect from '../../components/account/PillSelect'
+import { Spinner } from '../../shared/Spinner'
 
 const SORTS = {
   recent_booking: {
@@ -44,15 +43,17 @@ const SORTS = {
 export default function AccountCustomers() {
   const { walkerProfile } = useAuth()
   const navigate = useNavigate()
-  const [customers, setCustomers] = useState([])
-  const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [consentOpen, setConsentOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
   const [addError, setAddError] = useState(null)
   const [formValid, setFormValid] = useState(false)
   const [sortKey, setSortKey] = useState('recent_booking')
   const [query, setQuery] = useState('')
+
+  const customersQuery = useWalkerCustomers(walkerProfile?.id)
+  const addCustomer = useAddCustomerWithPets()
+  const customers = customersQuery.data || []
+  const loading = customersQuery.isLoading
 
   function handleAddClick() {
     if (walkerProfile?.customer_invite_consent_at) {
@@ -60,17 +61,6 @@ export default function AccountCustomers() {
     } else {
       setConsentOpen(true)
     }
-  }
-
-  useEffect(() => {
-    if (!walkerProfile) return
-    loadCustomers()
-  }, [walkerProfile?.id])
-
-  async function loadCustomers() {
-    setLoading(true)
-    setCustomers(await loadWalkerCustomers(walkerProfile.id))
-    setLoading(false)
   }
 
   const sorted = useMemo(() => [...customers].sort(SORTS[sortKey].cmp), [customers, sortKey])
@@ -81,33 +71,18 @@ export default function AccountCustomers() {
   })
 
   async function handleAddCustomer({ owner, pets }) {
-    setSubmitting(true)
     setAddError(null)
-    const { data, error } = await inviteCustomer(owner)
-    if (error) {
-      setSubmitting(false)
-      setAddError(error)
+    const result = await addCustomer.mutateAsync({ owner, pets })
+    if (result.error) {
+      setAddError(result.error)
       return null
     }
-    if (data?.user?.id && pets?.length) {
-      const rows = pets.map((p) => {
-        const { __tempId, id, ...rest } = p
-        return { ...rest, user_id: data.user.id }
-      })
-      const { error: petError } = await supabase.from('pets').insert(rows)
-      if (petError) {
-        setSubmitting(false)
-        setAddError(`Customer was added, but pets failed to save: ${petError.message}`)
-        return null
-      }
-    }
-    setSubmitting(false)
     setAddOpen(false)
-    if (data?.status === 'already_exists') {
-      alert(`${data.user.name || 'This customer'} is already on OSDS — opening their profile.`)
+    if (result.data?.status === 'already_exists') {
+      alert(`${result.data.user.name || 'This customer'} is already on OSDS — opening their profile.`)
     }
-    if (data?.user?.id) navigate(`/account/customers/${data.user.id}`)
-    return data?.user
+    if (result.data?.user?.id) navigate(`/account/customers/${result.data.user.id}`)
+    return result.data?.user
   }
 
   if (!walkerProfile) {
@@ -143,7 +118,7 @@ export default function AccountCustomers() {
   )
 
   const list = loading ? (
-    <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
+    <div className="flex justify-center py-8"><Spinner /></div>
   ) : (
     <SearchList
       items={sorted}
@@ -193,7 +168,7 @@ export default function AccountCustomers() {
         title="New customer"
         formId="customer-form"
         saveDisabled={!formValid}
-        saveLoading={submitting}
+        saveLoading={addCustomer.isPending}
       >
         {addError && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{addError}</div>

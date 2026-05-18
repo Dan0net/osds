@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams, useOutlet } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { format, parseISO, addDays, startOfMonth, differenceInCalendarDays } from 'date-fns'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { apiFetch } from '../../lib/api'
 import { bookingStatusBadge, toneColor } from '../../lib/bookingStatus'
-import { loadWalkerCustomers } from '../../lib/customers'
+import { useClientBookings, useWalkerBookings } from '../../lib/queries/bookings'
+import { useExternalEvents } from '../../lib/queries/ical'
+import { useServicesCount } from '../../lib/queries/services'
+import { useWalkerCustomers } from '../../lib/queries/customers'
+import { useOwnerWalkers } from '../../lib/queries/walkers'
 import BookingForm from '../../components/account/BookingForm'
 import OwnerBookingForm from '../../components/account/OwnerBookingForm'
 import MonthCalendar from '../../components/account/MonthCalendar'
@@ -14,7 +16,7 @@ import BookingsSidebar from '../../components/account/BookingsSidebar'
 import BookingsList from '../../components/account/BookingsList'
 import ListPaneHeader from '../../components/account/ListPaneHeader'
 import PaidSuccessModal from '../../components/account/PaidSuccessModal'
-import { loadOwnerWalkers } from '../../lib/walkers'
+import { Spinner, PageSpinner } from '../../shared/Spinner'
 
 const EXTERNAL_COLOR = '#9ca3af'
 
@@ -23,18 +25,21 @@ export default function AccountBookings() {
   const isWalker = !!walkerProfile
   const outlet = useOutlet()
 
-  const [bookings, setBookings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [servicesCount, setServicesCount] = useState(0)
-  const [customerCount, setCustomerCount] = useState(0)
-  const [walkerBookingsCount, setWalkerBookingsCount] = useState(0)
   const [searchParams, setSearchParams] = useSearchParams()
   const [paymentBanner, setPaymentBanner] = useState(null)
   const [createBookingModal, setCreateBookingModal] = useState(false)
-  const [ownerWalkersCount, setOwnerWalkersCount] = useState(0)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const [drawerHeight, setDrawerHeight] = useState('half')
+
+  const clientBookingsQuery = useClientBookings(user?.id)
+  const walkerBookingsQuery = useWalkerBookings(walkerProfile?.id)
+  const externalEventsQuery = useExternalEvents(walkerProfile?.id)
+  const servicesCountQuery = useServicesCount(walkerProfile?.id)
+  const customersQuery = useWalkerCustomers(walkerProfile?.id)
+  const ownerWalkersQuery = useOwnerWalkers(!isWalker ? user?.id : null)
+
+  const loading = clientBookingsQuery.isLoading || (isWalker && (walkerBookingsQuery.isLoading || externalEventsQuery.isLoading))
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment')
@@ -58,70 +63,13 @@ export default function AccountBookings() {
     }
   }, [isWalker])
 
-  useEffect(() => {
-    if (!user) return
-    loadBookings()
-    const refresh = () => loadBookings()
-    window.addEventListener('account-data-mutated', refresh)
-    return () => window.removeEventListener('account-data-mutated', refresh)
-  }, [user?.id, walkerProfile?.id])
-
-  useEffect(() => {
-    if (!user || isWalker) { setOwnerWalkersCount(0); return }
-    loadOwnerWalkers(user.id).then((list) => setOwnerWalkersCount(list.length))
-  }, [user?.id, isWalker])
-
-  async function loadBookings() {
-    setLoading(true)
-
-    const clientPromise = supabase
-      .from('bookings')
-      .select('*, services(name), pets(name), walker_profiles(slug, business_name, theme_color), payments(status, source)')
-      .eq('client_id', user.id)
-      .order('booking_date', { ascending: true })
-
-    const walkerPromise = walkerProfile
-      ? supabase
-          .from('bookings')
-          .select('*, services(name), pets(name), payments(source), users!bookings_client_id_fkey(name, phone, postcode)')
-          .eq('walker_id', walkerProfile.id)
-          .order('booking_date', { ascending: true })
-      : Promise.resolve({ data: [] })
-
-    const externalPromise = walkerProfile
-      ? (async () => {
-          const { count } = await supabase
-            .from('ical_imports')
-            .select('id', { count: 'exact', head: true })
-            .eq('walker_id', walkerProfile.id)
-          if (!count) return { data: { events: [] } }
-          return apiFetch('get-external-events')
-        })()
-      : Promise.resolve({ data: { events: [] } })
-
-    const servicesCountPromise = walkerProfile
-      ? supabase.from('services').select('id', { count: 'exact', head: true }).eq('walker_id', walkerProfile.id)
-      : Promise.resolve({ count: 0 })
-
-    const customersPromise = walkerProfile
-      ? loadWalkerCustomers(walkerProfile.id)
-      : Promise.resolve([])
-
-    const [clientRes, walkerRes, externalRes, servicesRes, customers] = await Promise.all([
-      clientPromise, walkerPromise, externalPromise, servicesCountPromise, customersPromise,
-    ])
-
+  const bookings = useMemo(() => {
     const merged = []
-    for (const b of clientRes.data || []) merged.push(toEvent(b, false))
-    for (const b of walkerRes.data || []) merged.push(toEvent(b, true))
-    for (const e of externalRes.data?.events || []) merged.push(toExternalEvent(e))
-
-    setBookings(merged)
-    setServicesCount(servicesRes.count || 0)
-    setCustomerCount(customers.length)
-    setWalkerBookingsCount((walkerRes.data || []).length)
-    setLoading(false)
-  }
+    for (const b of clientBookingsQuery.data || []) merged.push(toEvent(b, false))
+    for (const b of walkerBookingsQuery.data || []) merged.push(toEvent(b, true))
+    for (const e of externalEventsQuery.data || []) merged.push(toExternalEvent(e))
+    return merged
+  }, [clientBookingsQuery.data, walkerBookingsQuery.data, externalEventsQuery.data])
 
   const eventsByDay = useMemo(() => {
     const map = {}
@@ -153,6 +101,11 @@ export default function AccountBookings() {
   function handleTodayClick() {
     handleSelectDate(new Date())
   }
+
+  const customerCount = customersQuery.data?.length || 0
+  const servicesCount = servicesCountQuery.data || 0
+  const walkerBookingsCount = walkerBookingsQuery.data?.length || 0
+  const ownerWalkersCount = ownerWalkersQuery.data?.length || 0
 
   const setupItems = isWalker ? [
     { done: customerCount > 0, label: 'Add a customer', link: '/account/customers' },
@@ -202,9 +155,7 @@ export default function AccountBookings() {
             {banner}
 
             {loading ? (
-              <div className="flex justify-center py-16">
-                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-              </div>
+              <PageSpinner />
             ) : (
               <div className="h-[calc(50dvh-5.5rem)]">
                 <MonthCalendar
@@ -246,7 +197,7 @@ export default function AccountBookings() {
           />
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <Spinner />
             </div>
           ) : (
             <BookingsList
@@ -279,13 +230,13 @@ export default function AccountBookings() {
         <BookingForm
           open={createBookingModal}
           onClose={() => setCreateBookingModal(false)}
-          onCreated={() => { setCreateBookingModal(false); loadBookings() }}
+          onCreated={() => setCreateBookingModal(false)}
         />
       ) : (
         <OwnerBookingForm
           open={createBookingModal}
           onClose={() => setCreateBookingModal(false)}
-          onCreated={() => { setCreateBookingModal(false); loadBookings() }}
+          onCreated={() => setCreateBookingModal(false)}
         />
       )}
 

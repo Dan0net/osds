@@ -1,95 +1,74 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import {
+  useAvailability, useBlockedDates,
+  useReplaceAvailability, useAddBlockedDate, useRemoveBlockedDate,
+} from '../../lib/queries/availability'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+function buildSlots(serverRows) {
+  return DAYS.map((day, i) => {
+    const existing = (serverRows || []).find((a) => a.day_of_week === i + 1)
+    return {
+      id: existing?.id,
+      day,
+      day_of_week: i + 1,
+      enabled: !!existing,
+      start_time: existing?.start_time?.slice(0, 5) || '09:00',
+      end_time: existing?.end_time?.slice(0, 5) || '17:00',
+    }
+  })
+}
+
 export default function AccountAvailability() {
   const { walkerProfile } = useAuth()
+  const availabilityQuery = useAvailability(walkerProfile?.id)
+  const blockedQuery = useBlockedDates(walkerProfile?.id)
+  const replaceAvailability = useReplaceAvailability(walkerProfile?.id)
+  const addBlocked = useAddBlockedDate(walkerProfile?.id)
+  const removeBlocked = useRemoveBlockedDate()
 
-  const [availability, setAvailability] = useState(
-    DAYS.map((day, i) => ({
-      day, day_of_week: i + 1, enabled: false,
-      start_time: '09:00', end_time: '17:00',
-    })),
-  )
-  const [availSaving, setAvailSaving] = useState(false)
-  const [blockedDates, setBlockedDates] = useState([])
+  const serverSlots = useMemo(() => buildSlots(availabilityQuery.data), [availabilityQuery.data])
+  const [slots, setSlots] = useState(serverSlots)
+  const [hasEditedSchedule, setHasEditedSchedule] = useState(false)
+
+  // Sync server state into local state when the query data changes, but only
+  // if the user hasn't started editing — otherwise we'd clobber unsaved changes.
+  useMemo(() => {
+    if (!hasEditedSchedule) setSlots(serverSlots)
+  }, [serverSlots, hasEditedSchedule])
+
+  const blockedDates = blockedQuery.data || []
   const [newBlock, setNewBlock] = useState({ date: '', reason: '' })
 
-  useEffect(() => {
-    if (!walkerProfile) return
-    loadAvailability()
-    loadBlockedDates()
-  }, [walkerProfile?.id])
-
-  async function loadAvailability() {
-    const { data } = await supabase
-      .from('availability')
-      .select('*')
-      .eq('walker_id', walkerProfile.id)
-    setAvailability(
-      DAYS.map((day, i) => {
-        const existing = (data || []).find((a) => a.day_of_week === i + 1)
-        return {
-          id: existing?.id,
-          day, day_of_week: i + 1, enabled: !!existing,
-          start_time: existing?.start_time?.slice(0, 5) || '09:00',
-          end_time: existing?.end_time?.slice(0, 5) || '17:00',
-        }
-      }),
-    )
-  }
-
-  async function loadBlockedDates() {
-    const { data } = await supabase
-      .from('blocked_dates')
-      .select('*')
-      .eq('walker_id', walkerProfile.id)
-      .order('date')
-    setBlockedDates(data || [])
-  }
-
   function toggleDay(dayOfWeek) {
-    setAvailability((prev) => prev.map((a) => (a.day_of_week === dayOfWeek ? { ...a, enabled: !a.enabled } : a)))
+    setHasEditedSchedule(true)
+    setSlots((prev) => prev.map((a) => (a.day_of_week === dayOfWeek ? { ...a, enabled: !a.enabled } : a)))
   }
   function updateTime(dayOfWeek, field, value) {
-    setAvailability((prev) => prev.map((a) => (a.day_of_week === dayOfWeek ? { ...a, [field]: value } : a)))
+    setHasEditedSchedule(true)
+    setSlots((prev) => prev.map((a) => (a.day_of_week === dayOfWeek ? { ...a, [field]: value } : a)))
   }
+
   async function saveAvailability() {
-    setAvailSaving(true)
-    await supabase.from('availability').delete().eq('walker_id', walkerProfile.id)
-    const enabled = availability.filter((a) => a.enabled)
-    if (enabled.length > 0) {
-      await supabase.from('availability').insert(
-        enabled.map((a) => ({
-          walker_id: walkerProfile.id,
-          day_of_week: a.day_of_week,
-          start_time: a.start_time,
-          end_time: a.end_time,
-        })),
-      )
-    }
-    setAvailSaving(false)
-    await loadAvailability()
-  }
-  if (!walkerProfile) {
-    return <p className="text-sm text-gray-500">Availability is only available for walkers.</p>
+    const enabled = slots.filter((s) => s.enabled)
+    await replaceAvailability.mutateAsync(enabled)
+    setHasEditedSchedule(false)
   }
 
   async function addBlockedDate() {
     if (!newBlock.date) return
-    await supabase.from('blocked_dates').insert({
-      walker_id: walkerProfile.id,
-      date: newBlock.date,
-      reason: newBlock.reason,
-    })
+    await addBlocked.mutateAsync(newBlock)
     setNewBlock({ date: '', reason: '' })
-    await loadBlockedDates()
   }
+
   async function removeBlockedDate(id) {
-    await supabase.from('blocked_dates').delete().eq('id', id)
-    await loadBlockedDates()
+    await removeBlocked.mutateAsync(id)
+  }
+
+  if (!walkerProfile) {
+    return <p className="text-sm text-gray-500">Availability is only available for walkers.</p>
   }
 
   return (
@@ -97,7 +76,7 @@ export default function AccountAvailability() {
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <h3 className="font-medium mb-3">Weekly hours</h3>
         <div className="space-y-3">
-          {availability.map((slot) => (
+          {slots.map((slot) => (
             <div key={slot.day_of_week} className="flex items-center gap-3">
               <label className="flex items-center gap-2 w-28">
                 <input
@@ -130,10 +109,10 @@ export default function AccountAvailability() {
         </div>
         <button
           onClick={saveAvailability}
-          disabled={availSaving}
+          disabled={replaceAvailability.isPending}
           className="mt-3 bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
         >
-          {availSaving ? 'Saving...' : 'Save schedule'}
+          {replaceAvailability.isPending ? 'Saving...' : 'Save schedule'}
         </button>
       </div>
 
@@ -155,7 +134,8 @@ export default function AccountAvailability() {
           />
           <button
             onClick={addBlockedDate}
-            className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700"
+            disabled={addBlocked.isPending}
+            className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
           >
             Block
           </button>

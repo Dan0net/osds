@@ -1,68 +1,47 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../hooks/useAuth'
+import { useService, useUpdateService, useDeleteService } from '../../lib/queries/services'
 import ServiceForm from '../../components/account/ServiceForm'
 import DetailHeader from '../../components/account/DetailHeader'
+import { Spinner } from '../../shared/Spinner'
 
 export default function ServiceDetail() {
   const { serviceId } = useParams()
-  const { walkerProfile } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from
   const backHref = from || '/account/services'
   const backLabel = from?.startsWith('/account/bookings/') ? 'Booking' : 'Services'
-  const [service, setService] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [formValid, setFormValid] = useState(false)
 
-  useEffect(() => {
-    if (!walkerProfile) return
-    supabase
-      .from('services')
-      .select('*')
-      .eq('id', serviceId)
-      .eq('walker_id', walkerProfile.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setService(data)
-        setLoading(false)
-      })
-  }, [serviceId, walkerProfile?.id])
+  const serviceQuery = useService(serviceId)
+  const updateService = useUpdateService(serviceId)
+  const deleteService = useDeleteService()
+  const service = serviceQuery.data
+  const loading = serviceQuery.isLoading
 
   async function handleSave(data) {
-    setSubmitting(true)
     setError(null)
-    const { error: err } = await supabase
-      .from('services')
-      .update(data)
-      .eq('id', serviceId)
-    setSubmitting(false)
-    if (err) {
+    try {
+      await updateService.mutateAsync(data)
+      navigate('/account/services')
+    } catch (err) {
       setError(err.message)
-      return
     }
-    navigate('/account/services')
   }
 
   async function toggleActive() {
-    await supabase
-      .from('services')
-      .update({ active: !service.active })
-      .eq('id', service.id)
-    setService((s) => ({ ...s, active: !s.active }))
+    await updateService.mutateAsync({ active: !service.active })
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this service? Existing bookings won\'t be affected.')) return
-    await supabase.from('services').delete().eq('id', serviceId)
+    if (!confirm("Delete this service? Existing bookings won't be affected.")) return
+    await deleteService.mutateAsync(serviceId)
     navigate('/account/services')
   }
 
-  if (loading) return <p className="text-sm text-gray-400">Loading…</p>
+  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
   if (!service) {
     return (
       <>
@@ -109,10 +88,10 @@ export default function ServiceDetail() {
       <button
         type="submit"
         form="service-edit-form"
-        disabled={!formValid || submitting}
+        disabled={!formValid || updateService.isPending}
         className="cursor-pointer w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
       >
-        {submitting ? 'Saving…' : 'Save'}
+        {updateService.isPending ? 'Saving…' : 'Save'}
       </button>
     </>
   )

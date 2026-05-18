@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Clock, Moon, MessageCircle, PawPrint, MapPin } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { ensureConversation } from '../../lib/messaging'
+import { useWalker, useOwnerBookingsForWalker } from '../../lib/queries/walkers'
+import { useServices } from '../../lib/queries/services'
+import { useEnsureConversation } from '../../lib/queries/messages'
 import { clientPriceCents } from '../../lib/utils'
 import { bookingStatusBadge, toneClass } from '../../lib/bookingStatus'
 import DetailHeader from '../../components/account/DetailHeader'
 import LinkRow from '../../components/account/LinkRow'
 import OwnerBookingForm from '../../components/account/OwnerBookingForm'
+import { Spinner } from '../../shared/Spinner'
 
 export default function WalkerDetail() {
   const { walkerId } = useParams()
@@ -19,44 +21,18 @@ export default function WalkerDetail() {
   const backHref = from || '/account/walkers'
   const backLabel = from?.startsWith('/account/bookings/') ? 'Booking' : 'Walkers'
 
-  const [walker, setWalker] = useState(null)
-  const [services, setServices] = useState([])
-  const [bookings, setBookings] = useState([])
-  const [loading, setLoading] = useState(true)
+  const walkerQuery = useWalker(walkerId)
+  const servicesQuery = useServices(walkerId, { activeOnly: true })
+  const bookingsQuery = useOwnerBookingsForWalker(walkerId, user?.id)
+  const ensureConversation = useEnsureConversation()
+
+  const walker = walkerQuery.data
+  const services = servicesQuery.data || []
+  const bookings = bookingsQuery.data || []
+  const loading = walkerQuery.isLoading
+
   const [bookingOpen, setBookingOpen] = useState(false)
   const [preselectedServiceId, setPreselectedServiceId] = useState(null)
-
-  useEffect(() => {
-    if (!user) return
-    load()
-  }, [walkerId, user?.id])
-
-  async function load() {
-    setLoading(true)
-    const [wRes, svcRes, bkRes] = await Promise.all([
-      supabase
-        .from('walker_profiles')
-        .select('*, users(name, avatar_url)')
-        .eq('id', walkerId)
-        .maybeSingle(),
-      supabase
-        .from('services')
-        .select('*')
-        .eq('walker_id', walkerId)
-        .eq('active', true)
-        .order('created_at'),
-      supabase
-        .from('bookings')
-        .select('id, booking_date, status, services(name), payments(source, status)')
-        .eq('walker_id', walkerId)
-        .eq('client_id', user.id)
-        .order('booking_date', { ascending: false }),
-    ])
-    setWalker(wRes.data || null)
-    setServices(svcRes.data || [])
-    setBookings(bkRes.data || [])
-    setLoading(false)
-  }
 
   function openServiceBooking(serviceId) {
     setPreselectedServiceId(serviceId)
@@ -66,10 +42,14 @@ export default function WalkerDetail() {
   function handleBookingCreated() {
     setBookingOpen(false)
     setPreselectedServiceId(null)
-    load()
   }
 
-  if (loading) return <p className="text-sm text-gray-400">Loading…</p>
+  async function openConversation() {
+    const id = await ensureConversation.mutateAsync({ walkerId: walker.id, clientId: user.id })
+    if (id) navigate(`/account/messages/${id}`)
+  }
+
+  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
 
   if (!walker) {
     return (
@@ -96,7 +76,6 @@ export default function WalkerDetail() {
     <>
       <DetailHeader backHref={backHref} backLabel={backLabel} />
 
-      {/* Hero */}
       <div className="rounded-xl overflow-hidden mb-5">
         {walker.cover_url ? (
           <div className="aspect-[16/9] bg-gray-100 overflow-hidden">
@@ -135,10 +114,7 @@ export default function WalkerDetail() {
           icon={MessageCircle}
           value="Message"
           secondary={walker.users?.name ? `Chat with ${walker.users.name.split(' ')[0]}` : null}
-          onClick={async () => {
-            const id = await ensureConversation(walker.id, user.id)
-            if (id) navigate(`/account/messages/${id}`)
-          }}
+          onClick={openConversation}
         />
       </div>
 

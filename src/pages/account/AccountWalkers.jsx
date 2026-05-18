@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { loadOwnerWalkers } from '../../lib/walkers'
+import { useOwnerWalkers } from '../../lib/queries/walkers'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import SearchList from '../../components/account/SearchList'
 import SearchInput from '../../components/account/SearchInput'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
 import ListItem from '../../components/account/ListItem'
+import { Spinner } from '../../shared/Spinner'
 
 const SORTS = {
   recent_booking: {
@@ -30,19 +31,12 @@ const SORTS = {
 
 export default function AccountWalkers() {
   const { user, walkerProfile } = useAuth()
-  const [walkers, setWalkers] = useState([])
-  const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState('recent_booking')
   const [query, setQuery] = useState('')
 
-  useEffect(() => {
-    if (!user) return
-    setLoading(true)
-    loadOwnerWalkers(user.id).then((list) => {
-      setWalkers(list)
-      setLoading(false)
-    })
-  }, [user?.id])
+  const walkersQuery = useOwnerWalkers(user?.id)
+  const walkers = walkersQuery.data || []
+  const loading = walkersQuery.isLoading
 
   const sorted = useMemo(() => [...walkers].sort(SORTS[sortKey].cmp), [walkers, sortKey])
   useAutoSelectFirst({
@@ -76,7 +70,7 @@ export default function AccountWalkers() {
   )
 
   const list = loading ? (
-    <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
+    <div className="flex justify-center py-8"><Spinner /></div>
   ) : (
     <SearchList
       items={sorted}

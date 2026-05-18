@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react'
+import { createContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 export const AuthContext = createContext(null)
@@ -8,6 +8,10 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [walkerProfile, setWalkerProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Dedupe re-fetches for the same user — onAuthStateChange fires on every
+  // token refresh and tab focus, not just sign-in/out. StrictMode also
+  // double-mounts effects in dev.
+  const loadedUserIdRef = useRef(null)
 
   async function fetchProfile(userId) {
     const { data } = await supabase
@@ -29,12 +33,17 @@ export function AuthProvider({ children }) {
 
   async function loadUserData(session) {
     if (session?.user) {
+      const sameUser = loadedUserIdRef.current === session.user.id
       setUser(session.user)
-      await Promise.all([
-        fetchProfile(session.user.id),
-        fetchWalkerProfile(session.user.id),
-      ])
+      if (!sameUser) {
+        loadedUserIdRef.current = session.user.id
+        await Promise.all([
+          fetchProfile(session.user.id),
+          fetchWalkerProfile(session.user.id),
+        ])
+      }
     } else {
+      loadedUserIdRef.current = null
       setUser(null)
       setProfile(null)
       setWalkerProfile(null)
@@ -43,10 +52,8 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      loadUserData(session)
-    })
-
+    // `onAuthStateChange` fires immediately with INITIAL_SESSION carrying the
+    // current session, so we don't need a separate `getSession()` round-trip.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         loadUserData(session)
@@ -107,12 +114,12 @@ export function AuthProvider({ children }) {
   }
 
   async function refreshProfile() {
-    if (user) {
-      await Promise.all([
-        fetchProfile(user.id),
-        fetchWalkerProfile(user.id),
-      ])
-    }
+    if (!user) return
+    // Bypass the dedupe — caller explicitly wants a refresh.
+    await Promise.all([
+      fetchProfile(user.id),
+      fetchWalkerProfile(user.id),
+    ])
   }
 
   return (

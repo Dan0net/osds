@@ -1,44 +1,45 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { supabase } from '../../lib/supabase'
-import { stripeConnectOnboard, stripeConnectCallback, stripeDashboardLink } from '../../lib/api'
+import {
+  useStripeConnectOnboard, useStripeConnectCallback, useUpdateWalkerProfile,
+} from '../../lib/queries/profile'
+import { useStripeDashboardLink } from '../../lib/queries/payments'
 
 export default function AccountStripe() {
   const { walkerProfile, refreshProfile } = useAuth()
-  const [stripeLoading, setStripeLoading] = useState(false)
+  const onboard = useStripeConnectOnboard()
+  const callback = useStripeConnectCallback()
+  const dashboardLink = useStripeDashboardLink()
+  const updateProfile = useUpdateWalkerProfile(walkerProfile?.id)
+
   const [stripeStatus, setStripeStatus] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!walkerProfile?.stripe_account_id) return
-    stripeConnectCallback().then(async (res) => {
-      if (!res.data) return
+    let cancelled = false
+    callback.mutateAsync().then(async (res) => {
+      if (cancelled || !res?.data) return
       setStripeStatus(res.data)
       const live = !!res.data.charges_enabled
       if (live !== walkerProfile.stripe_charges_enabled) {
-        await supabase
-          .from('walker_profiles')
-          .update({ stripe_charges_enabled: live })
-          .eq('id', walkerProfile.id)
-        await refreshProfile()
+        await updateProfile.mutateAsync({ stripe_charges_enabled: live })
+        await refreshProfile?.()
       }
     })
+    return () => { cancelled = true }
   }, [walkerProfile?.stripe_account_id])
 
   async function handleConnect() {
-    setStripeLoading(true)
     setError(null)
-    const res = await stripeConnectOnboard({ return_path: '/account/settings/stripe' })
-    if (res.data?.url) window.location.href = res.data.url
-    else {
-      setError(res.error || 'Failed to start Stripe onboarding')
-      setStripeLoading(false)
-    }
+    const res = await onboard.mutateAsync({ return_path: '/account/settings/stripe' })
+    if (res?.data?.url) window.location.href = res.data.url
+    else setError(res?.error || 'Failed to start Stripe onboarding')
   }
 
   async function handleDashboard() {
-    const res = await stripeDashboardLink()
-    if (res.data?.url) window.open(res.data.url, '_blank')
+    const res = await dashboardLink.mutateAsync()
+    if (res?.data?.url) window.open(res.data.url, '_blank')
   }
 
   if (!walkerProfile) {
@@ -47,6 +48,7 @@ export default function AccountStripe() {
 
   const connected = stripeStatus?.charges_enabled
   const partial = walkerProfile.stripe_account_id && stripeStatus && !stripeStatus.charges_enabled
+  const stripeLoading = onboard.isPending
 
   return (
     <div className="space-y-4">

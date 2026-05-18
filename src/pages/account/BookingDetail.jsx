@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'
 import { User, PawPrint, Scissors, CreditCard, Trash2, Map, MessageCircle, ChevronLeft, Calendar } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { createCheckout, cancelBooking, apiFetch } from '../../lib/api'
 import { bookingStatusBadge } from '../../lib/bookingStatus'
 import { displayServicePrice, displayPaymentAmount } from '../../lib/utils'
-import { ensureConversation } from '../../lib/messaging'
+import { useBooking, useBookingSiblings, useApproveBooking, useDeclineBooking, useCancelBooking } from '../../lib/queries/bookings'
+import { usePayNowCheckout } from '../../lib/queries/payments'
+import { useEnsureConversation } from '../../lib/queries/messages'
 import DetailHeader from '../../components/account/DetailHeader'
 import DetailHero from '../../components/account/DetailHero'
 import LinkRow from '../../components/account/LinkRow'
 import ConfirmModal from '../../components/ConfirmModal'
+import { PageSpinner } from '../../shared/Spinner'
 
 export default function BookingDetail() {
   const { bookingId } = useParams()
@@ -25,105 +26,43 @@ export default function BookingDetail() {
     if (from?.startsWith('/account/money/') || from?.startsWith('/account/payments/')) return 'Payment'
     return 'Bookings'
   })()
-  const [booking, setBooking] = useState(null)
-  const [siblings, setSiblings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(null)
   const [cancelOpen, setCancelOpen] = useState(false)
 
-  useEffect(() => {
-    if (!user) return
-    loadBooking()
-  }, [user?.id, bookingId])
+  const { data: booking, isLoading } = useBooking(bookingId)
+  const { data: siblings = [] } = useBookingSiblings(booking?.payment_id)
+  const approve = useApproveBooking()
+  const decline = useDeclineBooking()
+  const cancel = useCancelBooking()
+  const payNow = usePayNowCheckout()
+  const ensureConversation = useEnsureConversation()
 
-  async function loadBooking() {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('bookings')
-      .select(`
-        *,
-        services(name, price_cents, duration_minutes, service_type),
-        pets(name, breed, weight, notes),
-        walker_profiles(slug, business_name, theme_color, user_id),
-        payments(id, status, total_cents, platform_fee_cents, refunded_amount_cents, source),
-        users!bookings_client_id_fkey(name, email, phone, postcode)
-      `)
-      .eq('id', bookingId)
-      .single()
-
-    if (error || !data) {
-      setLoading(false)
-      return
-    }
-    setBooking(data)
-
-    if (data.payment_id) {
-      const { data: sibs } = await supabase
-        .from('bookings')
-        .select('id, status')
-        .eq('payment_id', data.payment_id)
-      setSiblings(sibs || [])
-    } else {
-      setSiblings([])
-    }
-    setLoading(false)
-  }
+  const actionLoading = approve.isPending ? 'approve'
+    : decline.isPending ? 'decline'
+    : cancel.isPending ? 'cancel'
+    : payNow.isPending ? 'pay' : null
 
   const isWalker = walkerProfile && booking?.walker_profiles?.user_id === user?.id
   const isClient = booking?.client_id === user?.id
 
   async function handlePayNow() {
     if (!booking?.payments?.id) return
-    setActionLoading('pay')
-    const res = await createCheckout(booking.payments.id)
-    if (res.data?.url) {
-      window.location.href = res.data.url
-    }
-    setActionLoading(null)
+    const res = await payNow.mutateAsync(booking.payments.id)
+    if (res?.data?.url) window.location.href = res.data.url
   }
 
   async function handleCancel() {
-    setActionLoading('cancel')
-    const res = await cancelBooking({ booking_id: booking.id })
-    if (!res.error) {
-      window.dispatchEvent(new Event('account-data-mutated'))
-      await loadBooking()
-    }
-    setActionLoading(null)
+    await cancel.mutateAsync({ booking_id: booking.id })
     setCancelOpen(false)
   }
 
-  async function handleApprove() {
-    setActionLoading('approve')
-    const res = await apiFetch('approve-booking', {
-      method: 'POST',
-      body: JSON.stringify({ booking_id: booking.id }),
-    })
-    if (!res.error) {
-      window.dispatchEvent(new Event('account-data-mutated'))
-      await loadBooking()
-    }
-    setActionLoading(null)
-  }
+  function handleApprove() { approve.mutate({ booking_id: booking.id }) }
+  function handleDecline() { decline.mutate({ booking_id: booking.id }) }
 
-  async function handleDecline() {
-    setActionLoading('decline')
-    const res = await apiFetch('decline-booking', {
-      method: 'POST',
-      body: JSON.stringify({ booking_id: booking.id }),
-    })
-    if (!res.error) {
-      window.dispatchEvent(new Event('account-data-mutated'))
-      await loadBooking()
-    }
-    setActionLoading(null)
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
       <>
         <DetailHeader backHref={backHref} backLabel={backLabel} />
-        <div className="text-center py-16 text-gray-500">Loading booking…</div>
+        <PageSpinner />
       </>
     )
   }
@@ -152,13 +91,70 @@ export default function BookingDetail() {
   const servicePriceCents = displayServicePrice(booking.services, isWalker)
   const paymentAmountCents = booking.payments ? displayPaymentAmount(booking.payments, isWalker) : null
 
-  // Orphan flag: this booking is cancelled but the payment still has active siblings
   const activeSiblings = siblings.filter((s) =>
     s.id !== booking.id && !['cancelled', 'declined', 'refunded'].includes(s.status),
   )
   const isOrphan = ['cancelled', 'refunded'].includes(booking.status)
     && booking.payments?.status === 'awaiting_payment'
     && activeSiblings.length > 0
+
+  const isMulti = siblings.length > 1
+  const showApproveDecline = canApprove && !isMulti
+  const showPayNow = canPay && !isMulti
+  const showReviewAll = (canApprove || canPay) && isMulti
+
+  const approveButtons = showApproveDecline ? (
+    <div className="flex items-center gap-3">
+      <button
+        onClick={handleApprove}
+        disabled={!!actionLoading}
+        className="cursor-pointer bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+      >
+        {actionLoading === 'approve' ? 'Approving…' : 'Approve'}
+      </button>
+      <button
+        onClick={handleDecline}
+        disabled={!!actionLoading}
+        className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+      >
+        {actionLoading === 'decline' ? 'Declining…' : 'Decline'}
+      </button>
+    </div>
+  ) : null
+  const payNowButton = showPayNow ? (
+    <button
+      onClick={handlePayNow}
+      disabled={actionLoading === 'pay'}
+      className="cursor-pointer bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+    >
+      {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
+    </button>
+  ) : null
+  const reviewAllButton = showReviewAll ? (
+    <Link
+      to={`/account/money/${booking.payment_id}`}
+      className="inline-flex items-center bg-white text-gray-900 text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50"
+    >
+      Review all bookings ({siblings.length}) →
+    </Link>
+  ) : null
+  const heroAction = approveButtons || payNowButton || reviewAllButton
+
+  const heroExtra = (isMulti && !heroAction) ? (
+    <Link
+      to={`/account/money/${booking.payment_id}`}
+      className="inline-flex items-center gap-1 text-xs font-medium underline opacity-80 hover:opacity-100"
+    >
+      1 of {siblings.length} bookings on payment →
+    </Link>
+  ) : null
+
+  async function openConversation() {
+    const id = await ensureConversation.mutateAsync({
+      walkerId: booking.walker_id, clientId: booking.client_id,
+    })
+    if (id) navigate(`/account/messages/${id}`)
+  }
 
   return (
     <>
@@ -171,72 +167,15 @@ export default function BookingDetail() {
       </Link>
       <DetailHeader backHref={backHref} backLabel={backLabel} />
 
-      {(() => {
-        const isMulti = siblings.length > 1
-        const showApproveDecline = canApprove && !isMulti
-        const showPayNow = canPay && !isMulti
-        const showReviewAll = (canApprove || canPay) && isMulti
-
-        const approveButtons = showApproveDecline ? (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleApprove}
-              disabled={!!actionLoading}
-              className="cursor-pointer bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
-            >
-              {actionLoading === 'approve' ? 'Approving…' : 'Approve'}
-            </button>
-            <button
-              onClick={handleDecline}
-              disabled={!!actionLoading}
-              className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-            >
-              {actionLoading === 'decline' ? 'Declining…' : 'Decline'}
-            </button>
-          </div>
-        ) : null
-        const payNowButton = showPayNow ? (
-          <button
-            onClick={handlePayNow}
-            disabled={actionLoading === 'pay'}
-            className="cursor-pointer bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {actionLoading === 'pay' ? 'Redirecting…' : 'Pay now'}
-          </button>
-        ) : null
-        const reviewAllButton = showReviewAll ? (
-          <Link
-            to={`/account/money/${booking.payment_id}`}
-            className="inline-flex items-center bg-white text-gray-900 text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50"
-          >
-            Review all bookings ({siblings.length}) →
-          </Link>
-        ) : null
-        const heroAction = approveButtons || payNowButton || reviewAllButton
-
-        let heroExtra = null
-        if (isMulti && !heroAction) {
-          heroExtra = (
-            <Link
-              to={`/account/money/${booking.payment_id}`}
-              className="inline-flex items-center gap-1 text-xs font-medium underline opacity-80 hover:opacity-100"
-            >
-              1 of {siblings.length} bookings on payment →
-            </Link>
-          )
-        }
-        return (
-          <DetailHero
-            icon={Calendar}
-            tone={badge.tone}
-            primary={heroPrimary}
-            status={badge.label}
-            secondary={booking.services?.name || 'Booking'}
-            extra={heroExtra}
-            action={heroAction}
-          />
-        )
-      })()}
+      <DetailHero
+        icon={Calendar}
+        tone={badge.tone}
+        primary={heroPrimary}
+        status={badge.label}
+        secondary={booking.services?.name || 'Booking'}
+        extra={heroExtra}
+        action={heroAction}
+      />
 
       <div className="space-y-3">
         {isWalker && booking.users?.postcode && (
@@ -271,10 +210,7 @@ export default function BookingDetail() {
             secondary={isWalker
               ? (booking.users?.name || 'Customer')
               : (booking.walker_profiles?.business_name || 'Walker')}
-            onClick={async () => {
-              const id = await ensureConversation(booking.walker_id, booking.client_id)
-              if (id) navigate(`/account/messages/${id}`)
-            }}
+            onClick={openConversation}
           />
         )}
         {booking.pets && (
@@ -324,7 +260,6 @@ export default function BookingDetail() {
             state={{ from: `/account/bookings/${booking.id}` }}
           />
         )}
-
       </div>
 
       {cancellable && (

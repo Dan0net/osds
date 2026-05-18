@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { supabase } from '../../lib/supabase'
+import {
+  useUpdateUserProfile, useUpdateWalkerProfile, useCreateWalkerProfile,
+} from '../../lib/queries/profile'
 import ImageUpload from '../../components/ImageUpload'
 
 export default function AccountProfile() {
@@ -19,10 +21,14 @@ export default function AccountProfile() {
     theme_color: '#4f46e5',
   })
   const [saved, setSaved] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [creatingWalker, setCreatingWalker] = useState(false)
   const [searchParams] = useSearchParams()
+
+  const updateUser = useUpdateUserProfile(user?.id)
+  const updateWalker = useUpdateWalkerProfile(walkerProfile?.id)
+  const createWalker = useCreateWalkerProfile()
+  const saving = updateUser.isPending || updateWalker.isPending
+  const creatingWalker = createWalker.isPending
 
   useEffect(() => {
     if (profile) {
@@ -49,17 +55,12 @@ export default function AccountProfile() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
-    setSaving(true)
     try {
-      const { error: userErr } = await supabase
-        .from('users')
-        .update({
-          name: form.name,
-          phone: form.phone,
-          avatar_url: form.avatar_url,
-        })
-        .eq('id', user.id)
-      if (userErr) throw userErr
+      await updateUser.mutateAsync({
+        name: form.name,
+        phone: form.phone,
+        avatar_url: form.avatar_url,
+      })
 
       if (walkerProfile) {
         const wpUpdate = {
@@ -69,7 +70,6 @@ export default function AccountProfile() {
           postcode: form.postcode || null,
           theme_color: form.theme_color,
         }
-        // Geocode postcode if changed
         if (form.postcode && form.postcode !== walkerProfile.postcode) {
           try {
             const geoRes = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(form.postcode.trim())}`)
@@ -83,20 +83,14 @@ export default function AccountProfile() {
           wpUpdate.lat = null
           wpUpdate.lng = null
         }
-        const { error: wpErr } = await supabase
-          .from('walker_profiles')
-          .update(wpUpdate)
-          .eq('user_id', user.id)
-        if (wpErr) throw wpErr
+        await updateWalker.mutateAsync(wpUpdate)
       }
 
-      await refreshProfile()
+      await refreshProfile?.()
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
       setError(err.message)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -105,28 +99,22 @@ export default function AccountProfile() {
       setError('Please enter your name first')
       return
     }
-    setCreatingWalker(true)
     setError(null)
     try {
       const slug = form.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
-      const { error: wpErr } = await supabase
-        .from('walker_profiles')
-        .insert({
-          user_id: user.id,
-          slug,
-          business_name: form.name + "'s Dog Walking",
-          calendar_feed_token: crypto.randomUUID(),
-        })
-      if (wpErr) throw wpErr
-      await refreshProfile()
+      await createWalker.mutateAsync({
+        user_id: user.id,
+        slug,
+        business_name: form.name + "'s Dog Walking",
+        calendar_feed_token: crypto.randomUUID(),
+      })
+      await refreshProfile?.()
       navigate('/account')
     } catch (err) {
       setError(err.message)
-    } finally {
-      setCreatingWalker(false)
     }
   }
 

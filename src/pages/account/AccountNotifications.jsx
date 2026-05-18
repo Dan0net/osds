@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useUserProfile, useUpdateUserProfile } from '../../lib/queries/profile'
 import { usePushSubscription } from '../../hooks/usePushSubscription'
 
 const PREF_ITEMS = [
@@ -26,6 +26,8 @@ const DEFAULT_PREFS = {
 
 export default function AccountNotifications() {
   const { user } = useAuth()
+  const profileQuery = useUserProfile(user?.id)
+  const updateProfile = useUpdateUserProfile(user?.id)
   const {
     subscription: pushSub,
     supported: pushSupported,
@@ -37,15 +39,10 @@ export default function AccountNotifications() {
   const hasInteracted = useRef(false)
 
   useEffect(() => {
-    if (!user) return
-    let cancelled = false
-    supabase.from('users').select('notification_preferences').eq('id', user.id).single()
-      .then(({ data }) => {
-        if (cancelled || hasInteracted.current) return
-        setPrefs({ ...DEFAULT_PREFS, ...(data?.notification_preferences || {}) })
-      })
-    return () => { cancelled = true }
-  }, [user?.id])
+    if (hasInteracted.current) return
+    const serverPrefs = profileQuery.data?.notification_preferences
+    if (serverPrefs) setPrefs({ ...DEFAULT_PREFS, ...serverPrefs })
+  }, [profileQuery.data?.notification_preferences])
 
   async function togglePref(key) {
     if (!user) return
@@ -57,11 +54,11 @@ export default function AccountNotifications() {
     if (isPushKey && turningOn && !pushSub && pushSupported) {
       subscribePush()
     }
-    const { error } = await supabase
-      .from('users')
-      .update({ notification_preferences: updated })
-      .eq('id', user.id)
-    if (error) console.error('Failed to save notification prefs:', error)
+    try {
+      await updateProfile.mutateAsync({ notification_preferences: updated })
+    } catch (err) {
+      console.error('Failed to save notification prefs:', err)
+    }
   }
 
   return (

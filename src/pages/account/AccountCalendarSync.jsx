@@ -1,43 +1,32 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { apiFetch } from '../../lib/api'
+import { useIcalImports, useValidateIcalUrl, useAddIcalImport, useRemoveIcalImport } from '../../lib/queries/ical'
+import { useUpdateWalkerProfile } from '../../lib/queries/profile'
 
 export default function AccountCalendarSync() {
   const { walkerProfile } = useAuth()
+  const importsQuery = useIcalImports(walkerProfile?.id)
+  const validateUrl = useValidateIcalUrl()
+  const addImport = useAddIcalImport(walkerProfile?.id)
+  const removeImport = useRemoveIcalImport()
+  const updateProfile = useUpdateWalkerProfile(walkerProfile?.id)
 
-  const [icalImports, setIcalImports] = useState([])
+  const icalImports = importsQuery.data || []
   const [importForm, setImportForm] = useState({ label: '', url: '' })
   const [importError, setImportError] = useState(null)
-  const [importValidating, setImportValidating] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const feedUrl = walkerProfile
     ? `https://${import.meta.env.VITE_DOMAIN || 'onestopdog.shop'}/cal/${walkerProfile.id}/${walkerProfile.calendar_feed_token || 'not-set'}.ics`
     : ''
 
+  // Lazily generate a calendar_feed_token on first visit if missing.
   useEffect(() => {
-    if (!walkerProfile) return
-    loadIcalImports()
-    if (!walkerProfile.calendar_feed_token) {
-      const token = crypto.randomUUID()
-      supabase
-        .from('walker_profiles')
-        .update({ calendar_feed_token: token })
-        .eq('id', walkerProfile.id)
-    }
-  }, [walkerProfile?.id])
+    if (!walkerProfile || walkerProfile.calendar_feed_token) return
+    updateProfile.mutate({ calendar_feed_token: crypto.randomUUID() })
+  }, [walkerProfile?.id, walkerProfile?.calendar_feed_token])
 
-  async function loadIcalImports() {
-    const { data } = await supabase
-      .from('ical_imports')
-      .select('*')
-      .eq('walker_id', walkerProfile.id)
-      .order('created_at')
-    setIcalImports(data || [])
-  }
-
-  async function addIcalImport() {
+  async function handleAddIcal() {
     setImportError(null)
     if (!importForm.label.trim() || !importForm.url.trim()) {
       setImportError('Label and URL are required')
@@ -47,13 +36,8 @@ export default function AccountCalendarSync() {
       setImportError('URL must start with https://')
       return
     }
-
-    setImportValidating(true)
     try {
-      const res = await apiFetch('validate-ical-url', {
-        method: 'POST',
-        body: JSON.stringify({ url: importForm.url.trim() }),
-      })
+      const res = await validateUrl.mutateAsync(importForm.url.trim())
       if (!res.data?.valid) {
         setImportError(res.data?.error || 'Could not validate URL')
         return
@@ -61,26 +45,19 @@ export default function AccountCalendarSync() {
     } catch {
       setImportError('Failed to validate URL')
       return
-    } finally {
-      setImportValidating(false)
     }
-
-    const { error } = await supabase.from('ical_imports').insert({
-      walker_id: walkerProfile.id,
-      label: importForm.label.trim(),
-      url: importForm.url.trim(),
-    })
-    if (error) {
-      setImportError(error.message)
-      return
+    try {
+      await addImport.mutateAsync({ label: importForm.label.trim(), url: importForm.url.trim() })
+      setImportForm({ label: '', url: '' })
+    } catch (err) {
+      setImportError(err.message)
     }
-    setImportForm({ label: '', url: '' })
-    await loadIcalImports()
   }
 
-  async function removeIcalImport(id) {
-    await supabase.from('ical_imports').delete().eq('id', id)
-    await loadIcalImports()
+  async function handleRegenerateToken() {
+    if (!confirm('Regenerating will invalidate the current feed URL. Any calendars subscribed to it will stop updating. Continue?')) return
+    await updateProfile.mutateAsync({ calendar_feed_token: crypto.randomUUID() })
+    window.location.reload()
   }
 
   function handleCopy() {
@@ -89,19 +66,11 @@ export default function AccountCalendarSync() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  async function handleRegenerateToken() {
-    if (!confirm('Regenerating will invalidate the current feed URL. Any calendars subscribed to it will stop updating. Continue?')) return
-    const newToken = crypto.randomUUID()
-    await supabase
-      .from('walker_profiles')
-      .update({ calendar_feed_token: newToken })
-      .eq('id', walkerProfile.id)
-    window.location.reload()
-  }
-
   if (!walkerProfile) {
     return <p className="text-sm text-gray-500">Calendar sync is only available for walkers.</p>
   }
+
+  const validating = validateUrl.isPending || addImport.isPending
 
   return (
     <div className="space-y-4">
@@ -121,7 +90,7 @@ export default function AccountCalendarSync() {
                     {imp.url.length > 50 ? imp.url.slice(0, 50) + '...' : imp.url}
                   </span>
                 </div>
-                <button onClick={() => removeIcalImport(imp.id)} className="text-red-500 text-sm hover:text-red-600 ml-2 shrink-0">
+                <button onClick={() => removeImport.mutate(imp.id)} className="text-red-500 text-sm hover:text-red-600 ml-2 shrink-0">
                   Remove
                 </button>
               </div>
@@ -149,11 +118,11 @@ export default function AccountCalendarSync() {
             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
           />
           <button
-            onClick={addIcalImport}
-            disabled={importValidating}
+            onClick={handleAddIcal}
+            disabled={validating}
             className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
           >
-            {importValidating ? 'Validating...' : 'Add'}
+            {validating ? 'Validating...' : 'Add'}
           </button>
         </div>
         {importError && <p className="text-red-600 text-sm mt-2">{importError}</p>}

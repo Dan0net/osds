@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { clientPriceCents } from '../lib/utils'
 import Modal from './Modal'
+import { Spinner } from '../shared/Spinner'
 
 function localDateStr(d) {
   const y = d.getFullYear()
@@ -651,7 +652,7 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
         >
           {loadingSlots && (
             <div className="absolute inset-0 bg-white/70 z-30 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <Spinner size="sm" />
             </div>
           )}
 

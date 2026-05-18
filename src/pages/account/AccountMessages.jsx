@@ -1,44 +1,29 @@
-import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../../lib/supabase'
+import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { getUnreadCounts, markAllConversationsRead } from '../../lib/messaging'
+import { useConversations, useMarkAllConversationsRead } from '../../lib/queries/messages'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
 import ConversationRow from '../../components/account/ConversationRow'
 import ListDetailLayout from '../../components/account/ListDetailLayout'
 import ListPaneHeader, { ListPaneSubrow } from '../../components/account/ListPaneHeader'
 import FilterPills from '../../components/account/FilterPills'
+import { Spinner } from '../../shared/Spinner'
 
 export default function AccountMessages() {
   const { user, walkerProfile } = useAuth()
   const isWalker = !!walkerProfile
-  const [conversations, setConversations] = useState([])
-  const [loading, setLoading] = useState(true)
   const [unreadOnly, setUnreadOnly] = useState(false)
 
-  useEffect(() => {
-    if (!user) return
-    load()
-    window.addEventListener('message-received', load)
-    return () => window.removeEventListener('message-received', load)
-  }, [user?.id, walkerProfile?.id])
+  const conversationsQuery = useConversations(user?.id)
+  const markAllRead = useMarkAllConversationsRead(user?.id)
+  const conversations = conversationsQuery.data || []
+  const loading = conversationsQuery.isLoading
 
-  async function load() {
-    setLoading(true)
-    const [convosRes, counts] = await Promise.all([
-      supabase
-        .from('conversations')
-        .select(`
-          id, walker_id, client_id, last_message_at, last_message_preview,
-          walker_profiles(business_name, slug),
-          users:client_id(name, avatar_url)
-        `)
-        .order('last_message_at', { ascending: false }),
-      getUnreadCounts(user.id),
-    ])
-    const withUnread = (convosRes.data || []).map((c) => ({ ...c, unread_count: counts.get(c.id) || 0 }))
-    setConversations(withUnread)
-    setLoading(false)
-  }
+  // Bridge: legacy `message-received` event triggers a refetch.
+  useEffect(() => {
+    const refetch = () => conversationsQuery.refetch()
+    window.addEventListener('message-received', refetch)
+    return () => window.removeEventListener('message-received', refetch)
+  }, [conversationsQuery])
 
   useAutoSelectFirst({ items: conversations, getHref: (c) => `/account/messages/${c.id}` })
 
@@ -48,11 +33,10 @@ export default function AccountMessages() {
   )
   const unreadTotal = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations])
 
-  async function handleMarkAllRead() {
+  function handleMarkAllRead() {
     const ids = conversations.filter((c) => c.unread_count > 0).map((c) => c.id)
     if (!ids.length) return
-    setConversations((prev) => prev.map((c) => ({ ...c, unread_count: 0 })))
-    await markAllConversationsRead(user.id, ids)
+    markAllRead.mutate(ids)
   }
 
   const listHeader = (
@@ -83,7 +67,7 @@ export default function AccountMessages() {
   )
 
   const list = loading ? (
-    <p className="text-sm text-gray-400 px-3 py-3">Loading…</p>
+    <div className="flex justify-center py-8"><Spinner /></div>
   ) : filtered.length === 0 ? (
     <p className="text-sm text-gray-400 px-3 py-3">{unreadOnly ? 'No unread conversations.' : 'No conversations yet.'}</p>
   ) : (

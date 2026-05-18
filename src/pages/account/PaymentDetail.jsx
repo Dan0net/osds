@@ -1,18 +1,21 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { User, PawPrint, CreditCard, Trash2 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { createCheckout, cancelBooking, apiFetch } from '../../lib/api'
 import { paymentStatusBadge, bookingStatusBadge, toneClass, toneColor } from '../../lib/bookingStatus'
 import { displayPaymentAmount, displayServicePrice } from '../../lib/utils'
-import { markPaymentRead } from '../../lib/payments'
+import {
+  usePayment, usePaymentBookings, usePaymentRefunds,
+  usePayNowCheckout, useMarkPaymentRead,
+} from '../../lib/queries/payments'
+import { useApproveBooking, useDeclineBooking, useCancelBooking } from '../../lib/queries/bookings'
 import DetailHeader from '../../components/account/DetailHeader'
 import DetailHero from '../../components/account/DetailHero'
 import LinkRow from '../../components/account/LinkRow'
 import BookingCard from '../../components/account/BookingCard'
 import ConfirmModal from '../../components/ConfirmModal'
 import PaidSuccessModal from '../../components/account/PaidSuccessModal'
+import { PageSpinner } from '../../shared/Spinner'
 
 const CANCELLABLE = new Set(['requested', 'approved', 'hold', 'confirmed', 'pending'])
 
@@ -28,20 +31,32 @@ export default function PaymentDetail() {
     return 'Money'
   })()
 
-  const [payment, setPayment] = useState(null)
-  const [bookings, setBookings] = useState([])
-  const [refunds, setRefunds] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(null)
   const [cancelAllOpen, setCancelAllOpen] = useState(false)
   const [cancelBookingTarget, setCancelBookingTarget] = useState(null)
   const [paySuccessOpen, setPaySuccessOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
 
+  const paymentQuery = usePayment(paymentId)
+  const bookingsQuery = usePaymentBookings(paymentId)
+  const refundsQuery = usePaymentRefunds(paymentId)
+  const payNow = usePayNowCheckout()
+  const approveAll = useApproveBooking()
+  const declineAll = useDeclineBooking()
+  const cancelMutation = useCancelBooking()
+  const markRead = useMarkPaymentRead(user?.id)
+
+  const payment = paymentQuery.data
+  const bookings = bookingsQuery.data || []
+  const refunds = refundsQuery.data || []
+  const loading = paymentQuery.isLoading || bookingsQuery.isLoading
+
+  const actionLoading = payNow.isPending ? 'pay'
+    : approveAll.isPending ? 'approve'
+    : declineAll.isPending ? 'decline'
+    : cancelMutation.isPending ? 'cancel' : null
+
   useEffect(() => {
-    if (!user) return
-    load()
-    markPaymentRead(paymentId, user.id)
+    if (user?.id && paymentId) markRead.mutate(paymentId)
   }, [user?.id, paymentId])
 
   useEffect(() => {
@@ -52,109 +67,35 @@ export default function PaymentDetail() {
     setSearchParams(searchParams, { replace: true })
   }, [])
 
-  async function load() {
-    setLoading(true)
-    const [paymentRes, bookingsRes, refundsRes] = await Promise.all([
-      supabase
-        .from('payments')
-        .select('*, walker_profiles(slug, business_name, theme_color, user_id), users!payments_client_id_fkey(name, email)')
-        .eq('id', paymentId)
-        .single(),
-      supabase
-        .from('bookings')
-        .select(`
-          *,
-          services(name, price_cents, duration_minutes, service_type),
-          pets(name, breed)
-        `)
-        .eq('payment_id', paymentId)
-        .order('booking_date', { ascending: true })
-        .order('start_time', { ascending: true }),
-      supabase
-        .from('refunds')
-        .select('*')
-        .eq('payment_id', paymentId)
-        .order('created_at', { ascending: true }),
-    ])
-
-    setPayment(paymentRes.data || null)
-    setBookings(bookingsRes.data || [])
-    setRefunds(refundsRes.data || [])
-    setLoading(false)
-  }
-
   const isWalker = walkerProfile && payment?.walker_profiles?.user_id === user?.id
   const isClient = payment?.client_id === user?.id
 
   async function handlePayNow() {
-    setActionLoading('pay')
-    const res = await createCheckout(paymentId)
-    if (res.data?.url) {
-      window.location.href = res.data.url
-    }
-    setActionLoading(null)
+    const res = await payNow.mutateAsync(paymentId)
+    if (res?.data?.url) window.location.href = res.data.url
   }
 
-  async function handleApproveAll() {
-    setActionLoading('approve')
-    const res = await apiFetch('approve-booking', {
-      method: 'POST',
-      body: JSON.stringify({ payment_id: paymentId }),
-    })
-    if (!res.error) {
-      window.dispatchEvent(new Event('account-data-mutated'))
-      await load()
-    }
-    setActionLoading(null)
-  }
-
-  async function handleDeclineAll() {
-    setActionLoading('decline')
-    const res = await apiFetch('decline-booking', {
-      method: 'POST',
-      body: JSON.stringify({ payment_id: paymentId }),
-    })
-    if (!res.error) {
-      window.dispatchEvent(new Event('account-data-mutated'))
-      await load()
-    }
-    setActionLoading(null)
-  }
+  function handleApproveAll() { approveAll.mutate({ payment_id: paymentId }) }
+  function handleDeclineAll() { declineAll.mutate({ payment_id: paymentId }) }
 
   async function handleCancelAll() {
-    setActionLoading('cancel')
-    const res = await cancelBooking({ payment_id: paymentId })
-    if (!res.error) {
-      window.dispatchEvent(new Event('account-data-mutated'))
-      await load()
-    }
-    setActionLoading(null)
+    await cancelMutation.mutateAsync({ payment_id: paymentId })
     setCancelAllOpen(false)
   }
 
   async function handleCancelOne() {
     if (!cancelBookingTarget) return
-    setActionLoading('cancel')
-    const res = await cancelBooking({ booking_id: cancelBookingTarget.id })
-    if (!res.error) {
-      window.dispatchEvent(new Event('account-data-mutated'))
-      await load()
-    }
-    setActionLoading(null)
+    await cancelMutation.mutateAsync({ booking_id: cancelBookingTarget.id })
     setCancelBookingTarget(null)
   }
 
-  // Group refunds by booking id for inline display
   const refundsByBooking = useMemo(() => {
     const map = new Map()
     const unattributed = []
     for (const r of refunds) {
       if (r.status !== 'succeeded' && r.status !== 'pending') continue
       const ids = Array.isArray(r.booking_ids) ? r.booking_ids : []
-      if (ids.length === 0) {
-        unattributed.push(r)
-        continue
-      }
+      if (ids.length === 0) { unattributed.push(r); continue }
       const perBooking = Math.round(r.amount_cents / ids.length)
       for (const bid of ids) {
         if (!map.has(bid)) map.set(bid, [])
@@ -164,13 +105,8 @@ export default function PaymentDetail() {
     return { perBooking: map, unattributed }
   }, [refunds])
 
-  if (loading) {
-    return <p className="text-center py-16 text-gray-500">Loading payment…</p>
-  }
-
-  if (!payment) {
-    return <p className="text-center py-16 text-gray-500">Payment not found.</p>
-  }
+  if (loading) return <PageSpinner />
+  if (!payment) return <p className="text-center py-16 text-gray-500">Payment not found.</p>
 
   const badge = paymentStatusBadge(payment)
   const canPay = isClient && payment.status === 'awaiting_payment'
@@ -344,7 +280,6 @@ export default function PaymentDetail() {
             ))}
           </div>
         </div>
-
       </div>
 
       {(() => {
