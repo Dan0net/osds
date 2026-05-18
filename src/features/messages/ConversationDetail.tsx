@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { format, isSameDay, isToday, isYesterday, parseISO } from 'date-fns'
 import { useAuth } from '@/auth/useAuth'
 import { useConversation, useSendMessage, useMarkConversationRead, useConversationUnreadCount } from '@/queries/messages'
 import { usePaymentsByIds } from '@/queries/payments'
@@ -7,6 +8,16 @@ import DetailHeader from '@/shared/detail/DetailHeader'
 import MessageBubble from '@/features/messages/MessageBubble'
 import MessageComposer from '@/features/messages/MessageComposer'
 import { Spinner } from '@/shared/Spinner'
+
+function DateSeparator({ date }) {
+  const d = parseISO(date)
+  const label = isToday(d) ? 'Today' : isYesterday(d) ? 'Yesterday' : format(d, 'd MMM')
+  return (
+    <div className="flex justify-center">
+      <span className="bg-gray-100 text-gray-600 text-xs rounded-full px-3 py-1">{label}</span>
+    </div>
+  )
+}
 
 function extractPaymentIds(messages) {
   const ids = new Set()
@@ -143,16 +154,22 @@ export default function ConversationDetail() {
           ) : messages.length === 0 ? (
             <p className="text-sm text-gray-400 text-center">No messages yet. Say hi.</p>
           ) : (
-            messages.map((m) => (
-              <MessageBubble
-                key={m.id}
-                message={m}
-                isSelf={m.sender_user_id === user.id}
-                paymentMap={paymentMap}
-                latestMessageIdByPayment={latestMessageIdByPayment}
-                isOwner={!isWalker}
-              />
-            ))
+            messages.map((m, i) => {
+              const prev = messages[i - 1]
+              const showDate = !prev || !isSameDay(parseISO(prev.created_at), parseISO(m.created_at))
+              return (
+                <Fragment key={m.id}>
+                  {showDate && <DateSeparator date={m.created_at} />}
+                  <MessageBubble
+                    message={m}
+                    isSelf={m.sender_user_id === user.id}
+                    paymentMap={paymentMap}
+                    latestMessageIdByPayment={latestMessageIdByPayment}
+                    isOwner={!isWalker}
+                  />
+                </Fragment>
+              )
+            })
           )}
         </div>
       </div>
