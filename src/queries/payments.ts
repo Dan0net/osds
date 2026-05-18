@@ -48,7 +48,7 @@ export function useWalkerPayments(walkerProfileId: string | undefined) {
 export function usePayment(paymentId: string | undefined) {
   const enabled = !!paymentId
   const queryKey = ['payment', paymentId] as const
-  useRealtimeInvalidate({ table: 'payments', filter: enabled ? `id=eq.${paymentId}` : null, queryKey, enabled })
+  useRealtimeInvalidate({ table: 'payments', queryKey, enabled })
   return useQuery({
     queryKey,
     enabled,
