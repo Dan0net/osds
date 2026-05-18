@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/auth/useAuth'
-import { useIcalImports, useValidateIcalUrl, useAddIcalImport, useRemoveIcalImport } from '@/queries/ical'
+import { useIcalImports, useValidateIcalUrl, useAddIcalImport, useRemoveIcalImport, useProbeExternalEvents } from '@/queries/ical'
 import { useUpdateWalkerProfile } from '@/queries/profile'
 import Button from '@/shared/form/Button'
 import { TextInput } from '@/shared/form/Input'
@@ -12,6 +12,7 @@ export default function AccountCalendarSync() {
   const addImport = useAddIcalImport(walkerProfile?.id)
   const removeImport = useRemoveIcalImport()
   const updateProfile = useUpdateWalkerProfile(walkerProfile?.id)
+  const probeCalendar = useProbeExternalEvents(walkerProfile?.id)
 
   const icalImports = importsQuery.data || []
   const [importForm, setImportForm] = useState({ label: '', url: '' })
@@ -51,6 +52,7 @@ export default function AccountCalendarSync() {
     try {
       await addImport.mutateAsync({ label: importForm.label.trim(), url: importForm.url.trim() })
       setImportForm({ label: '', url: '' })
+      probeCalendar.mutate()
     } catch (err) {
       setImportError(err.message)
     }
@@ -72,7 +74,14 @@ export default function AccountCalendarSync() {
     return <p className="text-sm text-gray-500">Calendar sync is only available for walkers.</p>
   }
 
-  const validating = validateUrl.isPending || addImport.isPending
+  const validating = validateUrl.isPending || addImport.isPending || probeCalendar.isPending
+  const buttonLabel = validateUrl.isPending
+    ? 'Validating…'
+    : addImport.isPending
+      ? 'Adding…'
+      : probeCalendar.isPending
+        ? 'Syncing…'
+        : 'Add'
 
   return (
     <div className="space-y-4">
@@ -120,7 +129,7 @@ export default function AccountCalendarSync() {
             className="text-sm flex-1"
           />
           <Button onClick={handleAddIcal} disabled={validating} size="sm">
-            {validating ? 'Validating...' : 'Add'}
+            {buttonLabel}
           </Button>
         </div>
         {importError && <p className="text-red-600 text-sm mt-2">{importError}</p>}

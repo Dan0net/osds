@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/utils/supabase'
 import { resolveWalker } from '@/utils/walker'
+import { useAuth } from '@/auth/useAuth'
 import { clientPriceCents } from '@/utils/pricing'
 import AvailabilityCalendar from '@/features/calendar/AvailabilityCalendar'
+import { useProbeOnMount } from '@/queries/ical'
 import { formatGBP } from '@/utils/formatting'
 import { ChevronLeft, Clock, Moon } from 'lucide-react'
 
@@ -11,11 +13,15 @@ export default function ServiceBooking() {
   const { walker: walkerParam, serviceId } = useParams()
   const slug = walkerParam || resolveWalker(window.location.hostname)
   const prefix = walkerParam ? `/w/${walkerParam}` : ''
+  const { user } = useAuth()
 
   const [walker, setWalker] = useState(null)
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // Probe walker's external calendar — auth-gated to prevent anonymous abuse.
+  useProbeOnMount((walker as any)?.id, !!user)
 
   useEffect(() => {
     if (!slug) { setLoading(false); return }

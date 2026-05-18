@@ -1,7 +1,8 @@
 import dns from 'dns/promises'
 import IcalExpander from 'ical-expander'
 
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000 // 6 hours
+const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
+const PROBE_THROTTLE_MS = 30 * 1000 // per-walker server-side dedupe window
 const FETCH_TIMEOUT_MS = 10_000
 const MAX_BODY_BYTES = 10_000_000 // 10MB
 const WINDOW_DAYS = 30
@@ -216,7 +217,7 @@ async function refreshCacheSingle(supabase, importRow) {
   const result = await fetchIcalUrl(importRow.url, { lastModified: existing?.last_modified })
 
   if (result.error) {
-    return { events: existing?.events_json || [], error: `${importRow.label}: ${result.error}` }
+    return { events: existing?.events_json || [], error: `${importRow.label}: ${result.error}`, changed: false }
   }
 
   if (result.notModified) {
@@ -224,15 +225,17 @@ async function refreshCacheSingle(supabase, importRow) {
       .from('ical_cache')
       .update({ fetched_at: new Date().toISOString() })
       .eq('import_id', importRow.id)
-    return { events: existing?.events_json || [], error: null }
+    return { events: existing?.events_json || [], error: null, changed: false }
   }
 
   let events
   try {
     events = parseIcsEvents(result.rawText)
   } catch {
-    return { events: [], error: `${importRow.label}: Failed to parse calendar data` }
+    return { events: [], error: `${importRow.label}: Failed to parse calendar data`, changed: false }
   }
+
+  const changed = JSON.stringify(events) !== JSON.stringify(existing?.events_json || [])
 
   await supabase
     .from('ical_cache')
@@ -243,7 +246,7 @@ async function refreshCacheSingle(supabase, importRow) {
       fetched_at: new Date().toISOString(),
     })
 
-  return { events, error: null }
+  return { events, error: null, changed }
 }
 
 async function fetchAndParseSingle(supabase, importRow, { allowStale = false } = {}) {
@@ -256,13 +259,13 @@ async function fetchAndParseSingle(supabase, importRow, { allowStale = false } =
   const isFresh = cached && (Date.now() - new Date(cached.fetched_at).getTime()) < CACHE_TTL_MS
 
   if (isFresh) {
-    return { events: cached.events_json, error: null }
+    return { events: cached.events_json, error: null, changed: false }
   }
 
   // Stale cache available — return it immediately and refresh in background
   if (allowStale && cached) {
     refreshCacheSingle(supabase, importRow).catch(() => {})
-    return { events: cached.events_json, error: null }
+    return { events: cached.events_json, error: null, changed: false }
   }
 
   // No cache or not in stale-ok mode — fetch synchronously
@@ -296,4 +299,60 @@ export async function fetchExternalEvents(supabase, walkerId, { allowStale = fal
   }
 
   return { events: allEvents, errors: allErrors }
+}
+
+/**
+ * On-demand probe for a walker's calendars. Throttled per-walker via
+ * walker_profiles.last_external_probe_at — concurrent calls within
+ * PROBE_THROTTLE_MS collapse to one external fetch.
+ *
+ * Bumps walker_profiles.external_events_updated_at only when content
+ * actually changed (drives FE realtime invalidation).
+ */
+export async function probeWalkerCalendars(supabase, walkerId) {
+  const { data: walker } = await supabase
+    .from('walker_profiles')
+    .select('last_external_probe_at')
+    .eq('id', walkerId)
+    .single()
+
+  if (walker?.last_external_probe_at) {
+    const sinceLast = Date.now() - new Date(walker.last_external_probe_at).getTime()
+    if (sinceLast < PROBE_THROTTLE_MS) {
+      return { throttled: true, changed: false, errors: [] }
+    }
+  }
+
+  const now = new Date().toISOString()
+  await supabase
+    .from('walker_profiles')
+    .update({ last_external_probe_at: now })
+    .eq('id', walkerId)
+
+  const { data: imports } = await supabase
+    .from('ical_imports')
+    .select('*')
+    .eq('walker_id', walkerId)
+
+  if (!imports || imports.length === 0) {
+    return { throttled: false, changed: false, errors: [] }
+  }
+
+  const errors = []
+  let anyChanged = false
+
+  const results = await Promise.all(imports.map((imp) => refreshCacheSingle(supabase, imp)))
+  for (const r of results) {
+    if (r.error) errors.push(r.error)
+    if (r.changed) anyChanged = true
+  }
+
+  if (anyChanged) {
+    await supabase
+      .from('walker_profiles')
+      .update({ external_events_updated_at: new Date().toISOString() })
+      .eq('id', walkerId)
+  }
+
+  return { throttled: false, changed: anyChanged, errors }
 }

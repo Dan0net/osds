@@ -6,6 +6,7 @@ import { useOwnerWalkers } from '@/queries/walkers'
 import { usePets, useCreatePet } from '@/queries/pets'
 import { useServices } from '@/queries/services'
 import { useCreateBookingRequest } from '@/queries/bookings'
+import { useProbeExternalEvents } from '@/queries/ical'
 import { slotNetCents } from '@common/pricing'
 import { clientPriceCents } from '@/utils/pricing'
 import Modal from '@/shared/modal/Modal'
@@ -37,6 +38,7 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
   const servicesQuery = useServices(walker?.id, { activeOnly: true })
   const createPet = useCreatePet()
   const createBooking = useCreateBookingRequest()
+  const probeCalendar = useProbeExternalEvents(walker?.id)
 
   const walkers = useMemo(() => (walkersQuery.data || []).map((w) => w.walker), [walkersQuery.data])
   const pets = petsQuery.data || []
@@ -52,6 +54,12 @@ export default function OwnerBookingForm({ open, onClose, onCreated, initialWalk
     setError(null)
     setSubmitting(false)
   }, [open])
+
+  // Probe external calendar when modal is open with a walker picked, or walker changes
+  useEffect(() => {
+    if (!open || !walker?.id) return
+    probeCalendar.mutate()
+  }, [open, walker?.id])
 
   // Auto-select pet when there's only one.
   useEffect(() => {

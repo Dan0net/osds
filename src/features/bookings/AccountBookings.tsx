@@ -5,7 +5,8 @@ import { format, parseISO, addDays, startOfMonth, differenceInCalendarDays } fro
 import { useAuth } from '@/auth/useAuth'
 import { bookingStatusBadge, toneColor } from '@/utils/bookingStatus'
 import { useClientBookings, useWalkerBookings } from '@/queries/bookings'
-import { useExternalEvents } from '@/queries/ical'
+import { useExternalEvents, useProbeOnMount } from '@/queries/ical'
+import SyncSpinner from '@/shared/SyncSpinner'
 import { useServicesCount } from '@/queries/services'
 import { useWalkerCustomers } from '@/queries/customers'
 import { useOwnerWalkers } from '@/queries/walkers'
@@ -36,6 +37,7 @@ export default function AccountBookings() {
   const clientBookingsQuery = useClientBookings(user?.id)
   const walkerBookingsQuery = useWalkerBookings(walkerProfile?.id)
   const externalEventsQuery = useExternalEvents(walkerProfile?.id)
+  useProbeOnMount(walkerProfile?.id, isWalker)
   const servicesCountQuery = useServicesCount(walkerProfile?.id)
   const customersQuery = useWalkerCustomers(walkerProfile?.id)
   const ownerWalkersQuery = useOwnerWalkers(!isWalker ? user?.id : null)
@@ -127,14 +129,17 @@ export default function AccountBookings() {
   )
 
   const addButton = (isWalker || ownerWalkersCount > 0) ? (
-    <Button
-      onClick={() => setCreateBookingModal(true)}
-      aria-label={isWalker ? 'Add booking' : 'Request booking'}
-      className="h-8 px-3"
-    >
-      <Plus size={16} />
-      {isWalker ? 'Add booking' : 'Request booking'}
-    </Button>
+    <div className="flex items-center gap-2">
+      <SyncSpinner walkerId={walkerProfile?.id} />
+      <Button
+        onClick={() => setCreateBookingModal(true)}
+        aria-label={isWalker ? 'Add booking' : 'Request booking'}
+        className="h-8 px-3"
+      >
+        <Plus size={16} />
+        {isWalker ? 'Add booking' : 'Request booking'}
+      </Button>
+    </div>
   ) : null
 
   const sidebar = (
@@ -159,6 +164,7 @@ export default function AccountBookings() {
       <div className="flex items-center justify-between mb-3 gap-2">
         <h1 className="text-xl truncate">{format(visibleMonth, 'MMMM yyyy')}</h1>
         <div className="flex items-center gap-2 shrink-0">
+          <SyncSpinner walkerId={walkerProfile?.id} />
           <button
             onClick={handleTodayClick}
             className="cursor-pointer h-9 px-3 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"

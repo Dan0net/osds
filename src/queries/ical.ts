@@ -1,6 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient, useIsMutating } from '@tanstack/react-query'
 import { supabase } from '@/utils/supabase'
 import { apiFetch } from '@/utils/functions'
+import { queryClient } from './queryClient'
+import { useRealtimeInvalidate } from './realtime'
 
 export function useIcalImports(walkerProfileId) {
   const enabled = !!walkerProfileId
@@ -20,12 +23,19 @@ export function useIcalImports(walkerProfileId) {
 }
 
 // External events: gated to avoid the slow Netlify hop when no calendars are connected.
-export function useExternalEvents(walkerProfileId) {
+// Refresh signal comes from walker_profiles.external_events_updated_at via realtime.
+export function useExternalEvents(walkerProfileId: string | undefined) {
   const enabled = !!walkerProfileId
+  useRealtimeInvalidate({
+    table: 'walker_profiles',
+    filter: walkerProfileId ? `id=eq.${walkerProfileId}` : null,
+    queryKey: ['external-events', walkerProfileId],
+    enabled,
+  })
   return useQuery({
     queryKey: ['external-events', walkerProfileId],
     enabled,
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
     queryFn: async () => {
       const { count } = await supabase
         .from('ical_imports')
@@ -47,6 +57,35 @@ function useIcalMutation<TVars>(fn: (vars: TVars) => Promise<unknown>) {
       queryClient.invalidateQueries({ queryKey: ['external-events'] })
     },
   })
+}
+
+export function useProbeExternalEvents(walkerId: string | undefined) {
+  return useMutation({
+    mutationKey: ['probe-external', walkerId],
+    mutationFn: async () => {
+      if (!walkerId) return null
+      return apiFetch('probe-external-events', {
+        method: 'POST',
+        body: JSON.stringify({ walker_id: walkerId }),
+      })
+    },
+    onSuccess: () => {
+      if (walkerId) queryClient.invalidateQueries({ queryKey: ['external-events', walkerId] })
+    },
+  })
+}
+
+export function useIsProbingExternal(walkerId: string | undefined) {
+  const count = useIsMutating({ mutationKey: ['probe-external', walkerId] })
+  return count > 0
+}
+
+export function useProbeOnMount(walkerId: string | undefined, enabled = true) {
+  const probe = useProbeExternalEvents(walkerId)
+  useEffect(() => {
+    if (!enabled || !walkerId) return
+    probe.mutate()
+  }, [enabled, walkerId])
 }
 
 export function useValidateIcalUrl() {

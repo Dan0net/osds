@@ -5,7 +5,9 @@ import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { clientPriceCents } from '@/utils/pricing'
 import Modal from '@/shared/modal/Modal'
 import { Spinner } from '@/shared/Spinner'
+import SyncSpinner from '@/shared/SyncSpinner'
 import { formatGBP, formatWeekday, formatMonthYear } from '@/utils/formatting'
+import { supabase } from '@/utils/supabase'
 
 function localDateStr(d) {
   const y = d.getFullYear()
@@ -154,6 +156,25 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
   // --- Pre-fetch availability ---
   const [allSlotData, setAllSlotData] = useState({}) // { [date]: { slots, allSlots } }
   const [fetchedRange, setFetchedRange] = useState(null) // { start, end }
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Realtime: refetch when the walker's external calendar bumps.
+  useEffect(() => {
+    if (!walkerId) return
+    const channel = supabase
+      .channel(`avail-realtime:${walkerId}`)
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'walker_profiles', filter: `id=eq.${walkerId}` },
+        (payload: any) => {
+          if (payload.new?.external_events_updated_at !== payload.old?.external_events_updated_at) {
+            setRefreshKey((k) => k + 1)
+          }
+        },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [walkerId])
 
   const fetchRange = useCallback(async (startDate, endDate, signal) => {
     const params = new URLSearchParams({
@@ -192,6 +213,23 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
     })
     return () => controller.abort()
   }, [walkerId, fetchRange])
+
+  // Realtime-triggered refetch: replace currently-fetched range with fresh data,
+  // preserving the user's current view (don't snap back to today's window).
+  const fetchedRangeRef = useRef(fetchedRange)
+  useEffect(() => { fetchedRangeRef.current = fetchedRange }, [fetchedRange])
+
+  useEffect(() => {
+    if (!walkerId || refreshKey === 0) return
+    const range = fetchedRangeRef.current
+    if (!range) return
+    const controller = new AbortController()
+    fetchRange(range.start, range.end, controller.signal).then((data) => {
+      if (controller.signal.aborted) return
+      setAllSlotData((prev) => ({ ...prev, ...data }))
+    })
+    return () => controller.abort()
+  }, [walkerId, fetchRange, refreshKey])
 
   // Visible range — used to trigger refetch when the user navigates out of the prefetched window
   const visStart = isMobile ? currentPaneDates[0] : weekDates[0]
@@ -730,7 +768,10 @@ export default function AvailabilityCalendar({ services, walkerId, initialServic
         <button onClick={handlePrev} disabled={prevDisabled} aria-label="Previous" className="cursor-pointer p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30">
           <ChevronLeft size={18} />
         </button>
-        <span className="text-sm font-semibold text-gray-900">{headerLabel}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-900">{headerLabel}</span>
+          <SyncSpinner walkerId={walkerId} />
+        </div>
         <button onClick={handleNext} aria-label="Next" className="cursor-pointer p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800">
           <ChevronRight size={18} />
         </button>

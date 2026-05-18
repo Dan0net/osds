@@ -7,6 +7,7 @@ import { useWalkerCustomers, useAddCustomerWithPets } from '@/queries/customers'
 import { usePets, useCreatePet } from '@/queries/pets'
 import { useServices, useCreateService } from '@/queries/services'
 import { useWalkerCreateBooking } from '@/queries/bookings'
+import { useProbeExternalEvents } from '@/queries/ical'
 import { slotNetCents } from '@common/pricing'
 import Modal from '@/shared/modal/Modal'
 import AvailabilityCalendar from '@/features/calendar/AvailabilityCalendar'
@@ -39,6 +40,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
 
   const customersQuery = useWalkerCustomers(open ? walkerProfile?.id : null)
   const servicesQuery = useServices(open ? walkerProfile?.id : null, { activeOnly: true })
+  const probeCalendar = useProbeExternalEvents(walkerProfile?.id)
   const petsQuery = usePets(customer?.id)
   const addCustomer = useAddCustomerWithPets()
   const createPet = useCreatePet()
@@ -54,7 +56,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
   const services = servicesQuery.data || []
   const customerPets = petsQuery.data || []
 
-  // Reset on open/close
+  // Reset on open/close + fire external-calendar probe so step 2 calendar is fresh
   useEffect(() => {
     if (!open) return
     setStep(1)
@@ -66,6 +68,7 @@ export default function BookingForm({ open, onClose, onCreated }: any) {
     setError(null)
     setSubmitting(false)
     setCreatedData(null)
+    if (walkerProfile?.id) probeCalendar.mutate()
   }, [open])
 
   useEffect(() => {
