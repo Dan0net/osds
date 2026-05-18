@@ -190,6 +190,8 @@ export default function PaymentDetail() {
             icon={User}
             label="Walker"
             value={payment.walker_profiles.business_name || 'Walker'}
+            to={payment.walker_id ? `/account/walkers/${payment.walker_id}` : null}
+            state={stateBack}
           />
         )}
         {firstPet && (
