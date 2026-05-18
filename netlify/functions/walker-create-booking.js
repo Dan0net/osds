@@ -1,9 +1,6 @@
-import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatSlots, bookingsListHtml } from './lib/notify.js'
 import { slotNetCents, clientPriceCents } from './lib/pricing.js'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -34,7 +31,7 @@ export async function handler(event) {
   // Verify walker
   const { data: wp } = await supabase
     .from('walker_profiles')
-    .select('id, stripe_account_id, stripe_charges_enabled, business_name')
+    .select('id, stripe_charges_enabled, business_name')
     .eq('user_id', user.id)
     .single()
 
@@ -170,59 +167,6 @@ export async function handler(event) {
     bookingIds.push(booking.id)
   }
 
-  // If send_link mode, create checkout session
-  let checkoutUrl = null
-  if (!isCash) {
-    const lineItems = slots.map((slot) => {
-      const svc = serviceMap[slot.serviceId]
-      const isOvernight = slot.isOvernight && slot.endDate
-      const nights = isOvernight
-        ? Math.round((new Date(slot.endDate) - new Date(slot.date)) / (1000 * 60 * 60 * 24))
-        : 1
-      // Per-unit net (one-night equivalent for overnights, full slot for standard)
-      // so Stripe's quantity stays meaningful.
-      const perUnitNet = slotNetCents(svc, {
-        petCount,
-        isHoliday: !!slot.isHoliday,
-        isOvernight: false, // ignore multi-night here; quantity carries it
-        nights: 1,
-      })
-      const dateStr = new Date(slot.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-      return {
-        price_data: {
-          currency: 'gbp',
-          unit_amount: clientPriceCents(perUnitNet),
-          product_data: { name: `${svc.name} — ${dateStr}` },
-        },
-        quantity: isOvernight ? nights : 1,
-      }
-    })
-
-    const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      line_items: lineItems,
-      payment_intent_data: {
-        application_fee_amount: platformFeeCents,
-        transfer_data: { destination: wp.stripe_account_id },
-      },
-      success_url: `${siteUrl}/account/money/${payment.id}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/account/money/${payment.id}?payment=cancelled`,
-      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-      metadata: {
-        payment_id: payment.id,
-        platform_fee_cents: platformFeeCents.toString(),
-      },
-    })
-
-    await adminSupabase
-      .from('payments')
-      .update({ stripe_session_id: session.id })
-      .eq('id', payment.id)
-
-    checkoutUrl = session.url
-  }
-
   // Notify client
   const serviceNames = [...new Set(slots.map((s) => serviceMap[s.serviceId]?.name || 'a service'))].join(', ')
   const when = formatSlots(slots)
@@ -257,6 +201,7 @@ export async function handler(event) {
       },
     })
   } else {
+    const siteUrl = process.env.SITE_URL || 'https://onestopdog.shop'
     await notify(adminSupabase, {
       walkerId: wp.id,
       clientId: client_id,
@@ -271,7 +216,7 @@ export async function handler(event) {
           `<strong>${esc(wp.business_name)}</strong> has booked the following for you:`,
           bookingsTable,
           'Tap below to complete payment securely on Stripe — you don\'t need to sign in first.',
-        ], 'Pay now', checkoutUrl),
+        ], 'Pay now', `${siteUrl}/.netlify/functions/pay-redirect?payment_id=${payment.id}`),
       },
     })
   }
@@ -283,7 +228,6 @@ export async function handler(event) {
       data: {
         bookingIds,
         paymentId: payment.id,
-        checkoutUrl,
       },
     }),
   }
