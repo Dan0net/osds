@@ -150,9 +150,13 @@ export default function BookingDetail() {
       <DetailHero
         icon={Calendar}
         tone={badge.tone}
-        primary={heroPrimary}
+        primary={booking.services?.name || 'Booking'}
         status={badge.label}
-        secondary={booking.services?.name || 'Booking'}
+        secondary={[
+          heroPrimary,
+          isWalker ? booking.users?.name : null,
+          booking.pets?.name,
+        ].filter(Boolean).join(' · ')}
         extra={heroExtra}
         action={heroAction}
       />
