@@ -12,6 +12,7 @@ const REQUIREMENT_LABELS: Record<string, string> = {
   'external_account': 'Bank account',
   'tos_acceptance.date': 'Accept terms of service',
   'tos_acceptance.ip': 'Accept terms of service',
+  'business_type': 'Business type',
   'business_profile.url': 'Business website',
   'business_profile.mcc': 'Business category',
   'business_profile.product_description': 'Business description',
@@ -27,6 +28,16 @@ const REQUIREMENT_LABELS: Record<string, string> = {
   'individual.last_name': 'Legal name',
   'individual.email': 'Email',
   'individual.phone': 'Phone number',
+  'representative.first_name': 'Representative name',
+  'representative.last_name': 'Representative name',
+  'representative.email': 'Representative email',
+  'representative.phone': 'Representative phone',
+  'representative.dob.day': 'Representative date of birth',
+  'representative.dob.month': 'Representative date of birth',
+  'representative.dob.year': 'Representative date of birth',
+  'representative.address.line1': 'Representative address',
+  'representative.address.city': 'Representative address',
+  'representative.address.postal_code': 'Representative address',
 }
 
 function humanRequirements(keys: string[]): string[] {
@@ -162,11 +173,6 @@ export default function AccountStripe() {
                 </p>
               ) : (
                 <>
-                  {due.length > 0 && (
-                    <p className="text-sm text-gray-600">
-                      Still needed: <span className="font-medium">{due.join(', ')}</span>
-                    </p>
-                  )}
                   <div className="flex items-center gap-3">
                     <Button type="button" disabled={stripeLoading} onClick={handleConnect} size="sm">
                       {stripeLoading ? 'Redirecting…' : 'Continue Stripe setup'}
@@ -179,6 +185,14 @@ export default function AccountStripe() {
                       Start over
                     </button>
                   </div>
+                  {due.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      <p className="font-medium text-gray-700 mb-1.5">Stripe setup still requires:</p>
+                      <ul className="list-disc list-inside space-y-0.5 marker:text-gray-400">
+                        {due.map((label) => <li key={label}>{label}</li>)}
+                      </ul>
+                    </div>
+                  )}
                 </>
               )}
             </div>
