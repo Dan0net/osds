@@ -1,5 +1,27 @@
 import { createClient } from '@supabase/supabase-js'
 import { notify, emailTemplate, esc, formatDateTime } from './lib/notify.js'
+import { clientPriceCents } from './lib/pricing.js'
+
+async function reconcilePaymentAfterDecline(adminSupabase, paymentId) {
+  if (!paymentId) return
+  const { data: payment } = await adminSupabase
+    .from('payments')
+    .select('id, status')
+    .eq('id', paymentId)
+    .single()
+  if (!payment || (payment.status !== 'pending_approval' && payment.status !== 'awaiting_payment')) return
+
+  const { data: active } = await adminSupabase
+    .from('bookings')
+    .select('id, services(price_cents)')
+    .eq('payment_id', paymentId)
+    .not('status', 'in', '(cancelled,declined,refunded)')
+
+  const newTotal = (active || []).reduce((sum, b) => sum + clientPriceCents(b.services?.price_cents || 0), 0)
+  const update = { total_cents: newTotal }
+  if (newTotal === 0) update.status = 'cancelled'
+  await adminSupabase.from('payments').update(update).eq('id', paymentId)
+}
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -53,8 +75,9 @@ export async function handler(event) {
       return { statusCode: 500, body: JSON.stringify({ error: 'Failed to decline bookings' }) }
     }
 
-    // Notify client
     const adminSupabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    await reconcilePaymentAfterDecline(adminSupabase, payment_id)
+
     const { data: wp } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', bookings[0].walker_id).single()
     const walkerName = wp?.business_name || 'Your walker'
     await notify(adminSupabase, {
@@ -111,8 +134,9 @@ export async function handler(event) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Failed to decline booking' }) }
   }
 
-  // Notify client
   const adminSupabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  await reconcilePaymentAfterDecline(adminSupabase, updated.payment_id)
+
   const { data: wp } = await adminSupabase.from('walker_profiles').select('business_name').eq('id', updated.walker_id).single()
   const { data: svc } = await adminSupabase.from('services').select('name').eq('id', updated.service_id).single()
   const wName = wp?.business_name || 'Your walker'
