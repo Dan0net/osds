@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useConversations, useMarkAllConversationsRead } from '../../lib/queries/messages'
 import { useAutoSelectFirst } from '../../hooks/useAutoSelectFirst'
@@ -17,13 +17,6 @@ export default function AccountMessages() {
   const markAllRead = useMarkAllConversationsRead(user?.id)
   const conversations = conversationsQuery.data || []
   const loading = conversationsQuery.isLoading
-
-  // Bridge: legacy `message-received` event triggers a refetch.
-  useEffect(() => {
-    const refetch = () => conversationsQuery.refetch()
-    window.addEventListener('message-received', refetch)
-    return () => window.removeEventListener('message-received', refetch)
-  }, [conversationsQuery])
 
   useAutoSelectFirst({ items: conversations, getHref: (c) => `/account/messages/${c.id}` })
 

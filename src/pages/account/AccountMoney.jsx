@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { paymentStatusBadge, toneClass, toneColor } from '../../lib/bookingStatus'
 import { displayPaymentAmount } from '../../lib/utils'
@@ -33,13 +33,6 @@ export default function AccountMoney() {
   const loading = clientQuery.isLoading || (wp && walkerQuery.isLoading)
   const unreadIds = unreadQuery.data || []
   const unreadSet = useMemo(() => new Set(unreadIds), [unreadIds])
-
-  // Bridge legacy event so unread count refreshes when individual payments are marked read elsewhere.
-  useEffect(() => {
-    const onRead = () => unreadQuery.refetch()
-    window.addEventListener('payments-read', onRead)
-    return () => window.removeEventListener('payments-read', onRead)
-  }, [unreadQuery])
 
   const payments = useMemo(() => {
     const merged = [

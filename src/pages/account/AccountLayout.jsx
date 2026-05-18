@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, matchPath } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { useTotalUnreadConversations, useInboundMessagesChannel } from '../../lib/queries/messages'
+import { useTotalUnreadConversations } from '../../lib/queries/messages'
 import { useUnreadPaymentIds, usePaidCelebration } from '../../lib/queries/payments'
 import InstallPrompt from '../../components/InstallPrompt'
 import Sidebar from '../../components/account/Sidebar'
@@ -21,24 +21,8 @@ export default function AccountLayout() {
   const unreadPaymentsQuery = useUnreadPaymentIds(user?.id)
   const { celebration, dismiss: dismissCelebration } = usePaidCelebration(walkerProfile?.id)
 
-  useInboundMessagesChannel(user?.id)
-
   const unreadCount = unreadConversationsQuery.data || 0
   const unreadPayments = unreadPaymentsQuery.data || []
-
-  // Bridge legacy "notifications-read" event so unread counts refresh when a
-  // conversation is marked read elsewhere.
-  useEffect(() => {
-    const onRead = () => unreadConversationsQuery.refetch()
-    window.addEventListener('notifications-read', onRead)
-    return () => window.removeEventListener('notifications-read', onRead)
-  }, [unreadConversationsQuery])
-
-  useEffect(() => {
-    const onRead = () => unreadPaymentsQuery.refetch()
-    window.addEventListener('payments-read', onRead)
-    return () => window.removeEventListener('payments-read', onRead)
-  }, [unreadPaymentsQuery])
 
   useEffect(() => {
     if (localStorage.getItem('install-prompt-dismissed')) return

@@ -4,7 +4,6 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import './index.css'
 import App from './App'
 import { queryClient, persister } from './lib/queries/queryClient'
-import { GlobalEventBridge } from './lib/queries/GlobalEventBridge'
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault()
@@ -18,7 +17,6 @@ createRoot(document.getElementById('root')).render(
       client={queryClient}
       persistOptions={{ persister, maxAge: 24 * 60 * 60 * 1000 }}
     >
-      <GlobalEventBridge />
       <App />
     </PersistQueryClientProvider>
   </StrictMode>,

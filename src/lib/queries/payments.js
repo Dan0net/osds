@@ -99,27 +99,23 @@ export function usePaymentRefunds(paymentId) {
   })
 }
 
-// Returns an array of payment ids the user has not yet seen the latest state of.
-// Array (not Set) so it serializes cleanly into the IDB cache.
 export function useUnreadPaymentIds(userId) {
   const enabled = !!userId
+  const queryKey = ['unread-payment-ids', userId]
+  useRealtimeInvalidate({ table: 'payments', queryKey, enabled })
+  useRealtimeInvalidate({
+    table: 'payment_reads',
+    filter: enabled ? `user_id=eq.${userId}` : null,
+    queryKey,
+    enabled,
+  })
   return useQuery({
-    queryKey: ['unread-payment-ids', userId],
+    queryKey,
     enabled,
     queryFn: async () => {
-      const { data: payments } = await supabase.from('payments').select('id, updated_at')
-      if (!payments || payments.length === 0) return []
-      const { data: reads } = await supabase
-        .from('payment_reads')
-        .select('payment_id, last_seen_at')
-        .eq('user_id', userId)
-      const readMap = new Map((reads || []).map((r) => [r.payment_id, r.last_seen_at]))
-      const unread = []
-      for (const p of payments) {
-        const lastSeen = readMap.get(p.id)
-        if (!lastSeen || lastSeen < p.updated_at) unread.push(p.id)
-      }
-      return unread
+      const { data, error } = await supabase.rpc('get_unread_payment_ids')
+      if (error) throw error
+      return (data || []).map((r) => r.payment_id)
     },
   })
 }
@@ -131,35 +127,33 @@ export function usePayNowCheckout() {
   })
 }
 
-function usePaymentMutation(fn) {
+export function useMarkPaymentRead(userId) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: fn,
+    mutationFn: async (paymentId) => {
+      if (!paymentId || !userId) return
+      await supabase.from('payment_reads').upsert({
+        payment_id: paymentId, user_id: userId, last_seen_at: new Date().toISOString(),
+      })
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] })
-      queryClient.invalidateQueries({ queryKey: ['payment'] })
       queryClient.invalidateQueries({ queryKey: ['unread-payment-ids'] })
     },
   })
 }
 
-export function useMarkPaymentRead(userId) {
-  return usePaymentMutation(async (paymentId) => {
-    if (!paymentId || !userId) return
-    await supabase.from('payment_reads').upsert({
-      payment_id: paymentId, user_id: userId, last_seen_at: new Date().toISOString(),
-    })
-    window.dispatchEvent(new Event('payments-read'))
-  })
-}
-
 export function useMarkAllPaymentsRead(userId) {
-  return usePaymentMutation(async (paymentIds) => {
-    if (!userId || !paymentIds?.length) return
-    const now = new Date().toISOString()
-    const rows = paymentIds.map((id) => ({ payment_id: id, user_id: userId, last_seen_at: now }))
-    await supabase.from('payment_reads').upsert(rows)
-    window.dispatchEvent(new Event('payments-read'))
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (paymentIds) => {
+      if (!userId || !paymentIds?.length) return
+      const now = new Date().toISOString()
+      const rows = paymentIds.map((id) => ({ payment_id: id, user_id: userId, last_seen_at: now }))
+      await supabase.from('payment_reads').upsert(rows)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unread-payment-ids'] })
+    },
   })
 }
 
@@ -169,15 +163,10 @@ export function useStripeDashboardLink() {
   })
 }
 
-// Tracks new paid payments arriving for a walker via Realtime, emitting a
-// "celebration" event once per new id. Returns { celebration, dismiss }.
 export function usePaidCelebration(walkerProfileId) {
   const [celebration, setCelebration] = useState(null)
   const seenPaidIds = useRef(new Set())
-  const queryClient = useQueryClient()
 
-  // Seed the seen-set with the walker's existing paid payments so we don't
-  // celebrate ones that were paid before this session.
   useEffect(() => {
     if (!walkerProfileId) return
     let cancelled = false
@@ -193,41 +182,31 @@ export function usePaidCelebration(walkerProfileId) {
     return () => { cancelled = true }
   }, [walkerProfileId])
 
-  // Subscribe to ALL payment changes for this user (any walker_id or client_id).
-  // Realtime is broad here because the events feed into multiple caches; the
-  // celebration filter happens locally.
   useEffect(() => {
     if (!walkerProfileId) return
     const channel = supabase
       .channel(`payments-celebration-${walkerProfileId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'payments' },
+        { event: '*', schema: 'public', table: 'payments', filter: `walker_id=eq.${walkerProfileId}` },
         async (payload) => {
-          queryClient.invalidateQueries({ queryKey: ['payments'] })
-          queryClient.invalidateQueries({ queryKey: ['unread-payment-ids'] })
           const row = payload.new
-          if (
-            row?.walker_id === walkerProfileId &&
-            row?.status === 'paid' &&
-            !seenPaidIds.current.has(row.id)
-          ) {
-            seenPaidIds.current.add(row.id)
-            const { data } = await supabase
-              .from('payments')
-              .select('id, total_cents, platform_fee_cents, refunded_amount_cents, users!payments_client_id_fkey(name)')
-              .eq('id', row.id)
-              .maybeSingle()
-            setCelebration({
-              amountCents: walkerTakeFromPayment(data || row),
-              counterpart: data?.users?.name || null,
-            })
-          }
+          if (row?.status !== 'paid' || seenPaidIds.current.has(row.id)) return
+          seenPaidIds.current.add(row.id)
+          const { data } = await supabase
+            .from('payments')
+            .select('id, total_cents, platform_fee_cents, refunded_amount_cents, users!payments_client_id_fkey(name)')
+            .eq('id', row.id)
+            .maybeSingle()
+          setCelebration({
+            amountCents: walkerTakeFromPayment(data || row),
+            counterpart: data?.users?.name || null,
+          })
         },
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [walkerProfileId, queryClient])
+  }, [walkerProfileId])
 
   return { celebration, dismiss: () => setCelebration(null) }
 }

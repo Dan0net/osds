@@ -58,24 +58,11 @@ export default function ConversationDetail() {
 
   const scrollRef = useRef(null)
 
-  // Bridge legacy `message-received` event so optimistic state aligns with server pushes.
-  useEffect(() => {
-    function handleIncoming(e) {
-      const msg = e.detail
-      if (!msg || msg.conversation_id !== conversationId) return
-      if (msg.sender_user_id === user?.id) return
-      conversationQuery.refetch()
-      if (user?.id) markRead.mutate(conversationId)
-    }
-    window.addEventListener('message-received', handleIncoming)
-    return () => window.removeEventListener('message-received', handleIncoming)
-  }, [user?.id, conversationId, conversationQuery, markRead])
-
-  // Mark read on initial load.
+  // Mark read on initial load and whenever a new server message arrives.
   useEffect(() => {
     if (!user?.id || !conversationId || loading) return
     markRead.mutate(conversationId)
-  }, [user?.id, conversationId, loading])
+  }, [user?.id, conversationId, loading, serverMessages.length])
 
   // Reconcile pending messages once they arrive from the server.
   useEffect(() => {

@@ -14,10 +14,6 @@ const DETAIL_SELECT = `
   users!bookings_client_id_fkey(name, email, phone, postcode)
 `
 
-function dispatchMutated() {
-  window.dispatchEvent(new Event('account-data-mutated'))
-}
-
 export function useClientBookings(clientId) {
   const enabled = !!clientId
   const queryKey = ['bookings', 'client', clientId]
@@ -100,7 +96,6 @@ function useBookingMutation(fn) {
       queryClient.invalidateQueries({ queryKey: ['booking'] })
       queryClient.invalidateQueries({ queryKey: ['payments'] })
       queryClient.invalidateQueries({ queryKey: ['payment'] })
-      dispatchMutated()
     },
   })
 }
