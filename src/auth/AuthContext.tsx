@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '@/utils/supabase'
+import { apiFetch } from '@/utils/functions'
 
 export const AuthContext = createContext(null)
 
@@ -29,6 +30,24 @@ export function AuthProvider({ children }) {
       .eq('user_id', userId)
       .maybeSingle()
     setWalkerProfile(data)
+    if (data?.postcode && data.lat == null) {
+      backfillGeocode(data.id, data.postcode)
+    }
+  }
+
+  async function backfillGeocode(walkerId, postcode) {
+    const geo = await apiFetch('geocode-postcode', {
+      method: 'POST',
+      body: JSON.stringify({ postcode }),
+    })
+    if (!geo?.data || geo.data.lat == null) return
+    const { data } = await supabase
+      .from('walker_profiles')
+      .update({ lat: geo.data.lat, lng: geo.data.lng })
+      .eq('id', walkerId)
+      .select('*')
+      .maybeSingle()
+    if (data) setWalkerProfile(data)
   }
 
   async function loadUserData(session) {

@@ -10,7 +10,9 @@ export async function handler() {
     .from('walker_profiles')
     .select('id, slug, business_name, bio, theme_color, postcode, cover_url, users(avatar_url)')
     .not('lat', 'is', null)
-    .not('setup_completed_at', 'is', null)
+    .not('lng', 'is', null)
+    .not('stripe_account_id', 'is', null)
+    .eq('stripe_charges_enabled', true)
     .limit(10)
 
   if (wErr || !walkers || walkers.length === 0) {

@@ -304,31 +304,14 @@ export async function fetchExternalEvents(supabase, walkerId, { allowStale = fal
 /**
  * On-demand probe for a walker's calendars. Throttled per-walker via
  * walker_profiles.last_external_probe_at — concurrent calls within
- * PROBE_THROTTLE_MS collapse to one external fetch.
+ * PROBE_THROTTLE_MS collapse to one external fetch. Throttle is bypassed
+ * when any import has no cache row yet (e.g. just added by the walker),
+ * so initial sync happens immediately.
  *
  * Bumps walker_profiles.external_events_updated_at only when content
  * actually changed (drives FE realtime invalidation).
  */
 export async function probeWalkerCalendars(supabase, walkerId) {
-  const { data: walker } = await supabase
-    .from('walker_profiles')
-    .select('last_external_probe_at')
-    .eq('id', walkerId)
-    .single()
-
-  if (walker?.last_external_probe_at) {
-    const sinceLast = Date.now() - new Date(walker.last_external_probe_at).getTime()
-    if (sinceLast < PROBE_THROTTLE_MS) {
-      return { throttled: true, changed: false, errors: [] }
-    }
-  }
-
-  const now = new Date().toISOString()
-  await supabase
-    .from('walker_profiles')
-    .update({ last_external_probe_at: now })
-    .eq('id', walkerId)
-
   const { data: imports } = await supabase
     .from('ical_imports')
     .select('*')
@@ -337,6 +320,32 @@ export async function probeWalkerCalendars(supabase, walkerId) {
   if (!imports || imports.length === 0) {
     return { throttled: false, changed: false, errors: [] }
   }
+
+  const { data: cachedRows } = await supabase
+    .from('ical_cache')
+    .select('import_id')
+    .in('import_id', imports.map((i) => i.id))
+  const cachedSet = new Set((cachedRows || []).map((r) => r.import_id))
+  const hasUnsynced = imports.some((i) => !cachedSet.has(i.id))
+
+  if (!hasUnsynced) {
+    const { data: walker } = await supabase
+      .from('walker_profiles')
+      .select('last_external_probe_at')
+      .eq('id', walkerId)
+      .single()
+    if (walker?.last_external_probe_at) {
+      const sinceLast = Date.now() - new Date(walker.last_external_probe_at).getTime()
+      if (sinceLast < PROBE_THROTTLE_MS) {
+        return { throttled: true, changed: false, errors: [] }
+      }
+    }
+  }
+
+  await supabase
+    .from('walker_profiles')
+    .update({ last_external_probe_at: new Date().toISOString() })
+    .eq('id', walkerId)
 
   const errors = []
   let anyChanged = false

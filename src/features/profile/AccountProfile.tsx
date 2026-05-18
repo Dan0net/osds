@@ -8,6 +8,7 @@ import ImageUpload from '@/shared/form/ImageUpload'
 import { TextInput, TextArea, Field } from '@/shared/form/Input'
 import Button from '@/shared/form/Button'
 import Alert from '@/shared/Alert'
+import { apiFetch } from '@/utils/functions'
 
 export default function AccountProfile() {
   const { user, profile, walkerProfile, refreshProfile } = useAuth()
@@ -74,14 +75,14 @@ export default function AccountProfile() {
           theme_color: form.theme_color,
         }
         if (form.postcode && form.postcode !== walkerProfile.postcode) {
-          try {
-            const geoRes = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(form.postcode.trim())}`)
-            const geoData = await geoRes.json()
-            if (geoData.status === 200 && geoData.result) {
-              wpUpdate.lat = geoData.result.latitude
-              wpUpdate.lng = geoData.result.longitude
-            }
-          } catch { /* geocoding failed — save postcode without coordinates */ }
+          const geo = await apiFetch('geocode-postcode', {
+            method: 'POST',
+            body: JSON.stringify({ postcode: form.postcode.trim() }),
+          })
+          if (geo?.data) {
+            wpUpdate.lat = geo.data.lat
+            wpUpdate.lng = geo.data.lng
+          }
         } else if (!form.postcode) {
           wpUpdate.lat = null
           wpUpdate.lng = null

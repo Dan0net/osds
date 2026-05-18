@@ -50,7 +50,8 @@ export async function handler(event) {
     .select('id, slug, business_name, bio, theme_color, postcode, lat, lng, cover_url, users(avatar_url)')
     .not('lat', 'is', null)
     .not('lng', 'is', null)
-    .not('setup_completed_at', 'is', null)
+    .not('stripe_account_id', 'is', null)
+    .eq('stripe_charges_enabled', true)
 
   if (wErr) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Failed to fetch walkers' }) }

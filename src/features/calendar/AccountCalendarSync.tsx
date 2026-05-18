@@ -52,7 +52,7 @@ export default function AccountCalendarSync() {
     try {
       await addImport.mutateAsync({ label: importForm.label.trim(), url: importForm.url.trim() })
       setImportForm({ label: '', url: '' })
-      probeCalendar.mutate()
+      try { await probeCalendar.mutateAsync() } catch { /* sync failure is non-fatal — next visit will retry */ }
     } catch (err) {
       setImportError(err.message)
     }

@@ -811,7 +811,6 @@ export type Database = {
           notification_preferences: Json
           phone: string | null
           postcode: string | null
-          setup_completed_at: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -825,7 +824,6 @@ export type Database = {
           notification_preferences?: Json
           phone?: string | null
           postcode?: string | null
-          setup_completed_at?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -839,7 +837,6 @@ export type Database = {
           notification_preferences?: Json
           phone?: string | null
           postcode?: string | null
-          setup_completed_at?: string | null
         }
         Relationships: []
       }
@@ -856,7 +853,6 @@ export type Database = {
           lat: number | null
           lng: number | null
           postcode: string | null
-          setup_completed_at: string | null
           slug: string
           stripe_account_id: string | null
           stripe_charges_enabled: boolean
@@ -875,7 +871,6 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           postcode?: string | null
-          setup_completed_at?: string | null
           slug: string
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
@@ -894,7 +889,6 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           postcode?: string | null
-          setup_completed_at?: string | null
           slug?: string
           stripe_account_id?: string | null
           stripe_charges_enabled?: boolean
