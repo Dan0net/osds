@@ -7,15 +7,19 @@ import { useRealtimeInvalidate } from './realtime'
 
 type Celebration = { amountCents: number; counterpart: string | null } | null
 
-const paymentChildKey = (p: any) => {
+const paymentChildKeys = (p: any) => {
   const id = p?.new?.id || p?.old?.id
-  return id ? (['payment', id] as const) : null
+  if (!id) return null
+  return [
+    ['payment', id],
+    ['payment-bookings', id],
+  ]
 }
 
 export function useClientPayments(userId: string | undefined) {
   const enabled = !!userId
   const queryKey = ['payments', 'client', userId] as const
-  useRealtimeInvalidate({ table: 'payments', filter: enabled ? `client_id=eq.${userId}` : null, queryKey, enabled, childKey: paymentChildKey })
+  useRealtimeInvalidate({ table: 'payments', filter: enabled ? `client_id=eq.${userId}` : null, queryKey, enabled, childKeys: paymentChildKeys })
   return useQuery({
     queryKey,
     enabled,
@@ -34,7 +38,7 @@ export function useClientPayments(userId: string | undefined) {
 export function useWalkerPayments(walkerProfileId: string | undefined) {
   const enabled = !!walkerProfileId
   const queryKey = ['payments', 'walker', walkerProfileId] as const
-  useRealtimeInvalidate({ table: 'payments', filter: enabled ? `walker_id=eq.${walkerProfileId}` : null, queryKey, enabled, childKey: paymentChildKey })
+  useRealtimeInvalidate({ table: 'payments', filter: enabled ? `walker_id=eq.${walkerProfileId}` : null, queryKey, enabled, childKeys: paymentChildKeys })
   return useQuery({
     queryKey,
     enabled,

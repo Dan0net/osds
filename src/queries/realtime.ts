@@ -8,12 +8,12 @@ interface RealtimeArgs {
   filter?: string | null
   queryKey: QueryKey
   enabled?: boolean
-  childKey?: (payload: any) => QueryKey | null | undefined
+  childKeys?: (payload: any) => Array<QueryKey | null | undefined> | null | undefined
 }
 
-export function useRealtimeInvalidate({ table, filter, queryKey, enabled = true, childKey }: RealtimeArgs) {
-  const childKeyRef = useRef(childKey)
-  childKeyRef.current = childKey
+export function useRealtimeInvalidate({ table, filter, queryKey, enabled = true, childKeys }: RealtimeArgs) {
+  const childKeysRef = useRef(childKeys)
+  childKeysRef.current = childKeys
 
   useEffect(() => {
     if (!enabled || !table || !queryKey) return
@@ -28,8 +28,10 @@ export function useRealtimeInvalidate({ table, filter, queryKey, enabled = true,
       .channel(channelName)
       .on('postgres_changes' as any, options, (payload: any) => {
         queryClient.invalidateQueries({ queryKey })
-        const extra = childKeyRef.current?.(payload)
-        if (extra) queryClient.invalidateQueries({ queryKey: extra })
+        const extras = childKeysRef.current?.(payload)
+        if (extras) {
+          for (const k of extras) if (k) queryClient.invalidateQueries({ queryKey: k })
+        }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
