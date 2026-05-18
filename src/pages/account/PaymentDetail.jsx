@@ -6,7 +6,7 @@ import { paymentStatusBadge, bookingStatusBadge, toneClass, toneColor } from '..
 import { displayPaymentAmount, displayServicePrice } from '../../lib/utils'
 import {
   usePayment, usePaymentBookings, usePaymentRefunds,
-  usePayNowCheckout, useMarkPaymentRead,
+  usePayNowCheckout, useMarkPaymentRead, useUnreadPaymentIds,
 } from '../../lib/queries/payments'
 import { useApproveBooking, useDeclineBooking, useCancelBooking } from '../../lib/queries/bookings'
 import DetailHeader from '../../components/account/DetailHeader'
@@ -44,6 +44,8 @@ export default function PaymentDetail() {
   const declineAll = useDeclineBooking()
   const cancelMutation = useCancelBooking()
   const markRead = useMarkPaymentRead(user?.id)
+  const unreadQuery = useUnreadPaymentIds(user?.id)
+  const isUnread = Array.isArray(unreadQuery.data) && unreadQuery.data.includes(paymentId)
 
   const payment = paymentQuery.data
   const bookings = bookingsQuery.data || []
@@ -56,8 +58,9 @@ export default function PaymentDetail() {
     : cancelMutation.isPending ? 'cancel' : null
 
   useEffect(() => {
-    if (user?.id && paymentId) markRead.mutate(paymentId)
-  }, [user?.id, paymentId])
+    if (!user?.id || !paymentId || !isUnread) return
+    markRead.mutate(paymentId)
+  }, [user?.id, paymentId, isUnread])
 
   useEffect(() => {
     if (searchParams.get('payment') !== 'success') return

@@ -35,6 +35,12 @@ export function useTotalUnreadConversations(userId) {
   })
 }
 
+export function useConversationUnreadCount(userId, conversationId) {
+  return useUnreadCountsQuery(userId, {
+    select: (map) => (conversationId && map ? map[conversationId] || 0 : 0),
+  })
+}
+
 export function useConversations(userId) {
   const enabled = !!userId
   const queryKey = ['conversations', userId]

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { useConversation, useSendMessage, useMarkConversationRead } from '../../lib/queries/messages'
+import { useConversation, useSendMessage, useMarkConversationRead, useConversationUnreadCount } from '../../lib/queries/messages'
 import { usePaymentsByIds } from '../../lib/queries/payments'
 import DetailHeader from '../../components/account/DetailHeader'
 import MessageBubble from '../../components/account/MessageBubble'
@@ -26,6 +26,7 @@ export default function ConversationDetail() {
   const conversationQuery = useConversation(conversationId)
   const sendMessage = useSendMessage()
   const markRead = useMarkConversationRead(user?.id)
+  const unreadCount = useConversationUnreadCount(user?.id, conversationId).data || 0
 
   const conversation = conversationQuery.data?.conversation
   const serverMessages = conversationQuery.data?.messages || []
@@ -58,11 +59,10 @@ export default function ConversationDetail() {
 
   const scrollRef = useRef(null)
 
-  // Mark read on initial load and whenever a new server message arrives.
   useEffect(() => {
-    if (!user?.id || !conversationId || loading) return
+    if (!user?.id || !conversationId || unreadCount === 0) return
     markRead.mutate(conversationId)
-  }, [user?.id, conversationId, loading, serverMessages.length])
+  }, [user?.id, conversationId, unreadCount])
 
   // Reconcile pending messages once they arrive from the server.
   useEffect(() => {
