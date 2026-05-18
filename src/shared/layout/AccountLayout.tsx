@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
+import { usePushSubscription } from '@/auth/usePushSubscription'
 import { useTotalUnreadConversations } from '@/queries/messages'
 import { useUnreadPaymentIds, usePaidCelebration } from '@/queries/payments'
 import InstallPrompt from '@/shared/InstallPrompt'
+import NotificationPrompt from '@/shared/NotificationPrompt'
 import Sidebar from '@/shared/nav/Sidebar'
 import BottomBar from '@/shared/nav/BottomBar'
 import MoreDrawer from '@/shared/nav/MoreDrawer'
@@ -15,6 +17,9 @@ export default function AccountLayout() {
   const [moreOpen, setMoreOpen] = useState(false)
   const [installPromptVisible, setInstallPromptVisible] = useState(false)
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null)
+  const [pushPromptVisible, setPushPromptVisible] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const { supported: pushSupported, permission: pushPermission, subscribe: pushSubscribe } = usePushSubscription()
 
   const unreadConversationsQuery = useTotalUnreadConversations(user?.id)
   const unreadPaymentsQuery = useUnreadPaymentIds(user?.id)
@@ -70,17 +75,40 @@ export default function AccountLayout() {
       return
     }
     deferredInstallPrompt.prompt()
-    await deferredInstallPrompt.userChoice
+    const choice = await deferredInstallPrompt.userChoice
     setDeferredInstallPrompt(null)
     window.__deferredInstallPrompt = null
     setInstallPromptVisible(false)
+    if (choice?.outcome === 'accepted' && pushSupported && pushPermission === 'default') {
+      try { await pushSubscribe() } catch {}
+    }
+  }
+
+  useEffect(() => {
+    if (!pushSupported) return
+    if (localStorage.getItem('push-prompt-dismissed')) return
+    if (pushPermission !== 'default') { setPushPromptVisible(false); return }
+    const isStandalone = (window.navigator as any).standalone === true
+      || window.matchMedia?.('(display-mode: standalone)').matches
+    if (isStandalone) setPushPromptVisible(true)
+  }, [pushSupported, pushPermission])
+
+  function dismissPushPrompt() {
+    localStorage.setItem('push-prompt-dismissed', '1')
+    setPushPromptVisible(false)
+  }
+
+  async function handleEnablePush() {
+    setPushBusy(true)
+    try { await pushSubscribe() } finally { setPushBusy(false) }
+    setPushPromptVisible(false)
   }
 
   return (
     <div
       className="min-h-screen bg-gray-50"
       style={{
-        '--install-prompt-h': installPromptVisible ? 'calc(5rem + env(safe-area-inset-bottom))' : '0px',
+        '--install-prompt-h': (installPromptVisible || pushPromptVisible) ? 'calc(5rem + env(safe-area-inset-bottom))' : '0px',
         '--list-sidebar-w': '21rem',
       } as React.CSSProperties}
     >
@@ -99,6 +127,13 @@ export default function AccountLayout() {
         deferredPrompt={deferredInstallPrompt}
         onDismiss={dismissInstallPrompt}
         onInstall={handleInstall}
+      />
+
+      <NotificationPrompt
+        visible={pushPromptVisible && !installPromptVisible}
+        busy={pushBusy}
+        onDismiss={dismissPushPrompt}
+        onEnable={handleEnablePush}
       />
 
       <CelebrationModal
